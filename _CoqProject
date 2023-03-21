@@ -1,0 +1,11 @@
+-R src Usuba
+src/usuba_AST.v
+src/usuba_sem.v
+src/extract.v
+src/equiv_rel.v
+src/syntax.v
+src/normalization/clean.v
+src/test_sem.v
+
+# generate CoqMakefile with 
+# coq_makefile -f _CoqProject -o CoqMakefile
