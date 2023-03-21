@@ -4,7 +4,10 @@ src/usuba_sem.v
 src/extract.v
 src/equiv_rel.v
 src/syntax.v
+src/normalization/collect.v
+src/normalization/collectProof.v
 src/normalization/clean.v
+src/normalization/cleanProof.v
 src/test_sem.v
 
 # generate CoqMakefile with 
