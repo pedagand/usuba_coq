@@ -100,29 +100,23 @@ Function typ_size (t : typ) :=
 (** VARIABLES *)
 
 Inductive var :=
-    | VTuple : lvar -> var
     | Var : ident -> var
     | Index : var -> arith_expr -> var
     | Range : var -> arith_expr -> arith_expr -> var
-    | Slice : var -> list arith_expr -> var
-with lvar :=
-    | LVnil | LVcons : var -> lvar -> lvar.
+    | Slice : var -> list arith_expr -> var.
 
-Scheme var_find := Induction for var Sort Prop
-with lvar_find := Induction for lvar Sort Prop.
-    
 Function var_size (v : var) :=
     match v with
-    | VTuple vl => 1 + lvar_size vl
     | Var _ => 1
     | Index v e => 1 + var_size v + arith_expr_size e
     | Range v e1 e2 => 1 + var_size v + arith_expr_size e1 + arith_expr_size e2
     | Slice v el => 1 + var_size v + arith_expr_list_size el
-    end
-with lvar_size vl :=
-    match vl with
-    | LVnil => 0
-    | LVcons v vl => 1 + var_size v + lvar_size vl
+    end.
+
+Function list_var_size (v : list var) :=
+    match v with
+    | nil => 0
+    | hd::tl => 1 + var_size hd + list_var_size tl
     end.
 
 Fixpoint list_eq {A} (eq : A -> A -> bool) (l1 : list A) (l2 : list A) :=
@@ -233,7 +227,7 @@ Inductive stmt_opt :=
     Unroll | No_unrool | Pipelined | Safe_exit.
 
 Inductive deq :=
-    | Eqn : var -> expr -> bool -> deq
+    | Eqn : list var -> expr -> bool -> deq
     | Loop : ident -> arith_expr -> arith_expr -> list_deq -> list stmt_opt -> deq
 with list_deq :=
     | Dnil
@@ -244,7 +238,7 @@ with list_deq_find := Induction for list_deq Sort Prop.
 
 Function deq_size deq : nat :=
     match deq with
-    | Eqn v e b => 1 + var_size v + expr_size e
+    | Eqn v e b => 1 + list_var_size v + expr_size e
     | Loop id ae1 ae2 dl stmt => 1 + arith_expr_size ae1 + arith_expr_size ae2 +
         deq_list_size dl + length stmt
     end

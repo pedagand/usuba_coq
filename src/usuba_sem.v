@@ -8,65 +8,47 @@ Require Import Coq.Sets.Ensembles.
 From Usuba Require Import usuba_AST.
 
 Definition IntSize : Type := nat.
-    (* | S1 | S8 | S16 | S32 | S64
-    | S128 | S256 | S512. *)
-(* Scheme Equality for IntSize. *)
 Definition IntSize_beq := Nat.eqb.
 
-(* Definition IntSize_of_nat (n : nat) : option IntSize :=
-    if Nat.eqb n 1
-    then Some S1
-    else if Nat.eqb n 8
-    then Some S8
-    else if Nat.eqb n 16
-    then Some S16
-    else if Nat.eqb n 32
-    then Some S32
-    else if Nat.eqb n 64
-    then Some S64
-    else if Nat.eqb n 128
-    then Some S128
-    else if Nat.eqb n 256
-    then Some S256
-    else if Nat.eqb n 512
-    then Some S512
-    else None. *)
 Definition IntSize_of_nat (n : nat) : option IntSize := Some n.
 
-Inductive dir := DirH | DirV.
+Inductive dir :=
+    | DirH of IntSize
+    | DirV of IntSize
+    | DirB.
 Scheme Equality for dir.
 
-Inductive Value :=
-    | VInt : dir -> list nat -> IntSize -> Value
-    | VConst : nat -> Value
-    | ValTuple : list_Value -> Value
-with list_Value :=
-    | lV_nil : list_Value
-    | lV_cons : Value -> list_Value -> list_Value.
+Inductive cst_or_int :=
+    | CoIL : nat -> cst_or_int
+    | CoIR : dir -> list nat -> option (list nat) -> cst_or_int.
+Scheme Equality for option.
+Scheme Equality for list.
+
+Definition Value := list cst_or_int.
 
 Record architecture : Type := {
-    ARCH_ADD : IntSize -> dir -> option (nat -> nat -> nat);
-    ARCH_SUB : IntSize -> dir -> option (nat -> nat -> nat);
-    ARCH_DIV : IntSize -> dir -> option (nat -> nat -> nat);
-    ARCH_MOD : IntSize -> dir -> option (nat -> nat -> nat);
-    ARCH_MUL : IntSize -> dir -> option (nat -> nat -> nat);
+    ARCH_ADD : dir -> option (nat -> nat -> nat);
+    ARCH_SUB : dir -> option (nat -> nat -> nat);
+    ARCH_DIV : dir -> option (nat -> nat -> nat);
+    ARCH_MOD : dir -> option (nat -> nat -> nat);
+    ARCH_MUL : dir -> option (nat -> nat -> nat);
 
-    ARCH_NOT : IntSize -> dir -> option (nat -> nat);
-    ARCH_AND : IntSize -> dir -> option (nat -> nat -> nat);
-    ARCH_OR  : IntSize -> dir -> option (nat -> nat -> nat);
-    ARCH_XOR : IntSize -> dir -> option (nat -> nat -> nat);
-    ARCH_ANDN : IntSize -> dir -> option (nat -> nat -> nat);
+    ARCH_NOT : dir -> option (nat -> nat);
+    ARCH_AND : dir -> option (nat -> nat -> nat);
+    ARCH_OR  : dir -> option (nat -> nat -> nat);
+    ARCH_XOR : dir -> option (nat -> nat -> nat);
+    ARCH_ANDN : dir -> option (nat -> nat -> nat);
 
-    ARCH_LSHIFT : nat -> IntSize -> dir -> option (nat -> nat);
-    ARCH_RSHIFT  : nat -> IntSize -> dir -> option (nat -> nat);
-    ARCH_RASHIFT : nat -> IntSize -> dir -> option (nat -> nat);
-    ARCH_LROTATE : nat -> IntSize -> dir -> option (nat -> nat);
-    ARCH_RROTATE : nat -> IntSize -> dir -> option (nat -> nat);
+    ARCH_LSHIFT : nat -> dir -> option (nat -> nat);
+    ARCH_RSHIFT  : nat -> dir -> option (nat -> nat);
+    ARCH_RASHIFT : nat -> dir -> option (nat -> nat);
+    ARCH_LROTATE : nat -> dir -> option (nat -> nat);
+    ARCH_RROTATE : nat -> dir -> option (nat -> nat);
 }.
 
-Definition context : Type := list (ident * Value).
+Definition context : Type := list (ident * cst_or_int).
 
-Fixpoint find_val (ctxt : context) (i : ident) : option Value :=
+Fixpoint find_val {A : Type} (ctxt : list (ident * A)) (i : ident) : option A :=
     match ctxt  with
         | nil => None
         | ((name, val)::tl) =>
@@ -81,7 +63,7 @@ Fixpoint find_const (ctxt : context) (var : ident) : option nat :=
         | ((name, v)::tl) =>
             if String.eqb var name
             then match v with
-                | VConst i => Some i
+                | CoIL i => Some i
                 | _ => None
                 end
             else find_const tl var
@@ -102,59 +84,111 @@ Fixpoint list_map2 {A B C : Type} (op : A -> B -> C) (l1 : list A) (l2 : list B)
     | _, _ => None
     end.
 
-Function eval_binop (binop : IntSize -> dir -> option (nat -> nat -> nat)) (v1 v2 : Value) : option Value :=
+Definition eval_binop_coi (binop : dir -> option (nat -> nat -> nat)) (v1 v2 : cst_or_int) : option cst_or_int :=
     match v1 with
-        | VInt d1 i1 s1 =>
-            match v2 with
-                | VInt d2 i2 s2 =>
-                    if IntSize_beq s1 s2 && dir_beq d1 d2
-                    then
-                        op <- binop s1 d1;
-                        l <- list_map2 op i1 i2;
-                        Some (VInt d1 l s1)
-                    else None
-                | _ => None
-            end
-        |  ValTuple t1 =>
-            match v2 with
-                |  ValTuple t2 =>
-                    t <- eval_binop_tuples binop t1 t2; Some ( ValTuple t)
-                | _ => None
-            end
-        | VConst _ => None
-    end
-with eval_binop_tuples (binop : IntSize -> dir -> option (nat -> nat -> nat)) (t1 t2 : list_Value) : option (list_Value) :=
-    match t1 with
-    | lV_nil => match t2 with
-            | lV_nil => Some lV_nil
-            | _ => None
+    | CoIL i => None
+    | CoIR d1 i1 l1 =>
+        match v2 with
+        | CoIL i2 => None
+        | CoIR d2 i2 l2 =>
+            if dir_beq d1 d2
+            then
+                op <- binop d1;
+                l <- list_map2 op i1 i2;
+                Some (CoIR d1 l None)
+            else None
         end
-    | lV_cons h1 tl1 => match t2 with
-        | lV_nil => None
-        | lV_cons h2  tl2 =>
-            s <- eval_binop binop h1 h2;
-            tl <- eval_binop_tuples binop tl1 tl2;
-            Some (lV_cons s tl)
-        end
-end.
-
-Function eval_monop (monop : IntSize -> dir -> option (nat -> nat)) (v : Value) : option Value :=
-    match v with
-        | VInt d i s =>
-            op <- monop s d;
-            Some (VInt d (map op i) s)
-        |  ValTuple t =>
-            t <- eval_monop_tuples monop t; Some ( ValTuple t)
-        | VConst _ => None
-    end
-with eval_monop_tuples (monop : IntSize -> dir -> option (nat -> nat)) (t : list_Value) : option (list_Value) :=
-    match t with
-    | lV_nil => Some lV_nil
-    | lV_cons h tl =>
-        s <- eval_monop monop h;
-        tl <- eval_monop_tuples monop tl;
-        Some (lV_cons s tl)
     end.
+
+Fixpoint eval_binop (binop : dir -> option (nat -> nat -> nat)) (l1 l2 : list cst_or_int) : option (list cst_or_int) :=
+    match l1 with
+    | nil => match l2 with
+        | nil => Some nil
+        | _::_ => None
+        end
+    | h1::tl1 => match l2 with
+        | nil => None
+        | h2::tl2 =>
+            hd <- eval_binop_coi binop h1 h2;
+            tl <- eval_binop binop tl1 tl2;
+            Some (hd :: tl)
+        end
+    end.
+
+Definition eval_monop_coi (monop : dir -> option (nat -> nat)) (v : cst_or_int) : option cst_or_int :=
+    match v with
+    | CoIL _ => None
+    | CoIR d i l => 
+        op <- monop d;
+        Some (CoIR d (map op i) l)
+    end.
+
+Fixpoint eval_monop (monop : dir -> option (nat -> nat)) (v : list cst_or_int) : option (list cst_or_int) :=
+    match v with
+    | nil => Some nil
+    | hd::tl =>
+        hd' <- eval_monop_coi monop hd;
+        tl' <- eval_monop monop tl;
+        Some (hd' :: tl')
+    end.
+
+(* Fixpoint repeat_value (nb : nat) (zero : Value) : list_Value :=
+    match nb with
+    | 0 => lV_nil
+    | S nb' => lV_cons zero (repeat_value nb' zero)
+    end. *)
+
+(* Function zero_from_val (v : Value) : Value :=
+    match v with
+    | VConst n => VConst 0
+    | VInt d n l => VInt d (map (fun _ => 0) n) l
+    | VTuple l => VTuple (zero_from_valL l)
+    end
+with zero_from_valL l :=
+    match l with
+    | lV_nil => lV_nil
+    | lV_cons hd tl => lV_cons (zero_from_val hd) (zero_from_valL tl)
+    end. *)
+
+(* Definition zero_from (t : list_Value) : option Value :=
+    match t with
+    | lV_nil => None
+    | lV_cons hd _ => Some (zero_from_val hd)
+    end. *)
+
+
+Fixpoint take_n {A : Type} (nb : nat) (l : list A) : option (list A * list A) :=
+    match nb with
+    | 0 => Some (nil, l)
+    | S nb' => match l with
+        | nil => None
+        | hd :: tl =>
+            (s, e) <- take_n nb' tl;
+            Some (hd :: s, e)
+        end
+    end.
+
+
+Definition eval_shift (op : shift_op) (arch : architecture) (v : list cst_or_int) (v2 : nat) : option (list cst_or_int) :=
+    match v with
+    | CoIR d (i::nil) len::nil =>
+        f <- match op with
+            | Lshift => ARCH_LSHIFT arch v2 d
+            | Rshift => ARCH_RSHIFT arch v2 d
+            | RAshift => ARCH_RASHIFT arch v2 d
+            | Lrotate => ARCH_LROTATE arch v2 d
+            | Rrotate => ARCH_RROTATE arch v2 d
+            end;
+        Some (CoIR d (f i::nil) len::nil)
+    | CoIR d i len::nil => match op with
+        | Lshift =>
+            (hd, tl) <- take_n v2 i;
+            Some (CoIR d (app tl (map (fun => 0) hd)) len::nil)
+        | _ => None
+        end
+    | _ => None
+    end.
+
 
 Fixpoint eval_arith_expr (ctxt : context) (e : arith_expr) : option nat :=
     match e with
@@ -172,78 +206,127 @@ Fixpoint eval_arith_expr (ctxt : context) (e : arith_expr) : option nat :=
             end
     end.
 
-Fixpoint get_val_in_l (i : nat) (l : list_Value) : option Value :=
+Inductive access : Type :=
+    | AAll : access
+    | AInd : nat -> access -> access
+    | ARange : nat -> nat -> access -> access
+    | ASlice : list nat -> access -> access.
+
+(* 
+Fixpoint get_val_in_l (i : nat) (l : list_coi_tree) : option coi_tree :=
     match l with
-    | lV_nil => None
-    | lV_cons hd tl =>
+    | nil => None
+    | hd :: tl =>
         match i with
         | 0 => Some hd
         | S i' => get_val_in_l i' l
         end
     end.
 
-Fixpoint get_slice (l : list_Value) (indexes : list nat) : option (list_Value) :=
+Fixpoint get_slice (l : list_coi_tree) (indexes : list nat) : option (list_cst_or_int) :=
     match indexes with
-    | nil => Some lV_nil
+    | nil => Some nil
     | i::tl =>
         v <- get_val_in_l i l;
         tl <- get_slice l tl;
-        Some (lV_cons v tl)
+        Some (v :: tl)
     end.
 
-Fixpoint get_range (l : list_Value) (s e : nat) : option (list_Value) :=
+Fixpoint get_range (l : list cst_or_int) (s e : nat) : option (list cst_or_int) :=
     match e with
-    | 0 => Some lV_nil
+    | 0 => Some nil
     | S e' => match l with
-        | lV_nil => None
-        | lV_cons v tl => match s with
+        | nil => None
+        | v :: tl => match s with
             | 0 =>
                 tl <- get_range tl 0 e';
-                Some (lV_cons v tl)
+                Some (v :: tl)
             | S s' => get_range tl s' e'
             end
         end
-    end.
+    end. *)
 
-Function eval_var (ctxt : context) (v : var) : option Value :=
-    match v with
-    | Var v => find_val ctxt v
-    | VTuple vL =>
-        valL <- eval_vars ctxt vL;
-        Some (ValTuple valL)
-    | Index v ae =>
-        i <- eval_arith_expr ctxt ae;
-        val <- eval_var ctxt v;
-        match val with
-        | ValTuple l => get_val_in_l i l
+Fixpoint split_into_segments {A : Type} (nb_segments segment_size : nat) (l : list A) : option (list (list A)) :=
+    match nb_segments with
+    | 0 => match l with
+        | nil => Some nil
         | _ => None
         end
+    | S nb_segments' =>
+        (hd, tl) <- take_n segment_size l;
+        tl' <- split_into_segments nb_segments' segment_size tl;
+        Some (hd::tl')
+    end.
+
+(** We assert that `length values = prod_list dim` *)
+Fixpoint get_access (values : list nat) (acc : access) (dim : list nat) : option (list nat) :=
+    match dim with
+    | nil =>
+        match values with
+        | n::nil =>
+            match acc with
+            | AAll => Some values
+            | AInd 0 tl | ARange 0 0 tl => get_access values tl nil
+            | ASlice indices tl =>
+                if forallb (fun x => x =? 0) indices
+                then
+                    l <- get_access values tl nil;
+                    Some (flat_map (fun _ => l) indices)
+                else
+                    None
+            | _ => None
+            end
+        | _ => None (** Assertion not verified *)
+        end
+    | d::dim_tl =>
+        if length values mod d =? 0
+        then
+            l' <- split_into_segments d (length values / d) values;
+            match acc with
+            | AAll => Some values
+            | AInd i acc_tl =>
+                values' <- nth_error l' i;
+                get_access values' acc_tl dim_tl
+            | ARange i_start i_end acc_tl =>
+                if i_end <? i_start
+                then None
+                else
+                    (_, tl) <- take_n i_start l';
+                    (values', _) <- take_n (i_end - i_start + 1) tl;
+                    fold_right (fun v l => l' <- l; v' <- get_access v acc_tl dim_tl; Some (v' ++ l'))
+                                (Some nil) values'
+            | ASlice indices acc_tl =>
+                fold_right (fun v l => l' <- l; v' <- v; v'' <- get_access v' acc_tl dim_tl; Some (v'' ++ l'))
+                                (Some nil) (map (fun i => nth_error l' i) indices) 
+            end
+        else None (** Assertion not verified *)
+    end.
+
+Fixpoint eval_var (ctxt : context) (v : var) (acc : access) : option (list cst_or_int) :=
+    match v with
+    | Var v => 
+        val <- find_val ctxt v;
+        match val, acc with
+        | CoIR _ _ None, _ => None
+        | _, AAll => Some (val::nil)
+        | CoIL cst, _ =>
+            iL' <- get_access (cst::nil) acc nil;
+            Some (map CoIL iL')
+        | CoIR dir iL (Some dim), _ =>
+            iL' <- get_access iL acc dim;
+            Some ((CoIR dir iL' None)::nil)
+        end
+    | Index v ae =>
+        i <- eval_arith_expr ctxt ae;
+        eval_var ctxt v (AInd i acc)
     | Range v ae1 ae2 =>
         i1 <- eval_arith_expr ctxt ae1;
         i2 <- eval_arith_expr ctxt ae2;
-        val <- eval_var ctxt v;
-        match val with
-        | ValTuple l =>
-            range <- get_range l i1 i2; Some (ValTuple range)
-        | _ => None
-        end
+        eval_var ctxt v (ARange i1 i2 acc)
     | Slice v ael =>
         il <- fold_right (fun ae l =>
             l' <- l; i <- eval_arith_expr ctxt ae; Some (i::l')) (Some nil) ael;
-        val <- eval_var ctxt v;
-        match val with
-        | ValTuple l =>
-            slice <- get_slice l il; Some (ValTuple slice)
-        | _ => None
-        end
-    end
-with eval_vars ctxt vL :=
-    match vL with
-    | LVnil => Some lV_nil
-    | LVcons v vL =>
-        v <- eval_var ctxt v;
-        vL <- eval_vars ctxt vL;
-        Some (lV_cons v vL)
+        eval_var ctxt v (ASlice il acc)
     end.
 
 Function loop_rec (ctxt : context) (iter : context -> option context) i (s_i e_i : nat) : option context :=
@@ -254,73 +337,23 @@ Function loop_rec (ctxt : context) (iter : context -> option context) i (s_i e_i
         then Some ctxt
         else
             ctxt' <- loop_rec ctxt iter i s_i e_i';
-            iter ((i, VConst e_i')::ctxt')
+            iter ((i, CoIL e_i')::ctxt')
     end.
 
-Fixpoint replace_id (i : nat) (l : list_Value) (v : Value) : option list_Value :=
+Fixpoint replace_id {A : Type} (i : nat) (l : list A) (v : A) : option (list A) :=
     match l with
-    | lV_nil => None
-    | lV_cons hd tl => match i with
-        | 0 => Some (lV_cons v tl)
+    | nil => None
+    | hd :: tl => match i with
+        | 0 => Some (v :: tl)
         | S i' =>
             tl' <- replace_id i' tl v;
-            Some (lV_cons hd tl')
+            Some (hd :: tl')
         end
     end.
 
-Function bind (ctxt : context) v e :=
-    match v with
-    | VTuple vl => match e with
-        | ValTuple el => bind_list ctxt vl el
-        | _ => None
-        end
-    | Var v => Some ((v, e)::ctxt)
-    | Index (Var var) ae =>
-        i <- eval_arith_expr ctxt ae;
-        match find_val ctxt var with
-        | Some (ValTuple valL) =>
-            valL' <- replace_id i valL e;
-            Some ((var, ValTuple valL')::ctxt)
-        | _ => None
-        end
-    | _ => None
-    end
-with bind_list ctxt vl el :=
-    match vl with
-    | LVnil => match el with
-        | lV_nil => Some ctxt
-        | _ => None
-        end
-    | LVcons v vl' => match el with
-        | lV_cons e el' =>
-            ctxt' <- bind ctxt v e;
-            bind_list ctxt' vl' el'
-        | _ => None
-        end
-    end.
+Definition type_ctxt : Type := list (ident * typ).
 
-Fixpoint extract_ctxt (var_names : p) (ctxt : context) : option (list Value) :=
-    match var_names with
-    | nil => Some nil
-    | v::tl =>
-        val <- find_val ctxt (VD_ID v);
-        tl <- extract_ctxt tl ctxt;
-        Some (val::tl)
-    end.
-
-Fixpoint list_of_list_Value (vL : list_Value) : list Value :=
-    match vL with
-    | lV_nil => nil
-    | lV_cons h tl => h::list_of_list_Value tl
-    end.
-
-Fixpoint list_Value_of_list (vL : list Value) : list_Value :=
-    match vL with
-    | nil => lV_nil
-    | h::tl => lV_cons h (list_Value_of_list tl)
-    end.
-
-Definition node_sem_type := option nat -> list Value -> option (list Value).
+Definition node_sem_type := option nat -> list cst_or_int -> option (list cst_or_int).
 Definition prog_ctxt := list (ident * node_sem_type).
 
 Fixpoint get_node (prog : prog_ctxt) (id : ident) : option node_sem_type :=
@@ -331,34 +364,50 @@ Fixpoint get_node (prog : prog_ctxt) (id : ident) : option node_sem_type :=
         else get_node tl id
     end.
 
-Fixpoint build_int (n : nat) (len : nat) (size : nat) : list nat :=
-    match len with
-    | 0 => nil
-    | S len' =>
-        (n mod (2 ^ size))::build_int (n / (2 ^ size)) len' size
-    end.
-
-Definition build_integer (typ : typ) (n : nat) : option Value :=
+Definition build_integer (typ : typ) (n : nat) : option (list cst_or_int) :=
     match typ with
-    | Nat => None
-    | Uint Hslice (Mint size) len =>
+    | Nat => Some (CoIL n::nil)
+    | Uint Hslice (Mint size) 1 =>
         annot <- IntSize_of_nat size;
-        Some (VInt DirH (build_int n len size) annot)
-    | Uint Vslice (Mint size) len =>
+        Some (CoIR (DirH annot) (n::nil) (Some (1::nil))::nil)
+    | Uint Vslice (Mint size) 1 =>
         annot <- IntSize_of_nat size;
-        Some (VInt DirV (build_int n len size) annot)
-    | Uint _ (Mint size) len => None
-    | Uint _ Mnat _ => None
-    | Uint _ (Mvar _) len => None
-    | Array _ len => None
+        Some (CoIR (DirV annot) (n::nil) (Some (1::nil))::nil)
+    | _ => None (* TODO *)
     end.
 
-Function eval_expr (arch : architecture) (prog : prog_ctxt) (ctxt : context) (e : expr) : option Value :=
+Function linearize_list_value (inL : list cst_or_int) (outL : list cst_or_int) : list cst_or_int :=
+    match inL with
+    | nil => outL
+    | hd :: tl =>
+        let outL := linearize_list_value tl outL in
+        match hd with
+        | CoIR d l a => match outL with
+            | (CoIR d' l' a') :: tl =>
+                if dir_beq d d'
+                then (CoIR d (app l l') None) :: tl
+                else hd :: outL
+            | _ => hd :: outL
+            end
+        | CoIL n => (CoIL n) :: outL
+        end
+    end.
+
+Fixpoint extract_ctxt (var_names : p) (ctxt : context) : option (list cst_or_int) :=
+    match var_names with
+    | nil => Some nil
+    | v::tl =>
+        val <- find_val ctxt (VD_ID v);
+        tl <- extract_ctxt tl ctxt;
+        Some (linearize_list_value (val::nil) tl)
+    end.
+
+Function eval_expr (arch : architecture) (prog : prog_ctxt) (ctxt : context) (e : expr) : option (list cst_or_int) :=
     match e with
-        | Const n None => Some (VConst n)
+        | Const n None => Some (CoIL n::nil)
         | Const n (Some typ) => build_integer typ n
-        | ExpVar var => eval_var ctxt var
-        | Tuple el => el <- eval_expr_list arch prog ctxt el; Some ( ValTuple el)
+        | ExpVar var => eval_var ctxt var AAll
+        | Tuple el => eval_expr_list arch prog ctxt el
         | Not e =>
             v <- eval_expr arch prog ctxt e;
             eval_monop (ARCH_NOT arch) v
@@ -387,14 +436,7 @@ Function eval_expr (arch : architecture) (prog : prog_ctxt) (ctxt : context) (e 
         | Shift op e1 e2 =>
             v1 <- eval_expr arch prog ctxt e1;
             v2 <- eval_arith_expr ctxt e2;
-            let f := match op with
-                | Lshift => ARCH_LSHIFT arch
-                | Rshift => ARCH_RSHIFT arch
-                | RAshift => ARCH_RASHIFT arch
-                | Lrotate => ARCH_LROTATE arch
-                | Rrotate => ARCH_RROTATE arch
-                end
-            in eval_monop (f v2) v1
+            eval_shift op arch v1 v2
         | Shuffle v l => None
         | Bitmask e ae => None
         | Pack e1 e2 None => None
@@ -402,128 +444,253 @@ Function eval_expr (arch : architecture) (prog : prog_ctxt) (ctxt : context) (e 
         | Fun id el =>
             args <- eval_expr_list arch prog ctxt el;
             f <- get_node prog id;
-            l_val <- f None (list_of_list_Value args);
-            Some (ValTuple (list_Value_of_list l_val))
+            l_val <- f None args;
+            Some (linearize_list_value l_val nil)
         | Fun_v id ie el =>
             args <- eval_expr_list arch prog ctxt el;
             i <- eval_arith_expr ctxt ie;
             f <- get_node prog id;
-            l_val <- f (Some i) (list_of_list_Value args);
-            Some (ValTuple (list_Value_of_list l_val))
+            l_val <- f (Some i) args;
+            Some (linearize_list_value l_val nil)
     end
-with eval_expr_list (arch : architecture) (prog : prog_ctxt) (ctxt : context) (el : expr_list) : option list_Value :=
+with eval_expr_list (arch : architecture) (prog : prog_ctxt) (ctxt : context) (el : expr_list) : option (list cst_or_int) :=
     match el with
-    | Enil => Some lV_nil
+    | Enil => Some nil
     | ECons e tl =>
         v <- eval_expr arch prog ctxt e;
         tl <- eval_expr_list arch prog ctxt tl;
-        Some (lV_cons v tl)
+        Some (linearize_list_value v tl)
     end.
 
-Function eval_deq (arch : architecture) (prog : prog_ctxt) (ctxt : context) (d : deq) : option context :=
-    match d with
-    | Eqn v e b =>
-        e <- eval_expr arch prog ctxt e;
-        bind ctxt v e
-    | Loop i start_e end_e d2 opt =>
-        start_i <- eval_arith_expr ctxt start_e;
-        end_i <- eval_arith_expr ctxt end_e;
-        ctxt' <- loop_rec ctxt (fun ctxt => eval_deq_list arch prog ctxt d2) i start_i end_i;
-        match find_val ctxt i with
-        | None => Some ctxt'
-        | Some v => Some ((i, v)::ctxt')
-        end
-    end
-with eval_deq_list (arch : architecture) (prog : prog_ctxt) (ctxt : context) (dl : list_deq) : option context :=
-    match dl with
-    | Dnil => Some ctxt
-    | Dcons d dl' =>
-        ctxt' <- eval_deq arch prog ctxt d;
-        eval_deq_list arch prog ctxt' dl'
-    end.
+    Inductive int_or_list (A : Type) : Type :=
+    | IoLL : nat -> int_or_list A
+    | IoLR : list A -> int_or_list A.
 
-(* TODO *)
-
-Inductive cst_or_int :=
-    | CoIL : nat -> cst_or_int
-    | CoIR : dir -> IntSize -> list nat -> cst_or_int.
-
-Function flatten_value (val : Value) (l : list cst_or_int) : list cst_or_int :=
-    match val with
-    | VConst n => CoIL n::l
-    | ValTuple vL => flatten_valueL vL l
-    | VInt d n s => CoIR d s n::l
-    end
-with flatten_valueL (val : list_Value) (l : list cst_or_int) : list cst_or_int :=
-    match val with
-    | lV_nil => l
-    | lV_cons hd tl =>
-        flatten_value hd (flatten_valueL tl l)
-    end.
-
-Fixpoint build_ctxt_aux_take_n (nb : nat) (input : list cst_or_int) (d : dir) (annot : IntSize) : option (list_Value * list cst_or_int) :=
+Fixpoint try_take_n {A : Type} (nb : nat) (l : list A) : option ((list A) * int_or_list A) :=
     match nb with
-    | 0 => Some (lV_nil, input)
+    | 0 => Some (nil, IoLR A l)
+    | S nb' => match l with
+        | nil => Some (nil, IoLL A nb)
+        | hd :: tl =>
+            (s, e) <- try_take_n nb' tl;
+            Some (hd :: s, e)
+        end
+    end.
+
+Fixpoint build_ctxt_aux_take_n (nb : nat) (input : list cst_or_int) (d : dir) : option ((list nat) * list cst_or_int) :=
+    match nb with
+    | 0 => Some (nil, input)
     | S nb' => match input with
         | nil => None
-        | (CoIL n)::tl => None
-        | (CoIR d s n)::tl =>
-            if IntSize_beq s annot
+        | (CoIL n)::in_tl =>
+            (out, rest) <- build_ctxt_aux_take_n nb' in_tl d;
+            Some (n::out, rest)
+        | (CoIR d' iL _)::in_tl =>
+            if dir_beq d d'
             then
-                (valTL, input') <- build_ctxt_aux_take_n nb' tl d annot;
-                Some (lV_cons (VInt d n annot) valTL, input')
+                (hd, tl) <- try_take_n nb iL;
+                match tl with
+                | IoLR nil => Some (hd, in_tl)
+                | IoLR tl => Some(hd, CoIR d' tl None::in_tl)
+                | IoLL nb =>
+                    (out, rest) <- build_ctxt_aux_take_n nb in_tl d;
+                    Some (hd ++ out, rest)
+                end
             else None
         end
     end.
 
-Fixpoint build_ctxt_aux (typ : typ) (input : list cst_or_int) : option (Value * list cst_or_int) :=
+Fixpoint prod_list (l : list nat) : nat := 
+    match l with
+    | nil => 0
+    | hd::tl => hd * prod_list tl
+    end.
+
+Fixpoint build_ctxt_aux (typ : typ) (input : list cst_or_int) (l : list nat) : option (cst_or_int * list cst_or_int) :=
     match typ with
     | Nat => None
     | Uint d (Mint n) nb =>
         annot <- IntSize_of_nat n;
         d <- match d with
-            | Hslice => Some DirH
-            | Vslice => Some DirV
+            | Hslice => Some (DirH annot)
+            | Vslice => Some (DirV annot)
             | _ => None
         end;
-        (valL, input') <- build_ctxt_aux_take_n nb input d annot;
-        Some (ValTuple valL, input')
+        (valL, input') <- build_ctxt_aux_take_n (nb * prod_list l) input d;
+        Some (CoIR d valL (Some (l ++ nb::nil)), input')
     | Uint _ Mnat nb => None
     | Uint _ (Mvar _) nb => None
-    | Array typ (Const_e len) =>
-        let fix build_array len input :=
-            match len with
-            | 0 => Some (lV_nil, input)
-            | S len' => 
-                (valHD, input') <- build_ctxt_aux typ input;
-                (valTL, input'') <- build_array len' input';
-                Some (lV_cons valHD valTL, input'')
-            end in
-        (valL, input') <- build_array len input;
-        Some (ValTuple valL, input')
-    | Array _ _ => None
+    | Array typ len =>
+        len <- eval_arith_expr nil len;
+        build_ctxt_aux typ input (len::l)
     end.
 
 Fixpoint build_ctxt (args : p) (input : list cst_or_int) : option context :=
     match args with
-    | nil => Some nil
+    | nil => match input with
+        | nil => Some nil
+        | _::_ => None
+        end
     | var::tl =>
-        (val, input') <- build_ctxt_aux (VD_TYP var) input;
+        (val, input') <- build_ctxt_aux (VD_TYP var) input nil;
         ctxt <- build_ctxt tl input';
         Some ((VD_ID var, val)::ctxt)
     end.
 
+Fixpoint convert_type (typ : typ) (l : list nat) : option (dir * list nat) :=
+    match typ with
+    | Nat => None
+    | Uint d (Mint n) nb =>
+        annot <- IntSize_of_nat n;
+        d <- match d with
+            | Hslice => Some (DirH annot)
+            | Vslice => Some (DirV annot)
+            | _ => None
+        end;
+        Some (d, l ++ nb::nil)
+    | Uint _ Mnat nb => None
+    | Uint _ (Mvar _) nb => None
+    | Array typ' len =>
+        len' <- eval_arith_expr nil len;
+        convert_type typ' (len'::l)
+    end.
 
-Fixpoint eval_node_inner (arch : architecture) (prog : prog_ctxt) (in_names out_names : p) (def : def_i) (i : option nat) (input : list Value) :=
+Fixpoint zeros (n : nat) : list nat :=
+    match n with
+    | 0 => nil
+    | S n' => 0::zeros n'
+    end.
+
+Fixpoint update_ind {A : Type} (i : nat) (l : list A) (v : A) : option (list A) :=
+    match l with
+    | nil => None
+    | hd::tl => match i with
+        | 0 => Some (v::tl)
+        | S i' =>
+            tl' <- update_ind i' tl v;
+            Some (hd::tl')
+        end
+    end.
+
+(* We assert that `prod_list form = length val` *)
+Fixpoint update (form : list nat) (val : list nat) (acc : access) (e : list cst_or_int) (dir : dir) : option (list nat * list cst_or_int) :=
+    match form with
+    | nil => match acc with
+        | AAll =>
+            build_ctxt_aux_take_n (length val) e dir
+        | _ => None
+        end
+    | form_hd::form_tl =>
+        if length val mod form_hd =? 0
+        then
+            val' <- split_into_segments form_hd (prod_list form_tl) val;
+            match acc with
+            | AAll => build_ctxt_aux_take_n (length val) e dir
+            | AInd i acc_tl =>
+                subl <- nth_error val' i;
+                (subl', e') <- update form subl acc_tl e dir;
+                val'' <- update_ind i val' subl';
+                Some (concat val'', e')
+            | ARange i1 i2 acc_tl =>
+                (start, working_space) <- take_n i1 val';
+                (working_space, tail) <- take_n (i2 - i1 + 1) working_space;
+                (working_space', e') <- fold_left (fun state subl =>
+                                    (val', e) <- state;
+                                    (subl', e') <- update form subl acc_tl e dir;
+                                    Some (val' ++ subl'::nil, e')) working_space (Some (nil, e));
+                Some (concat (start ++ working_space' ++ tail), e')
+            | ASlice iL acc_tl =>
+                (val'', e') <- fold_left (fun state i =>
+                                    (val', e) <- state;
+                                    subl <- nth_error val' i;
+                                    (subl', e') <- update form subl acc_tl e dir;
+                                    val'' <- update_ind i val' subl';
+                                    Some (val'', e')) iL (Some (val', e));
+                Some (concat val'', e')
+            end
+        else None
+    end.
+
+Fixpoint bind_aux (ctxt : context) (type_ctxt : type_ctxt) (v : var) (acc : access) (e : list cst_or_int) : option (context * list cst_or_int) :=
+    match v with
+    | Var v =>
+        typ <- find_val type_ctxt v;
+        (dir, form) <- convert_type typ nil;
+        let val_init := match find_val ctxt v with
+        | None => zeros (prod_list form)
+        | Some (CoIL i) => i::nil
+        | Some (CoIR _ iL _) => iL
+        end in
+        (val, e') <- update form val_init acc e dir;
+        Some ((v, CoIR dir val (Some form))::ctxt, e')
+    | Index v ae =>
+        i <- eval_arith_expr ctxt ae;
+        bind_aux ctxt type_ctxt v (AInd i acc) e
+    | Range v ae1 ae2 =>
+        i1 <- eval_arith_expr ctxt ae1;
+        i2 <- eval_arith_expr ctxt ae2;
+        bind_aux ctxt type_ctxt v (ARange i1 i2 acc) e
+    | Slice v ael =>
+        il <- fold_right (fun ae l =>
+        l' <- l; i <- eval_arith_expr ctxt ae; Some (i::l')) (Some nil) ael;
+        bind_aux ctxt type_ctxt v (ASlice il acc) e
+    end.
+
+Fixpoint bind_aux_list ctxt type_ctxt (vl : list var) (el : list cst_or_int) : option (context * list cst_or_int) :=
+    match vl with
+    | nil => match el with
+        | nil => Some (ctxt, el)
+        | _ => None
+        end
+    | v :: vl' =>
+        (ctxt', el') <- bind_aux ctxt type_ctxt v AAll el;
+        bind_aux_list ctxt' type_ctxt vl' el'
+    end.
+
+Definition bind ctxt type_ctxt (vl : list var) (el : list cst_or_int) : option context :=
+    match bind_aux_list ctxt type_ctxt vl el with
+    | Some (ctxt', nil) => Some ctxt'
+    | _ => None
+    end. 
+
+Function eval_deq (arch : architecture) (prog : prog_ctxt) (type_ctxt : type_ctxt) (ctxt : context) (d : deq) : option context :=
+    match d with
+    | Eqn v e b =>
+        e <- eval_expr arch prog ctxt e;
+        bind ctxt type_ctxt v e
+    | Loop i start_e end_e d2 opt =>
+        start_i <- eval_arith_expr ctxt start_e;
+        end_i <- eval_arith_expr ctxt end_e;
+        ctxt' <- loop_rec ctxt (fun ctxt => eval_deq_list arch prog type_ctxt ctxt d2) i start_i end_i;
+        match find_val ctxt i with
+        | None => Some ctxt'
+        | Some v => Some ((i, v)::ctxt')
+        end
+    end
+with eval_deq_list (arch : architecture) (prog : prog_ctxt) (type_ctxt : type_ctxt) (ctxt : context) (dl : list_deq) : option context :=
+    match dl with
+    | Dnil => Some ctxt
+    | Dcons d dl' =>
+        ctxt' <- eval_deq arch prog type_ctxt ctxt d;
+        eval_deq_list arch prog type_ctxt ctxt' dl'
+    end.
+
+Fixpoint build_type_ctxt (l : p) : type_ctxt :=
+    match l with
+    | nil => nil
+    | hd::tl => (VD_ID hd, VD_TYP hd) :: build_type_ctxt tl
+    end.
+
+Fixpoint eval_node_inner (arch : architecture) (prog : prog_ctxt) (in_names out_names : p) (def : def_i) (i : option nat) (input : list cst_or_int) : option (list cst_or_int) :=
     match def, i with
     | Single temp_vars eqns, None =>
-        ctxt <- build_ctxt in_names (flatten_valueL (list_Value_of_list input) nil);
-        ctxt' <- eval_deq_list arch prog ctxt eqns;
+        ctxt <- build_ctxt in_names input;
+        ctxt' <- eval_deq_list arch prog (build_type_ctxt (temp_vars ++ in_names ++ out_names)) ctxt eqns;
         extract_ctxt out_names ctxt'
     | Table l, None => match input with
-        | (VConst i)::nil | VInt _ (i::nil) 1::nil =>
+        | (CoIL i)::nil | CoIR _ (i::nil) _::nil =>
             i' <- nth_error l i;
-            Some (VConst i'::nil)
+            Some (CoIL i'::nil)
         | _ => None
         end
     | Perm l, None => None
@@ -569,18 +736,18 @@ Fixpoint aexprl_freevars (e : list arith_expr) : Ensemble ident :=
     | h :: tl => Union ident (aexpr_freevars h) (aexprl_freevars tl)
     end.
 
-Function var_freevars (v : var) : Ensemble ident :=
+Fixpoint var_freevars (v : var) : Ensemble ident :=
     match v with
     | Var var => Singleton ident var
     | Index v i => Union ident (var_freevars v) (aexpr_freevars i)
     | Range v s e => Union ident (var_freevars v) (Union ident (aexpr_freevars s) (aexpr_freevars e))
     | Slice v el => Union ident (var_freevars v) (aexprl_freevars el)
-    | VTuple vl => varl_freevars vl
-    end
-with varl_freevars vl :=
+    end.
+
+Fixpoint varl_freevars vl :=
     match vl with
-    | LVnil => Empty_set ident
-    | LVcons v tl => Union ident (var_freevars v) (varl_freevars tl)
+    | nil => Empty_set ident
+    | v :: tl => Union ident (var_freevars v) (varl_freevars tl)
     end.
 
 Function expr_freevars (e : expr) : Ensemble ident :=
@@ -605,7 +772,7 @@ with exprl_freevars el :=
 
 Function deq_vars (d : deq) : Ensemble ident :=
     match d with 
-    | Eqn v e _ => Union ident (expr_freevars e) (var_freevars v)
+    | Eqn v e _ => Union ident (expr_freevars e) (varl_freevars v)
     | Loop i ae1 ae2 eqns _ =>
         Union ident (Singleton ident i)
             (Union ident (aexpr_freevars ae1)
@@ -619,7 +786,7 @@ with deqs_vars (d : list_deq) : Ensemble ident :=
 
 Function deq_boundvars (d : deq) : Ensemble ident :=
     match d with 
-    | Eqn v e _ => (var_freevars v)
+    | Eqn v e _ => (varl_freevars v)
     | Loop i _ _ eqns _ => Union ident (Singleton ident i) (deqs_boundvars eqns)
     end
 with deqs_boundvars (d : list_deq) : Ensemble ident :=
