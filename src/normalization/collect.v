@@ -23,12 +23,12 @@ Function collect_var (v : var) : iset.t :=
     | Index v i => iset.union (collect_var v) (collect_aexpr i)
     | Range v s e => iset.union (collect_var v) (iset.union (collect_aexpr s) (collect_aexpr e))
     | Slice v el => iset.union (collect_var v) (collect_aexprl el)
-    | VTuple vl => collect_varl vl
-    end
-with collect_varl vl :=
+    end.
+
+Fixpoint collect_varl (vl : list var) : iset.t :=
     match vl with
-    | LVnil => iset.empty
-    | LVcons v tl => iset.union (collect_var v) (collect_varl tl)
+    | nil => iset.empty
+    | v :: tl => iset.union (collect_var v) (collect_varl tl)
     end.
 
 Function collect_expr (e : expr) : iset.t :=
@@ -59,7 +59,7 @@ Function collect_vdecl (p : p) : iset.t :=
 
 Function collect_deq (d : deq) : iset.t :=
     match d with
-    | Eqn v e _ => iset.union (collect_var v) (collect_expr e)
+    | Eqn v e _ => iset.union (collect_varl v) (collect_expr e)
     | Loop i aei1 aei2 eqns opt =>
         iset.add i (iset.union 
             (iset.union (collect_aexpr aei1) (collect_aexpr aei2)) (collect_deqs eqns))
@@ -72,7 +72,7 @@ with collect_deqs (dl : list_deq) : iset.t :=
 
 Function collect_bounddeq (d : deq) : iset.t :=
     match d with
-    | Eqn v e _ => (collect_var v)
+    | Eqn v e _ => (collect_varl v)
     | Loop i aei1 aei2 eqns opt =>
         iset.add i (collect_bounddeqs eqns)
     end

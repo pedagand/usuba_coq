@@ -63,7 +63,7 @@ Definition a : string := "a".
 Definition b : string := "b".
 
 Definition node1 := node test args (a : Nat) returns (b : Nat) vars nil 
-    let Var b [ Const_e 1 ] <:= ExpVar (Var a); tel.
+    let (Var b [ Const_e 1 ])%ua_var :: nil <:= ExpVar (Var a); tel.
 
 Definition f : ident := "f"%string.
 Definition x : ident := "x"%string.
@@ -73,7 +73,7 @@ Definition refresh : ident := "refresh"%string.
 
 Definition f_node := node f args (x : Uint Vslice (Mint 32) 1) returns (y: Uint Vslice (Mint 32) 1) vars nil
     let
-        y <:= ((x <<< 5) & Fun refresh (ECons x Enil)) xor (x <<< 1);
+        Var y :: nil <:= ((x <<< 5) & Fun refresh (ECons x Enil)) xor (x <<< 1);
     tel.
 
 Print f_node.

@@ -18,10 +18,10 @@ Proof.
     {
         move=> vars x; specialize HRec with vars x.
         destruct (clean_in_deqs vars (list_deq_of_deqL tl)); simpl in *.
-        case (iset.exists_ (iset.mem^~ t) (collect_var v)); simpl; trivial.
+        case (iset.exists_ (iset.mem^~ t) (collect_varl v)); simpl; trivial.
         do 2 rewrite iset.mem_spec; do 2 rewrite iset.mem_spec in HRec.
         do 2 rewrite iset.union_spec; rewrite collect_expr_soundness.
-        rewrite collect_var_soundness.
+        rewrite collect_varl_soundness.
         rewrite HRec; clear HRec; split.
         + move=> [[]|[]]; auto; move=> H; right.
             + constructor; assumption.
@@ -47,22 +47,25 @@ Proof.
 Qed.
 
 Lemma loop_rec_change_ctxt arch prog:
-    forall e s body i ens ctxt1 ctxt2,
+    forall e s body i ens ctxt1 ctxt2 type_ctxt,
         context_srel (Union ident (fun elt => iset.In elt (collect_deqs (list_deq_of_deqL body))) ens) ctxt1 ctxt2 ->
         opt_rel (context_srel (Union ident (fun elt => iset.In elt (collect_deqs (list_deq_of_deqL body))) ens))
-            (loop_rec ctxt1 ((eval_deq_list arch prog)^~ (list_deq_of_deqL body)) i s e)
-            (loop_rec ctxt2 ((eval_deq_list arch prog)^~ (list_deq_of_deqL body)) i s e).
+            (loop_rec ctxt1 ((eval_deq_list arch prog type_ctxt)^~ (list_deq_of_deqL body)) i s e)
+            (loop_rec ctxt2 ((eval_deq_list arch prog type_ctxt)^~ (list_deq_of_deqL body)) i s e).
 Proof.
     move=> e; induction e as [|e HRec]; simpl; auto.
-    move=> s body i ens ctxt1 ctxt2 HRel.
+    move=> s body i ens ctxt1 ctxt2 type_ctxt HRel.
     case (match s with 0 => false | m'.+1 => PeanoNat.Nat.leb e m' end); simpl; auto.
-    pose (p := HRec s body i ens ctxt1 ctxt2 HRel); move:p.
-    destruct (loop_rec ctxt1 ((eval_deq_list arch prog)^~ (list_deq_of_deqL body)) i s e).
-    all: destruct (loop_rec ctxt2 ((eval_deq_list arch prog)^~ (list_deq_of_deqL body)) i s e); simpl; auto.
+    pose (p := HRec s body i ens ctxt1 ctxt2 type_ctxt HRel); move:p.
+    destruct (loop_rec ctxt1 ((eval_deq_list arch prog type_ctxt)^~ (list_deq_of_deqL body)) i s e).
+    all: destruct (loop_rec ctxt2 ((eval_deq_list arch prog type_ctxt)^~ (list_deq_of_deqL body)) i s e); simpl; auto.
     2: move=> [].
     2: discriminate.
     move=> HRel2.
     apply eval_deqL_change_ctxt.
+    {
+        reflexivity.
+    }
     {
         move=> elt HIn.
         constructor 1.
@@ -78,42 +81,44 @@ Proof.
 Qed.
 
 Lemma clean_in_deqs_soundness arch prog:
-    forall eqns vars ctxt1 ctxt2,
-        eval_deq_list arch prog ctxt1 (list_deq_of_deqL eqns) <> None ->
+    forall eqns vars ctxt1 ctxt2 type_ctxt,
+        eval_deq_list arch prog type_ctxt ctxt1 (list_deq_of_deqL eqns) <> None ->
         context_srel (deqs_vars (snd (clean_in_deqs vars (list_deq_of_deqL eqns)))) ctxt1 ctxt2 ->
         context_srel (fun i => iset.mem i vars = true) ctxt1 ctxt2 ->
-        opt_rel (context_srel (fun i => iset.mem i vars = true)) (eval_deq_list arch prog ctxt1 (list_deq_of_deqL eqns))
-            (eval_deq_list arch prog ctxt2 (snd (clean_in_deqs vars (list_deq_of_deqL eqns)))).
+        opt_rel (context_srel (fun i => iset.mem i vars = true))
+            (eval_deq_list arch prog type_ctxt ctxt1 (list_deq_of_deqL eqns))
+            (eval_deq_list arch prog type_ctxt ctxt2 (snd (clean_in_deqs vars (list_deq_of_deqL eqns)))).
 Proof.
     move=> eqns; induction eqns as [|v expr b tl HRec'|i aei1 aei2 body HRecBody opt tl HRecTL]; simpl.
     { auto. }
     {
-        move=> vars ctxt1 ctxt2.
+        move=> vars ctxt1 ctxt2 type_ctxt.
         pose (p := clean_in_deqs_freevars tl vars); move:p.
         pose (HRec := HRec' vars); move: HRec.
         destruct (clean_in_deqs vars (list_deq_of_deqL tl)) as [vars' tl']; simpl in *.
         clear HRec'.
-        case_eq (iset.exists_ (iset.mem^~ vars') (collect_var v)); simpl.
+        case_eq (iset.exists_ (iset.mem^~ vars') (collect_varl v)); simpl.
         {
             move=> _ HRec _ HnoErr HRel1 HRel2.
-            rewrite <- (eval_expr_change_ctxt _ _ _ ctxt1 ctxt2).
+            rewrite <- (eval_expr_change_ctxt _ _ ctxt1 ctxt2 prog prog).
             + destruct (eval_expr arch prog ctxt1 expr) as [val|]; simpl; trivial.
-                assert (context_srel (Union ident (var_freevars v)
+                assert (context_srel (Union ident (varl_freevars v)
                     (Union ident (deqs_vars tl') (fun i : ident => iset.mem i vars = true))) ctxt1 ctxt2) as HRel3.
                 {
                     move=> x HIn; destruct HIn as [|x []].
-                    + apply HRel1; do 2 constructor; assumption.
-                    + apply HRel1; constructor; assumption.
-                    + apply HRel2; assumption.
+                    - apply HRel1; do 2 constructor; assumption.
+                    - apply HRel1; constructor; assumption.
+                    - apply HRel2; assumption.
                 }
-                pose (H := context_srel_bind v _ _ val _ HRel3); move: H.
-                destruct (bind ctxt1 v val) as [ctxt1'|]; simpl.
+                pose (H := context_srel_bind v type_ctxt _ _ val _ HRel3); move: H.
+                destruct (bind ctxt1 type_ctxt v val) as [ctxt1'|]; simpl.
                 2: by move=> ->; simpl; reflexivity.
-                destruct (bind ctxt2 v val) as [ctxt2'|]; simpl.
+                destruct (bind ctxt2 type_ctxt v val) as [ctxt2'|]; simpl.
                 2: by move=> [].
                 move=> HRel4; apply HRec; trivial.
-                + move=> x HIn; apply HRel4; do 2 constructor; assumption.
-                + move=> x HIn; apply HRel4; do 2 constructor; assumption.
+                - move=> x HIn; apply HRel4; do 2 constructor; assumption.
+                - move=> x HIn; apply HRel4; do 2 constructor; assumption.
+            + reflexivity.
             + move=> x HIn; apply HRel1; do 2 constructor; assumption.
         }
         {
@@ -122,8 +127,8 @@ Proof.
             move=> NegExists HRec Hfreevars HnoErr HRel1 HRel2.
             case (eval_expr arch prog ctxt1 expr) as [x|].
             2: exfalso; apply HnoErr; reflexivity.
-            pose (p := context_srel_bind_compl v x ctxt1); move:p.
-            case (bind ctxt1 v x) as [ctxt'|].
+            pose (p := context_srel_bind_compl v x ctxt1 type_ctxt); move:p.
+            case (bind ctxt1 type_ctxt v x) as [ctxt'|].
             2: exfalso; apply HnoErr; reflexivity.
             move=> HRel3; apply HRec; trivial.
             all: transitivity ctxt1; trivial.
@@ -131,11 +136,11 @@ Proof.
             all: assert (iset.mem elt vars' = true) as Hfreevars' by (rewrite Hfreevars; auto).
             all: clear Hfreevars; unfold Complement; unfold In; move=> HIn'.
             all: apply NegExists; unfold iset.Exists; exists elt; split; trivial.
-            all: rewrite collect_var_soundness; unfold In; assumption.
+            all: rewrite collect_varl_soundness; unfold In; assumption.
         }
     }
     {
-        move=> vars ctxt1 ctxt2 HnoErr HRel1 HRel2.
+        move=> vars ctxt1 ctxt2 type_ctxt HnoErr HRel1 HRel2.
         pose (p := clean_in_deqs_freevars tl vars); move:p.
         pose (p := HRecTL vars); move: p; clear HRecTL.
         destruct (clean_in_deqs vars (list_deq_of_deqL tl)) as [vars' tl']; simpl.
@@ -160,10 +165,10 @@ Proof.
                 + apply HRel2; assumption.
                 + apply HRel1; simpl; constructor; assumption. 
             }
-            pose (p := loop_rec_change_ctxt arch prog e s body i _ ctxt1 ctxt2 HRel3); move: p; clear HRel3.
-            destruct (loop_rec ctxt1 ((eval_deq_list arch prog)^~ (list_deq_of_deqL body)) i s e) as [ctxt1'|].
+            pose (p := loop_rec_change_ctxt arch prog e s body i _ ctxt1 ctxt2 type_ctxt HRel3); move: p; clear HRel3.
+            destruct (loop_rec ctxt1 ((eval_deq_list arch prog type_ctxt)^~ (list_deq_of_deqL body)) i s e) as [ctxt1'|].
             2: move=> _ HnoErr; exfalso; apply HnoErr; reflexivity.
-            destruct (loop_rec ctxt2 ((eval_deq_list arch prog)^~ (list_deq_of_deqL body)) i s e) as [ctxt2'|]; simpl.
+            destruct (loop_rec ctxt2 ((eval_deq_list arch prog type_ctxt)^~ (list_deq_of_deqL body)) i s e) as [ctxt2'|]; simpl.
             2: move=> [].
             assert (match find_val ctxt1 i with Some v => Some ((i, v) :: ctxt1') | None => Some ctxt1' end
                 = Some match find_val ctxt1 i with Some v => (i, v)::ctxt1' | None => ctxt1' end) as HEq
@@ -202,8 +207,8 @@ Proof.
             2: exfalso; apply HnoErr; reflexivity.
             destruct (eval_arith_expr ctxt1 aei2) as [i2|].
             2: exfalso; apply HnoErr; reflexivity.
-            pose (p := loop_rec_unchanged_ctxt arch prog i i1 i2 body ctxt1); move:p.
-            destruct (loop_rec ctxt1 ((eval_deq_list arch prog)^~ (list_deq_of_deqL body)) i i1 i2) as [ctxt'|].
+            pose (p := loop_rec_unchanged_ctxt arch prog i i1 i2 body ctxt1 type_ctxt); move:p.
+            destruct (loop_rec ctxt1 ((eval_deq_list arch prog type_ctxt)^~ (list_deq_of_deqL body)) i i1 i2) as [ctxt'|].
             2: exfalso; apply HnoErr; reflexivity.
             clear HRecBody.
             move=> HRel Hvars'.
@@ -258,18 +263,18 @@ Proof.
     move=> [id p_in p_out node_opt [temp_vars eqns| | |]]; simpl; trivial.
     unfold eval_node; simpl.
     move=> [] input; trivial.
-    case (build_ctxt p_in (flatten_valueL (list_Value_of_list input) nil)); trivial.
+    case (build_ctxt p_in input); trivial.
     move=> ctxt HnoErr.
-    assert (eval_deq_list arch prog ctxt eqns <> None) as HnoErr1.
+    assert (eval_deq_list arch prog (build_type_ctxt (temp_vars ++ p_in ++ p_out)) ctxt eqns <> None) as HnoErr1.
     {
         move=> HEq; rewrite HEq in HnoErr; apply HnoErr; trivial.
     }
     pose (p := clean_in_deqs_soundness arch prog (deqL_of_list_deq eqns) (collect_vdecl p_out) ctxt ctxt); move: p.
     rewrite deqL_is_list_deq; move=> p.
-    pose (p' := p HnoErr1 (context_srel_refl _ _) (context_srel_refl _ _)); move: p'; clear p.
-    destruct (eval_deq_list arch prog ctxt eqns); simpl.
+    pose (p' := p (build_type_ctxt (_ ++ _ ++ _)%list) HnoErr1 (context_srel_refl _ _) (context_srel_refl _ _)); move: p'; clear p.
+    destruct (eval_deq_list arch prog _ ctxt eqns); simpl.
     2: by move=> ->; trivial.
-    destruct (eval_deq_list arch prog ctxt (snd (clean_in_deqs (collect_vdecl p_out) eqns))); simpl.
+    destruct (eval_deq_list arch prog _ ctxt (snd (clean_in_deqs (collect_vdecl p_out) eqns))); simpl.
     {
         induction p_out as [|a tl HRec]; simpl; trivial.
         move=> HRel; rewrite HRec.

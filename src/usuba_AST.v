@@ -9,6 +9,12 @@ From Coq Require Recdef.
 
 Definition ident := string.
 
+Notation " p <- e ; f " :=
+    match (e : option _) return option _ with
+        | Some x => (fun p => f) x
+        | None => None
+    end (at level 79, p as pattern, right associativity).
+
 (* OPERATORS *)
 
 Inductive log_op :=
@@ -93,7 +99,7 @@ Scheme Equality for typ.
 Function typ_size (t : typ) :=
     match t with
     | Nat => 1
-    | Uint d m _ => 1 + dir_size d + mtyp_size m
+    | Uint d m n => 1 + dir_size d + mtyp_size m + n
     | Array t e => 1 + typ_size t + arith_expr_size e
     end.
 

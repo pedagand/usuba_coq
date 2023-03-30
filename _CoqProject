@@ -1,4 +1,5 @@
 -R src Usuba
+src/utils.v
 src/usuba_AST.v
 src/usuba_sem.v
 src/extract.v
@@ -8,6 +9,7 @@ src/normalization/collect.v
 src/normalization/collectProof.v
 src/normalization/clean.v
 src/normalization/cleanProof.v
+src/normalization/expand.v
 src/test_sem.v
 
 # generate CoqMakefile with 

@@ -57,24 +57,19 @@ Lemma collect_var_soundness:
     forall var elt,
         iset.In elt (collect_var var) <-> In ident (var_freevars var) elt.
 Proof.
-    move=> var.
-    eapply (var_find (fun var => forall elt, iset.In elt (collect_var var) <-> In ident (var_freevars var) elt)
-        (fun varL => forall elt, iset.In elt (collect_varl varL) <-> In ident (varl_freevars varL) elt) _ _ _ _ _ _ _ var).
-    Unshelve.
-    all: simpl; auto.
+    move=> var; induction var as [|v HRec ae|v HRec ae1 ae2|v HRec aeL].
+    all: simpl; move=> elt.
     {
-        move=> i elt; rewrite iset.singleton_spec; split.
+        rewrite iset.singleton_spec; split.
         + move=> ->; constructor.
         + move=> []; reflexivity.
     }
     {
-        move=> v HRec ae elt.
         rewrite iset.union_spec; rewrite HRec; rewrite collect_aexpr_soundness; split.
         + move=> []; constructor; assumption.
         + move=> []; auto.
     }
     {
-        move=> v HRec ae1 ae2 elt.
         do 2 rewrite iset.union_spec; rewrite HRec; do 2 rewrite collect_aexpr_soundness; split.
         + move => [|[]].
             - constructor; assumption.
@@ -83,13 +78,18 @@ Proof.
         + move => [|x []]; auto.
     }
     {
-        move=> v HRec aeL elt.
         rewrite iset.union_spec; rewrite HRec; rewrite collect_aexprl_soundness; split.
         + move=> []; constructor; assumption.
         + move=> []; auto.
     }
+Qed.
+
+Lemma collect_varl_soundness:
+    forall varl elt,
+        iset.In elt (collect_varl varl) <-> In ident (varl_freevars varl) elt.
+Proof.
+    move=> varl; induction varl as [|hd tl HRec]; simpl; move=> elt.
     {
-        move=> elt.
         pose (Hempty := iset.empty_spec).
         unfold iset.Empty in Hempty.
         specialize Hempty with elt.
@@ -98,8 +98,8 @@ Proof.
         + move=> [].
     }
     {
-        move=> v HRec vL HRecL elt.
-        rewrite iset.union_spec; rewrite HRec; rewrite HRecL; split.
+        rewrite iset.union_spec; rewrite collect_var_soundness.
+        rewrite HRec; split.
         + move=> []; constructor; assumption.
         + move=> []; auto.
     }
@@ -183,7 +183,7 @@ Proof.
     }
     {
         do 2 rewrite iset.union_spec; rewrite HRec.
-        rewrite collect_var_soundness; rewrite collect_expr_soundness.
+        rewrite collect_varl_soundness; rewrite collect_expr_soundness.
         split; move=> []; auto.
         + move=> []; do 2 constructor; assumption.
         + intro; constructor; assumption.
@@ -214,7 +214,7 @@ Proof.
     }
     {
         rewrite iset.union_spec; rewrite HRec.
-        rewrite collect_var_soundness.
+        rewrite collect_varl_soundness.
         split; move=> []; auto.
         all: intro; constructor; assumption.
     }

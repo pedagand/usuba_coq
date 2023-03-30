@@ -4,6 +4,7 @@ Require Import Lia.
 Require Import Coq.Lists.List.
 Require Import Coq.Arith.PeanoNat.
 Require Import Coq.Sets.Ensembles.
+From mathcomp Require Import all_ssreflect.
 
 From Usuba Require Import usuba_AST.
 
@@ -68,12 +69,6 @@ Fixpoint find_const (ctxt : context) (var : ident) : option nat :=
                 end
             else find_const tl var
     end.
-
-Notation " p <- e ; f " :=
-    match (e : option _) return option _ with
-        | Some x => (fun p => f) x
-        | None => None
-    end (at level 79, p as pattern, right associativity).
 
 Fixpoint list_map2 {A B C : Type} (op : A -> B -> C) (l1 : list A) (l2 : list B) : option (list C) :=
     match l1, l2 with
@@ -208,8 +203,6 @@ Fixpoint eval_arith_expr (ctxt : context) (e : arith_expr) : option nat :=
 
 Inductive access : Type :=
     | AAll : access
-    | AInd : nat -> access -> access
-    | ARange : nat -> nat -> access -> access
     | ASlice : list nat -> access -> access.
 
 (* 
@@ -266,7 +259,6 @@ Fixpoint get_access (values : list nat) (acc : access) (dim : list nat) : option
         | n::nil =>
             match acc with
             | AAll => Some values
-            | AInd 0 tl | ARange 0 0 tl => get_access values tl nil
             | ASlice indices tl =>
                 if forallb (fun x => x =? 0) indices
                 then
@@ -274,7 +266,6 @@ Fixpoint get_access (values : list nat) (acc : access) (dim : list nat) : option
                     Some (flat_map (fun _ => l) indices)
                 else
                     None
-            | _ => None
             end
         | _ => None (** Assertion not verified *)
         end
@@ -284,17 +275,6 @@ Fixpoint get_access (values : list nat) (acc : access) (dim : list nat) : option
             l' <- split_into_segments d (length values / d) values;
             match acc with
             | AAll => Some values
-            | AInd i acc_tl =>
-                values' <- nth_error l' i;
-                get_access values' acc_tl dim_tl
-            | ARange i_start i_end acc_tl =>
-                if i_end <? i_start
-                then None
-                else
-                    (_, tl) <- take_n i_start l';
-                    (values', _) <- take_n (i_end - i_start + 1) tl;
-                    fold_right (fun v l => l' <- l; v' <- get_access v acc_tl dim_tl; Some (v' ++ l'))
-                                (Some nil) values'
             | ASlice indices acc_tl =>
                 fold_right (fun v l => l' <- l; v' <- v; v'' <- get_access v' acc_tl dim_tl; Some (v'' ++ l'))
                                 (Some nil) (map (fun i => nth_error l' i) indices) 
@@ -302,13 +282,21 @@ Fixpoint get_access (values : list nat) (acc : access) (dim : list nat) : option
         else None (** Assertion not verified *)
     end.
 
+Fixpoint gen_range (i1 i2 : nat) : list nat :=
+    if i1 <? i2
+    then nil
+    else
+        match i2 with
+        | 0 => nil
+        | S i2' => gen_range i1 i2'
+        end ++ i2::nil.
+
 Fixpoint eval_var (ctxt : context) (v : var) (acc : access) : option (list cst_or_int) :=
     match v with
     | Var v => 
         val <- find_val ctxt v;
         match val, acc with
         | CoIR _ _ None, _ => None
-        | _, AAll => Some (val::nil)
         | CoIL cst, _ =>
             iL' <- get_access (cst::nil) acc nil;
             Some (map CoIL iL')
@@ -318,11 +306,11 @@ Fixpoint eval_var (ctxt : context) (v : var) (acc : access) : option (list cst_o
         end
     | Index v ae =>
         i <- eval_arith_expr ctxt ae;
-        eval_var ctxt v (AInd i acc)
+        eval_var ctxt v (ASlice [:: i] acc)
     | Range v ae1 ae2 =>
         i1 <- eval_arith_expr ctxt ae1;
         i2 <- eval_arith_expr ctxt ae2;
-        eval_var ctxt v (ARange i1 i2 acc)
+        eval_var ctxt v (ASlice (gen_range i1 i2) acc)
     | Slice v ael =>
         il <- fold_right (fun ae l =>
             l' <- l; i <- eval_arith_expr ctxt ae; Some (i::l')) (Some nil) ael;
@@ -415,11 +403,11 @@ Function eval_expr (arch : architecture) (prog : prog_ctxt) (ctxt : context) (e 
             v1 <- eval_expr arch prog ctxt e1;
             v2 <- eval_expr arch prog ctxt e2;
             f <- match op with
-                | And => Some (ARCH_AND arch)
-                | Or => Some (ARCH_OR arch)
-                | Xor => Some (ARCH_XOR arch)
-                | Andn => Some (ARCH_ANDN arch)
-                | Masked _ => None
+                | And | Masked And => Some (ARCH_AND arch)
+                | Or | Masked Or => Some (ARCH_OR arch)
+                | Xor | Masked Xor => Some (ARCH_XOR arch)
+                | Andn | Masked Andn => Some (ARCH_ANDN arch)
+                | Masked (Masked _) => None
             end;
             eval_binop f v1 v2
         | Arith op e1 e2 =>
@@ -443,13 +431,13 @@ Function eval_expr (arch : architecture) (prog : prog_ctxt) (ctxt : context) (e 
         | Pack e1 e2 (Some t) => None
         | Fun id el =>
             args <- eval_expr_list arch prog ctxt el;
-            f <- get_node prog id;
+            f <- find_val prog id;
             l_val <- f None args;
             Some (linearize_list_value l_val nil)
         | Fun_v id ie el =>
             args <- eval_expr_list arch prog ctxt el;
             i <- eval_arith_expr ctxt ie;
-            f <- get_node prog id;
+            f <- find_val prog id;
             l_val <- f (Some i) args;
             Some (linearize_list_value l_val nil)
     end
@@ -462,7 +450,7 @@ with eval_expr_list (arch : architecture) (prog : prog_ctxt) (ctxt : context) (e
         Some (linearize_list_value v tl)
     end.
 
-    Inductive int_or_list (A : Type) : Type :=
+Inductive int_or_list (A : Type) : Type :=
     | IoLL : nat -> int_or_list A
     | IoLR : list A -> int_or_list A.
 
@@ -502,7 +490,7 @@ Fixpoint build_ctxt_aux_take_n (nb : nat) (input : list cst_or_int) (d : dir) : 
 
 Fixpoint prod_list (l : list nat) : nat := 
     match l with
-    | nil => 0
+    | nil => 1
     | hd::tl => hd * prod_list tl
     end.
 
@@ -586,19 +574,6 @@ Fixpoint update (form : list nat) (val : list nat) (acc : access) (e : list cst_
             val' <- split_into_segments form_hd (prod_list form_tl) val;
             match acc with
             | AAll => build_ctxt_aux_take_n (length val) e dir
-            | AInd i acc_tl =>
-                subl <- nth_error val' i;
-                (subl', e') <- update form subl acc_tl e dir;
-                val'' <- update_ind i val' subl';
-                Some (concat val'', e')
-            | ARange i1 i2 acc_tl =>
-                (start, working_space) <- take_n i1 val';
-                (working_space, tail) <- take_n (i2 - i1 + 1) working_space;
-                (working_space', e') <- fold_left (fun state subl =>
-                                    (val', e) <- state;
-                                    (subl', e') <- update form subl acc_tl e dir;
-                                    Some (val' ++ subl'::nil, e')) working_space (Some (nil, e));
-                Some (concat (start ++ working_space' ++ tail), e')
             | ASlice iL acc_tl =>
                 (val'', e') <- fold_left (fun state i =>
                                     (val', e) <- state;
@@ -625,11 +600,11 @@ Fixpoint bind_aux (ctxt : context) (type_ctxt : type_ctxt) (v : var) (acc : acce
         Some ((v, CoIR dir val (Some form))::ctxt, e')
     | Index v ae =>
         i <- eval_arith_expr ctxt ae;
-        bind_aux ctxt type_ctxt v (AInd i acc) e
+        bind_aux ctxt type_ctxt v (ASlice [:: i] acc) e
     | Range v ae1 ae2 =>
         i1 <- eval_arith_expr ctxt ae1;
         i2 <- eval_arith_expr ctxt ae2;
-        bind_aux ctxt type_ctxt v (ARange i1 i2 acc) e
+        bind_aux ctxt type_ctxt v (ASlice (gen_range i1 i2) acc) e
     | Slice v ael =>
         il <- fold_right (fun ae l =>
         l' <- l; i <- eval_arith_expr ctxt ae; Some (i::l')) (Some nil) ael;
@@ -736,6 +711,12 @@ Fixpoint aexprl_freevars (e : list arith_expr) : Ensemble ident :=
     | h :: tl => Union ident (aexpr_freevars h) (aexprl_freevars tl)
     end.
 
+Fixpoint typ_freevars (typ : typ) : Ensemble ident :=
+    match typ with
+    | Array typ' ae => Union ident (typ_freevars typ') (aexpr_freevars ae)
+    | _ => Empty_set ident
+    end.
+    
 Fixpoint var_freevars (v : var) : Ensemble ident :=
     match v with
     | Var var => Singleton ident var
