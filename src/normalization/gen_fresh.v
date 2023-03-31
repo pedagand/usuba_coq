@@ -4,21 +4,6 @@ From Coq Require Import PeanoNat.
 From Coq Require Import MSetFacts.
 Require Import Lia.
 
-Lemma String_append_length:
-    forall (s1 s2 : string),
-        String.length (s1 ++ s2)%string = String.length s1 + String.length s2.
-Proof.
-    intros s1 s2; induction s1; simpl.
-    + reflexivity.
-    + rewrite IHs1; reflexivity.
-Qed.
-
-Lemma leb_add_1_l:
-    forall n, n + 1 <=? n  = false.
-Proof.
-    induction n; simpl; auto.
-Qed.
-
 Fixpoint fill (name : string) (size : nat) : string :=
     match size with
     | 0 => name ++ "'"

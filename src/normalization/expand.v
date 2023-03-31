@@ -1,4 +1,6 @@
-From Usuba Require Import usuba_AST collect usuba_sem equiv_rel utils.
+From Usuba Require Import 
+    usuba_AST collect usuba_sem usuba_semProp equiv_rel utils
+    coq_missing_lemmas.
 From Coq Require Import FMapAVL.
 From Coq Require Import String.
 Require Import PeanoNat.
@@ -6,22 +8,6 @@ Require Import Ensembles.
 Require Import Lia.
 Require Import Coq.Structures.OrderedTypeEx.
 Require Import List.
-
-(* Module StringOT <: OrderedType.
-    Definition t := string.
-    Definition eq := @eq t.
-    Definition lt : t -> t -> Prop := String_as_OT.lt.
-    Definition eq_refl := @refl_equal t.
-    Definition eq_sym := @sym_eq t.
-    Definition eq_trans := @trans_eq t.
-    Theorem lt_trans : forall x y z : t, lt x y -> lt y z -> lt x z.
-    Proof.
-        unfold lt; exact String_as_OT.lt_trans.
-    Defined.
-    Definition lt_not_eq : forall x y : t, lt x y -> ~ eq x y := String_as_OT.lt_not_eq.
-    Definition compare : forall x y : t, Compare lt eq x y := String_as_OT.compare.
-    Definition eq_dec := string_dec.
-End StringOT. *)
 
 Module imap := Make String_as_OT.
 
@@ -83,58 +69,6 @@ Definition expand_var (env_var : imap.t typ) (env_it : context) (bitslice : bool
 
 From mathcomp Require Import all_ssreflect.
 
-Lemma map_CoIL_is_lin:
-    forall l, linearize_list_value [seq CoIL i | i <- l] nil = [seq CoIL i | i <- l].
-Proof.
-    move=> l; induction l as [|hd tl HRec]; simpl; trivial.
-    rewrite HRec; reflexivity.
-Qed.
-
-Theorem eval_var_linearize_fixpoint:
-    forall ctxt v acc l, eval_var ctxt v acc = Some l -> linearize_list_value l nil = l.
-Proof.
-    move=> ctxt; induction v as [v|v HRec ae|v HRec ae1 ae2|v HRec aeL]; simpl; move=> acc l.
-    {
-        destruct (find_val ctxt v) as [[cst|dir iL [dim|]]|].
-        3-4: discriminate.
-        {
-            case (get_access [:: cst] acc nil); case acc.
-            + move=> l' HEq; inversion HEq; simpl.
-                clear; induction l' as [|hd tl HRec]; simpl; trivial.
-                f_equal; assumption.
-            + move=> _ _ l' HEq; inversion HEq; apply map_CoIL_is_lin.
-            + discriminate.
-            + discriminate.
-        }
-        {
-            case (get_access iL acc dim); case acc.
-            + move=> l' HEq; inversion HEq; simpl; reflexivity.
-            + move=> _ _ l' HEq; inversion HEq; simpl; reflexivity.
-            + discriminate.
-            + discriminate.
-        }
-    }
-    {
-        case (eval_arith_expr ctxt ae).
-        2: by discriminate.
-        intros n H; exact (HRec _ _ H).
-    }
-    {
-        case (eval_arith_expr ctxt ae1).
-        2: by discriminate.
-        case (eval_arith_expr ctxt ae2).
-        2: by discriminate.
-        intros n1 n2 H; exact (HRec _ _ H).
-    }
-    {
-        match goal with
-        | |- match ?f with Some _ => _ | None => _ end = _ -> _ => case f
-        end.
-        2: by discriminate.
-        intros n H; exact (HRec _ _ H).
-    }
-Qed.
-
 Theorem gen_list_0_int_lemma: 
     forall n, forall l : list nat,
         (fix aux (n : nat) (acc : seq nat) {struct n} : seq nat :=
@@ -171,175 +105,6 @@ Fixpoint change_access (i : nat) (acc : access) : access :=
     | AAll => ASlice (i::nil) AAll
     | ASlice iL acc => ASlice iL (change_access i acc)
     end.
-
-Lemma take_n_soundness { A : Type} :
-    forall i l,
-        i <= length l ->
-        exists l1 l2, @take_n A i l = Some (l1, l2) /\ l = l1 ++ l2 /\ length l1 = i.
-Proof.
-    move=> i; induction i as [|i HRec]; simpl.
-    {
-        move=> l _.
-        exists nil; exists l; auto.
-    }
-    {
-        move=> [|hd tl]; simpl.
-        {
-            discriminate.
-        }
-        specialize HRec with tl.
-        move=> Hlt; move: HRec.
-        impl_tac.
-        {
-            apply ltnSE; assumption.
-        }
-        move=> [l1 [l2 [TakeEq [EqAppend LengthEq]]]].
-        rewrite TakeEq.
-        exists (hd::l1); exists l2.
-        simpl.
-        rewrite LengthEq.
-        repeat split; trivial.
-        rewrite EqAppend.
-        simpl; reflexivity.
-    }
-Qed.
-
-Theorem length_app {A : Type}:
-    forall l1 l2 : list A,
-        length (l1 ++ l2) = length l1 + length l2.
-Proof.
-    move=> l1 l2; induction l1 as [|hd l1 HRec]; simpl.
-    {
-        rewrite add0n; trivial.
-    }
-    {
-        rewrite addSn.
-        rewrite HRec; reflexivity.
-    }
-Qed.
-
-Theorem length_app_eq {A : Type}:
-    forall l1 l2 : list A,
-    forall i1 i2,
-        length l1 = i1 -> length (l1 ++ l2) = i1 + i2 -> length l2 = i2.
-Proof.
-    move=> l1 l2; induction l1 as [|hd l1 HRec]; simpl.
-    all: move=> i1 i2 <-.
-    {
-        rewrite add0n; trivial.
-    }
-    {
-        rewrite addSn.
-        move=> HEq; inversion HEq.
-        refine (HRec _ _ _ _).
-        + reflexivity.
-        + assumption.
-    }
-Qed.
-
-Theorem split_into_segments_soundness {A : Type} :
-    forall i1 i2 l,
-        length l = i1 * i2 ->
-        exists l', @split_into_segments A i1 i2 l = Some l' /\
-            Forall (fun l => length l = i2) l' /\
-            List.concat l' = l /\ length l' = i1.
-Proof.
-    move=> i1 i2; induction i1 as [|i1 HRec]; simpl.
-    {
-        move=> l.
-        unfold muln, muln_rec.
-        rewrite Nat.mul_0_l.
-        destruct l; simpl.
-        2: by discriminate.
-        move=> _; exists nil; simpl.
-        auto.
-    }
-    {
-        move=> l length_eq.
-        pose (p:= take_n_soundness i2 l); move: p.
-        impl_tac.
-        {
-            rewrite length_eq; clear.
-            rewrite mulSnr.
-            apply leq_addl.
-        }
-        move=> [l1 [l2 [HEq1 [HEq2 LengthEq]]]].
-        rewrite HEq1.
-        rewrite HEq2 in length_eq; rewrite HEq2; clear HEq2 HEq1 l.
-        specialize HRec with l2; move: HRec; impl_tac.
-        {
-            rewrite mulSnr in length_eq.
-            refine (length_app_eq _ _ _ _ LengthEq _).
-            rewrite addnC.
-            assumption.
-        }
-        move=> [l [-> [HForall [concat_eq length_eq3]]]].
-        exists (l1::l); simpl.
-        rewrite concat_eq.
-        repeat split; auto.
-    }
-Qed.
-
-Theorem case_last {A : Type}: forall l : list A, {l = nil} + {exists l' last, l = l' ++ last::nil}.
-Proof.
-    induction l as [|hd tl HRec]; simpl; auto.
-    right.
-    destruct HRec as [->|[l' [last' ->]]].
-    {
-        exists nil; exists hd; simpl; reflexivity.
-    }
-    {
-        exists (hd::l'); exists last'; simpl; reflexivity.
-    }
-Qed.
-
-Theorem Forall_length_1_concat {A : Type}:
-    forall l : list (list A),
-        Forall (fun l2 => length l2 = 1) l -> length (concat l) = length l.
-Proof.
-    move=> l; induction l as [|hd l HRec]; simpl; trivial.
-    move=> HForall.
-    rewrite length_app.
-    rewrite HRec.
-    + apply Forall_inv in HForall; rewrite HForall; rewrite add1n; reflexivity.
-    + apply Forall_inv_tail in HForall; assumption.
-Qed.
-
-Theorem split_into_segments_1_r {A : Type}:
-    forall l : list A, forall n,
-        length l = n -> split_into_segments n 1 l = Some (map (fun i => [:: i]) l).
-Proof.
-    move=> l; induction l as [|hd l HRec]; simpl.
-    by move=> n <-; simpl; reflexivity.
-    move=> [|n].
-    by discriminate.
-    move=> HEq; inversion HEq; clear HEq; simpl.
-    rewrite HRec; auto.
-Qed.
-
-Theorem take_n_all {A : Type} :
-    forall l : list A, forall n, length l = n -> take_n n l = Some (l, nil).
-Proof.
-    move=> l; induction l as [|hd tl HRec]; simpl.
-    {
-        move=> n <-; simpl; reflexivity.
-    }
-    {
-        move=> [|n] HEq; simpl.
-        by discriminate.
-        rewrite HRec; trivial.
-        inversion HEq; reflexivity.
-    }
-Qed.
-
-Theorem split_into_segments_1_l {A : Type}:
-    forall l : list A, forall n,
-        length l = n -> split_into_segments 1 n l = Some [:: l].
-Proof.
-    simpl.
-    move=> l n length_eq.
-    rewrite take_n_all; trivial.
-Qed.
 
 Theorem get_access_split_lemma:
     forall n iL l_tl form_tl,
@@ -513,56 +278,6 @@ Proof.
     }
 Qed.
 
-Theorem linearize_map_CoIL: forall l1 l2, linearize_list_value (map CoIL l1) l2 = (map CoIL l1) ++ l2.
-Proof.
-    move=> l1 l2; induction l1 as [|hd l1 HRec]; simpl; trivial.
-    rewrite HRec; reflexivity.
-Qed.
-
-Theorem list_map_seq_map {A B : Type} (f : A -> B):
-    forall l, List.map f l = [seq f i | i <- l].
-Proof.
-    move=> l; induction l as [|hd tl HRec]; simpl; trivial.
-Qed.
-
-Fixpoint unfold_access (acc : access) (v : var) : var :=
-    match acc with
-    | AAll => v
-    | ASlice (i::nil) acc_tl => unfold_access acc_tl (Index v (Const_e i))
-    | ASlice l acc_tl => unfold_access acc_tl (Slice v (map Const_e l))
-    end.
-
-Inductive var_equiv : var -> var -> Prop :=
-    | VEBot : forall i, var_equiv (Var i) (Var i)
-    | VEInd : forall v1 v2 ae1 ae2, var_equiv v1 v2 -> var_equiv (Index v1 ae1) (Index v2 ae2)
-    | VESlice : forall v1 v2 l1 l2, var_equiv v1 v2 -> var_equiv (Slice v1 l1) (Slice v2 l2)
-    | VERange : forall v1 v2 i1 i1b i2 i2b, var_equiv v1 v2 -> var_equiv (Range v1 i1 i1b) (Range v2 i2 i2b).
-
-Lemma var_equiv_refl:
-    forall v, var_equiv v v.
-Proof.
-    move=> v; induction v; constructor; assumption.
-Qed.
-
-#[global]
-Add Relation var var_equiv
-    reflexivity proved by var_equiv_refl as var_equiv_def.
-
-Lemma unfold_access_var_equiv:
-    forall acc v1 v2,
-        var_equiv v1 v2 -> var_equiv (unfold_access acc v1) (unfold_access acc v2).
-Proof.
-    move=> acc; induction acc as [|iL acc HRec]; simpl; trivial.
-    {
-        move=> v1 v2 v_equiv.
-        destruct iL as [|hd iL]; simpl.
-        {
-            apply HRec; constructor; assumption.
-        }
-        destruct iL; apply HRec; constructor; assumption.
-    }
-Qed.
-
 Lemma get_type_var_equiv:
     forall type_ctxt v1 v2,
         var_equiv v1 v2 -> get_var_type type_ctxt v1 = get_var_type type_ctxt v2.
@@ -703,9 +418,7 @@ Proof.
         rewrite <- HRec; trivial.
         rewrite <- get_type.
         apply get_type_var_equiv.
-        apply unfold_access_var_equiv.
-        constructor.
-        reflexivity.
+        rewrite VEInd; reflexivity.
     }
     {
         move=> acc type_ctxt ctxt d m n get_type.

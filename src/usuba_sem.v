@@ -1,5 +1,3 @@
-From mathcomp Require Import all_ssreflect.
-
 Require Import Lia.
 Require Import Coq.Lists.List.
 Require Import Coq.Arith.PeanoNat.
@@ -205,40 +203,6 @@ Inductive access : Type :=
     | AAll : access
     | ASlice : list nat -> access -> access.
 
-(* 
-Fixpoint get_val_in_l (i : nat) (l : list_coi_tree) : option coi_tree :=
-    match l with
-    | nil => None
-    | hd :: tl =>
-        match i with
-        | 0 => Some hd
-        | S i' => get_val_in_l i' l
-        end
-    end.
-
-Fixpoint get_slice (l : list_coi_tree) (indexes : list nat) : option (list_cst_or_int) :=
-    match indexes with
-    | nil => Some nil
-    | i::tl =>
-        v <- get_val_in_l i l;
-        tl <- get_slice l tl;
-        Some (v :: tl)
-    end.
-
-Fixpoint get_range (l : list cst_or_int) (s e : nat) : option (list cst_or_int) :=
-    match e with
-    | 0 => Some nil
-    | S e' => match l with
-        | nil => None
-        | v :: tl => match s with
-            | 0 =>
-                tl <- get_range tl 0 e';
-                Some (v :: tl)
-            | S s' => get_range tl s' e'
-            end
-        end
-    end. *)
-
 Fixpoint split_into_segments {A : Type} (nb_segments segment_size : nat) (l : list A) : option (list (list A)) :=
     match nb_segments with
     | 0 => match l with
@@ -282,14 +246,28 @@ Fixpoint get_access (values : list nat) (acc : access) (dim : list nat) : option
         else None (** Assertion not verified *)
     end.
 
-Fixpoint gen_range (i1 i2 : nat) : list nat :=
+Fixpoint gen_range_incr (i1 i2 : nat) : list nat :=
     if i1 <? i2
     then nil
     else
         match i2 with
         | 0 => nil
-        | S i2' => gen_range i1 i2'
+        | S i2' => gen_range_incr i1 i2'
         end ++ i2::nil.
+
+Fixpoint gen_range_decr (i1 i2 : nat) : list nat :=
+    if i1 <? i2
+    then nil
+    else
+        i1::match i1 with
+        | 0 => nil
+        | S i1' => gen_range_decr i1' i2
+        end.
+
+Definition gen_range (i1 i2 : nat) : list nat :=
+    if i1 <=? i2
+    then gen_range_incr i1 i2
+    else gen_range_decr i1 i2.
 
 Fixpoint eval_var (ctxt : context) (v : var) (acc : access) : option (list cst_or_int) :=
     match v with
@@ -496,7 +474,10 @@ Fixpoint prod_list (l : list nat) : nat :=
 
 Fixpoint build_ctxt_aux (typ : typ) (input : list cst_or_int) (l : list nat) : option (cst_or_int * list cst_or_int) :=
     match typ with
-    | Nat => None
+    | Nat => match input with
+        | CoIL n :: input' => Some (CoIL n, input') 
+        | _ => None
+        end
     | Uint d (Mint n) nb =>
         annot <- IntSize_of_nat n;
         d <- match d with
@@ -578,7 +559,7 @@ Fixpoint update (form : list nat) (val : list nat) (acc : access) (e : list cst_
                 (val'', e') <- fold_left (fun state i =>
                                     (val', e) <- state;
                                     subl <- nth_error val' i;
-                                    (subl', e') <- update form subl acc_tl e dir;
+                                    (subl', e') <- update form_tl subl acc_tl e dir;
                                     val'' <- update_ind i val' subl';
                                     Some (val'', e')) iL (Some (val', e));
                 Some (concat val'', e')

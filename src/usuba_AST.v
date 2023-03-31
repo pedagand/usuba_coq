@@ -11,7 +11,7 @@ Definition ident := string.
 
 Notation " p <- e ; f " :=
     match (e : option _) return option _ with
-        | Some x => (fun p => f) x
+        | Some p => f
         | None => None
     end (at level 79, p as pattern, right associativity).
 

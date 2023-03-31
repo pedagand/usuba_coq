@@ -151,9 +151,9 @@ Proof.
         {
             move=> _; clear HEq; move: HnoErr.
             rewrite (eval_aexpr_change_ctxt _ ctxt1 ctxt2).
-            2: move=> x HIn; apply find_val_imp_find_const; apply HRel1; simpl; do 3 constructor; assumption.
+            2: apply context_srel_imp_context_csrel; move=> x HIn; apply HRel1; simpl; do 3 constructor; assumption.
             rewrite (eval_aexpr_change_ctxt _ ctxt1 ctxt2).
-            2: move=> x HIn; apply find_val_imp_find_const; apply HRel1; simpl; do 4 constructor; assumption.
+            2: apply context_srel_imp_context_csrel; move=> x HIn; apply HRel1; simpl; do 4 constructor; assumption.
             destruct (eval_arith_expr ctxt2 aei1) as [s|]; simpl; trivial.
             destruct (eval_arith_expr ctxt2 aei2) as [e|]; simpl; trivial.
             assert (context_srel (Union ident (iset.In^~ (collect_deqs (list_deq_of_deqL body)))
