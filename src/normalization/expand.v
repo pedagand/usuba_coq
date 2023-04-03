@@ -36,16 +36,15 @@ Fixpoint expand_var_inner (typ : typ) (env_it : context) (bitslice : bool) (part
     match typ with
     | Nat => v::nil
     | Uint _ (Mint m) 1 =>
-        if 1 <? m
-        then
-            if bitslice
-            then List.map (fun i => Index v (Const_e i)) (gen_list_0_int m)
-            else v::nil
+        if andb bitslice (1 <? m)
+        then List.map (fun i => Index v (Const_e i)) (gen_list_0_int m)
         else
             v::nil
     | Uint _ _ 1 | Uint _ _ 0 => v::nil
     | Uint d (Mint m) n =>
-        flat_map (fun i => map (fun j => Index (Index v (Const_e i)) (Const_e j)) (gen_list_0_int m)) (gen_list_0_int n)
+        if andb bitslice (1 <? m)
+        then flat_map (fun i => map (fun j => Index (Index v (Const_e i)) (Const_e j)) (gen_list_0_int m)) (gen_list_0_int n)
+        else map (fun i => Index v (Const_e i)) (gen_list_0_int n)
     | Uint _ _ n =>
         map (fun i => Index v (Const_e i)) (gen_list_0_int n)
     | Array typ s =>
@@ -107,14 +106,20 @@ Fixpoint change_access (i : nat) (acc : access) : access :=
     end.
 
 Theorem get_access_split_lemma:
-    forall n iL l_tl form_tl,
+    forall n : nat, forall iL l_tl : list (list (option nat)),
+    forall form_tl : list nat,
         Forall (fun l => length l = prod_list form_tl) (iL ++ l_tl) ->
         length iL = n ->
         prod_list form_tl = 1 ->
-        Some (concat (iL ++ l_tl)) =
+        remove_option_from_list (concat (iL ++ l_tl)) =
         fold_right (fun i l =>
             l' <- l;
-            v <- get_access (concat (iL ++ l_tl)) (ASlice [:: i] AAll) (length (concat (iL ++ l_tl))::form_tl); Some (v ++ l')) (Some (concat l_tl)) (gen_list_0_int n).
+            v <- get_access (concat (iL ++ l_tl))
+                    (ASlice [:: i] AAll)
+                    (length (concat (iL ++ l_tl))::form_tl);
+                    (Some (v ++ l')))
+                    (remove_option_from_list (concat l_tl))
+                (gen_list_0_int n).
 Proof.
     move=> n; induction n as [|n HRec].
     {
@@ -147,13 +152,13 @@ Proof.
         rewrite Forall_app in HForall_front.
         destruct HForall_front as [HForall_front HForall_last].
         apply Forall_inv in HForall_last.
-        destruct iL_last; simpl in HForall_last.
+        destruct iL_last as [|h1 iL_last]; simpl in HForall_last.
         by discriminate.
         destruct iL_last; simpl in HForall_last.
         2: by discriminate.
         clear HForall_last.
         simpl.
-        destruct tl.
+        destruct tl as [|n1 tl].
         {
             rewrite concat_app; simpl.
             clear prod_eq_1.
@@ -171,7 +176,9 @@ Proof.
             rewrite nth_error_map.
             rewrite nth_error_app2; rewrite Forall_length_1_concat; trivial; rewrite Hlength.
             2: lia.
-            rewrite Nat.sub_diag; simpl; reflexivity.
+            rewrite Nat.sub_diag; simpl.
+            destruct (remove_option_from_list (concat l_tl)).
+            all: destruct h1; trivial.
         }
         rewrite Nat.mod_same.
         2: by rewrite concat_app; rewrite length_app; simpl; rewrite addnS; auto.
@@ -186,10 +193,15 @@ Proof.
         2: lia.
         rewrite Nat.sub_diag; simpl.
         simpl in prod_eq_1.
+        destruct (remove_option_from_list (concat l_tl)).
+        2: by destruct h1; reflexivity.
         destruct n1 as [|n1].
         by rewrite mul0n in prod_eq_1; discriminate.
         destruct n1 as [|n1].
-        by rewrite Nat.mod_same; auto.
+        {
+            rewrite Nat.mod_same; simpl; auto.
+            destruct h1; simpl; reflexivity.
+        }
         destruct (prod_list tl).
         by rewrite muln0 in prod_eq_1; discriminate.
         do 2 rewrite mulSn in prod_eq_1.
@@ -289,6 +301,33 @@ Proof.
     }
 Qed.
 
+Fixpoint not_all_ind (acc : var) : bool :=
+    match acc with
+    | Var v => false
+    | Index v _ => not_all_ind v
+    | Slice _ _ | Range _ _ _ => true
+    end.
+
+Lemma not_all_ind_imp_get_var_type_is_None:
+    forall v, not_all_ind v = true -> forall type_ctxt, get_var_type type_ctxt v = None.
+Proof.
+    move=> v; induction v as [v|v HRec ae| |]; simpl; trivial.
+    by discriminate.
+    intros; rewrite HRec; auto.
+Qed.
+
+Lemma unfold_access_not_all_ind:
+    forall acc v, not_all_ind v = true -> not_all_ind (unfold_access acc v) = true.
+Proof.
+    move=> acc; induction acc as [|iL acc HRec]; simpl; auto.
+    move=> v H.
+    destruct iL as [|hd tl].
+    {
+        apply HRec; simpl; reflexivity.
+    }
+    destruct tl; apply HRec; simpl; trivial.
+Qed.
+
 Theorem expand_var_lemma:
     forall v acc type_ctxt ctxt d m n,
         get_var_type type_ctxt (unfold_access acc v) = Some (Uint d m n) ->
@@ -322,8 +361,8 @@ Proof.
                 move=> _.
                 induction acc as [|iL acc HRec]; simpl; trivial.
                 case (forallb (Nat.eqb^~ 0) iL); trivial.
-                destruct (get_access [:: cst] acc nil) as [v1|].
-                all: destruct (get_access [:: cst] (change_access 0 acc) nil) as [v2|]; trivial.
+                destruct (get_access [:: Some cst] acc nil) as [v1|].
+                all: destruct (get_access [:: Some cst] (change_access 0 acc) nil) as [v2|]; trivial.
                 2,3: by discriminate.
                 rewrite linearize_map_CoIL in HRec.
                 rewrite linearize_map_CoIL.
@@ -423,17 +462,22 @@ Proof.
     {
         move=> acc type_ctxt ctxt d m n get_type.
         exfalso.
-        admit.
+        rewrite not_all_ind_imp_get_var_type_is_None in get_type.
+        by discriminate.
+        apply unfold_access_not_all_ind; auto.
     }
     {
         move=> acc type_ctxt ctxt d m n get_type.
         exfalso.
-        admit.
+        rewrite not_all_ind_imp_get_var_type_is_None in get_type.
+        by discriminate.
+        apply unfold_access_not_all_ind; auto.
     }
 Admitted.
 
 Theorem expand_var_inner_soundness:
     forall type_ctxt typ env_it partial v,
+        well_typed_ctxt (imap.elements type_ctxt) env_it ->
         get_var_type type_ctxt v = Some typ ->
         (forall n, Ensembles.In ident (typ_freevars typ) n -> exists c, find_const env_it n = Some c) ->
             eval_var env_it v AAll
@@ -442,8 +486,8 @@ Theorem expand_var_inner_soundness:
                 (Some nil) (expand_var_inner typ env_it false partial v).
 Proof.
     move=> type_ctxt typ env_it partial.
-    induction typ as [|d [] [|n]|]; simpl.
-    1-2,4,6: move=> v _ _.
+    induction typ as [|d [n'| |n'] [|n]|]; simpl.
+    1-2,4,6: move=> v _ _ _.
     1-4: pose (p := eval_var_linearize_fixpoint env_it v AAll); move: p.
     1-4: destruct (eval_var env_it v AAll) as [l|]; trivial.
     1-4: move=> HEq; specialize HEq with l; move: HEq.
@@ -452,31 +496,61 @@ Proof.
     {
         destruct n as [|n]; simpl.
         {
-            case_eq (1 <? n0); simpl.
-            all: swap 1 2.
-            {
-                intros; pose (p := eval_var_linearize_fixpoint env_it v AAll); move: p.
-                clear.
-                case (eval_var env_it v AAll); trivial.
-                move=> l H; specialize H with l; move: H.
-                impl_tac; [> by reflexivity | idtac ].
-                move=> ->; reflexivity.
-            }
-            {
-                intros; pose (p := eval_var_linearize_fixpoint env_it v AAll); move: p.
-                clear.
-                case (eval_var env_it v AAll); trivial.
-                move=> l H; specialize H with l; move: H.
-                impl_tac; [> by reflexivity | idtac ].
-                move=> ->; reflexivity.
-            }
+            intro v; intros.
+            pose (p := eval_var_linearize_fixpoint env_it v AAll); move: p.
+            clear.
+            case (eval_var env_it v AAll); trivial.
+            move=> l H; specialize H with l; move: H.
+            impl_tac; [> by reflexivity | idtac ].
+            move=> ->; reflexivity.
         }
-        move=> v get_type _.
-        (* rewrite (expand_var_lemma . *)
-        do 2 rewrite gen_list_0_int_S; simpl.
-        rewrite <- app_assoc; simpl.
-        rewrite flat_map_app; simpl.
+        move=> v well_typed get_type _.
+        rewrite (expand_var_lemma _ _ type_ctxt _ d (Mint n') n.+2); simpl.
+        2,3: by assumption.
+        2: by discriminate.
+        induction (gen_list_0_int n.+2) as [|hd tl HRec]; simpl; trivial.
+        rewrite <- HRec; clear HRec.
+        reflexivity.
+    }
+    {
+        destruct n as [|n]; simpl.
+        {
+            intro v; intros.
+            pose (p := eval_var_linearize_fixpoint env_it v AAll); move: p.
+            clear.
+            case (eval_var env_it v AAll); trivial.
+            move=> l H; specialize H with l; move: H.
+            impl_tac; [> by reflexivity | idtac ].
+            move=> ->; reflexivity.
+        }
+        move=> v well_typed get_type _.
+        rewrite (expand_var_lemma _ _ type_ctxt _ d Mnat n.+2); simpl.
+        2,3: by assumption.
+        2: by discriminate.
+        induction (gen_list_0_int n.+2) as [|hd tl HRec]; simpl; trivial.
+        rewrite <- HRec; clear HRec.
+        reflexivity.
+    }
+    {
+        destruct n as [|n]; simpl.
+        {
+            intro v; intros.
+            pose (p := eval_var_linearize_fixpoint env_it v AAll); move: p.
+            clear.
+            case (eval_var env_it v AAll); trivial.
+            move=> l H; specialize H with l; move: H.
+            impl_tac; [> by reflexivity | idtac ].
+            move=> ->; reflexivity.
+        }
+        move=> v well_typed get_type _.
+        rewrite (expand_var_lemma _ _ type_ctxt _ d (Mvar n') n.+2); simpl.
+        2,3: by assumption.
+        2: by discriminate.
+        induction (gen_list_0_int n.+2) as [|hd tl HRec]; simpl; trivial.
+        rewrite <- HRec; clear HRec.
+        reflexivity.
+    }
+    {
         admit.
     }
-    all: admit.
 Admitted.

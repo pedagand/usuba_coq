@@ -6,11 +6,39 @@ Goal
         find_val type_ctxt var = Some typ ->
         well_typed_ctxt type_ctxt ctxt ->
         convert_type typ nil = Some (dir, 1::nil) ->
+        find_val ctxt var = None ->
+        eval_deq arch prog type_ctxt ctxt
+            (Eqn (Index (Var var) (Const_e 0) :: (Index (Var var) (Const_e 0)) :: nil) (Tuple (ECons (Const 1 None)
+                            (ECons (Const 2 None) Enil)))
+                false) = opt_ctxt'
+        -> (ctxt' <- opt_ctxt'; find_val ctxt' var) = None.
+Proof.
+    simpl.
+    unfold bind; unfold bind_aux_list.
+    unfold bind_aux.
+    simpl.
+    move=> _ _ type_ctxt ctxt opt_ctxt var typ dir HEqType well_typed.
+    rewrite HEqType; move=> Convert; rewrite Convert; simpl.
+    case_eq (find_val ctxt var).
+    { by discriminate. }
+    {
+        move=> _ _; simpl.
+        rewrite String.eqb_refl; simpl.
+        move=> <-; simpl; reflexivity.
+    }
+Qed.
+
+Goal
+    forall arch prog type_ctxt ctxt opt_ctxt' var typ dir,
+        find_val type_ctxt var = Some typ ->
+        well_typed_ctxt type_ctxt ctxt ->
+        convert_type typ nil = Some (dir, 1::nil) ->
+        (exists v, eval_var ctxt (Index (Var var) (Const_e 0)) AAll = Some v) ->
         eval_deq arch prog type_ctxt ctxt
             (Eqn (Index (Var var) (Const_e 0) :: (Index (Var var) (Const_e 0)) :: nil) (Tuple (ECons (Const 1 None)
                             (ECons (Const 2 None) Enil)))
                 true) = opt_ctxt'
-        -> (ctxt' <- opt_ctxt'; find_val ctxt' var) = Some (CoIR dir (2::nil) (Some (1::nil))).
+        -> (ctxt' <- opt_ctxt'; find_val ctxt' var) = Some (CoIR dir (Some 2::nil) (Some (1::nil))).
 Proof.
     simpl.
     unfold bind; unfold bind_aux_list.
@@ -28,39 +56,39 @@ Proof.
         destruct c as [|d [|hd tl] form]; simpl.
         {
             rewrite String.eqb_refl; simpl.
-            move=> <-; simpl.
+            move=> _ <-; simpl.
             rewrite String.eqb_refl; reflexivity.
         }
+        all: apply (val_of_type_len _ _ _ dir _ [:: 1]) in valoType; trivial.
         {
             exfalso.
-            apply (val_of_type_len _ _ _ dir _ [:: 1]) in valoType; trivial.
             simpl in valoType.
             unfold muln, muln_rec in valoType.
-            rewrite PeanoNat.Nat.mul_1_l in valoType; discriminate.
+            destruct valoType as [_ Abs].
+            rewrite PeanoNat.Nat.mul_1_l in Abs; discriminate.
         }
+        destruct valoType as [FormEq length_eq].
+        destruct form as [form|].
+        2: by destruct FormEq.
+        symmetry in FormEq; destruct FormEq; simpl.
+        simpl in length_eq.
+        rewrite mul1n in length_eq.
+        inversion length_eq as [LengthEq]; clear length_eq.
         destruct tl; simpl.
-        {
-            rewrite String.eqb_refl; simpl.
-            move=> <-; simpl.
-            rewrite String.eqb_refl; reflexivity.
-        }
-        {
-            exfalso.
-            apply (val_of_type_len _ _ _ dir _ [:: 1]) in valoType; trivial.
-            simpl in valoType.
-            unfold muln, muln_rec in valoType.
-            rewrite PeanoNat.Nat.mul_1_l in valoType; discriminate.
-        }
+        2: by discriminate.
+        destruct hd as [hd|].
+        2: by move=> []; discriminate.
+        simpl; rewrite String.eqb_refl; simpl.
+        move=> _ <-; simpl.
+        rewrite String.eqb_refl; reflexivity.
     }
     {
-        move=> _; simpl; rewrite String.eqb_refl; simpl.
-        move=> <-; simpl.
-        rewrite String.eqb_refl; reflexivity.
+        move=> _ []; discriminate.
     }
 Qed.
 
 Goal
-    update (2::nil) (1::2::nil) (ASlice [:: 0] AAll) [:: CoIL 1] (DirH 8) = Some (1::2::nil, nil).
+    update (2::nil) (Some 1::Some 2::nil) (ASlice [:: 0] AAll) [:: CoIL 1] (DirH 8) true = Some (Some 1::Some 2::nil, nil).
 Proof.
     simpl; reflexivity.
 Qed.
@@ -70,11 +98,43 @@ Goal
         find_val type_ctxt var = Some typ ->
         well_typed_ctxt type_ctxt ctxt ->
         convert_type typ nil = Some (dir, 2::nil) ->
+        find_val ctxt var = None ->
+        eval_deq arch prog type_ctxt ctxt
+             (Eqn (Range (Var var) (Const_e 1) (Const_e 0)::nil) (Tuple (ECons (Const 1 None)
+                            (ECons (Const 2 None) Enil)))
+                false) = opt_ctxt'
+        -> (ctxt' <- opt_ctxt'; find_val ctxt' var) = Some (CoIR dir (Some 2::Some 1::nil) (Some (2::nil))).
+Proof.
+    simpl.
+    unfold bind; unfold bind_aux_list.
+    unfold bind_aux.
+    simpl.
+    move=> _ _ type_ctxt ctxt opt_ctxt var typ dir HEqType well_typed.
+    rewrite HEqType; move=> Convert; rewrite Convert; simpl.
+    case_eq (find_val ctxt var).
+    {
+        discriminate.
+    }
+    {
+        simpl.
+        move=> _ _ <-; simpl.
+        rewrite String.eqb_refl.
+        reflexivity.
+    }
+Qed.
+
+Goal
+    forall arch prog type_ctxt ctxt opt_ctxt' var typ dir,
+        find_val type_ctxt var = Some typ ->
+        well_typed_ctxt type_ctxt ctxt ->
+        convert_type typ nil = Some (dir, 2::nil) ->
+        (exists v, eval_var ctxt (Index (Var var) (Const_e 0)) AAll = Some v) ->
+        (exists v, eval_var ctxt (Index (Var var) (Const_e 1)) AAll = Some v) ->
         eval_deq arch prog type_ctxt ctxt
              (Eqn (Range (Var var) (Const_e 1) (Const_e 0)::nil) (Tuple (ECons (Const 1 None)
                             (ECons (Const 2 None) Enil)))
                 true) = opt_ctxt'
-        -> (ctxt' <- opt_ctxt'; find_val ctxt' var) = Some (CoIR dir (2::1::nil) (Some (2::nil))).
+        -> (ctxt' <- opt_ctxt'; find_val ctxt' var) = Some (CoIR dir (Some 2::Some 1::nil) (Some (2::nil))).
 Proof.
     simpl.
     unfold bind; unfold bind_aux_list.
@@ -146,15 +206,19 @@ Proof.
         1,3: by discriminate.
         all: destruct l as [|].
         2,4: by discriminate.
+        all: rewrite simpl_eq; simpl.
+        all: destruct h1.
+        2,4: by move=> []; discriminate.
+        all: destruct h2.
+        2,4: by move=> _ []; discriminate.
         all: simpl.
-        all: move=> <-; simpl.
+        all: move=> _ _ <-; simpl.
         all: rewrite String.eqb_refl.
         all: reflexivity.
     }
     {
         simpl.
-        move=> _ <-; simpl.
-        rewrite String.eqb_refl.
-        reflexivity.
+        move=> _ []; discriminate.
     }
 Qed.
+

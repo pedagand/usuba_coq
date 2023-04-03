@@ -65,15 +65,15 @@ Qed.
 
 (* linearize_list_value properties *)
 
-Lemma map_CoIL_is_lin:
-    forall l, linearize_list_value [seq CoIL i | i <- l] nil = [seq CoIL i | i <- l].
+Lemma map_CoIL_is_lin {A : Type}:
+    forall l, @linearize_list_value A [seq CoIL i | i <- l] nil = [seq CoIL i | i <- l].
 Proof.
     move=> l; induction l as [|hd tl HRec]; simpl; trivial.
     rewrite HRec; reflexivity.
 Qed.
 
-Theorem linearize_map_CoIL:
-    forall l1 l2, linearize_list_value (map CoIL l1) l2 = (map CoIL l1) ++ l2.
+Theorem linearize_map_CoIL {A : Type} :
+    forall l1 l2, @linearize_list_value A (map CoIL l1) l2 = (map CoIL l1) ++ l2.
 Proof.
     move=> l1 l2; induction l1 as [|hd l1 HRec]; simpl; trivial.
     rewrite HRec; reflexivity.
@@ -87,7 +87,7 @@ Proof.
         destruct (find_val ctxt v) as [[cst|dir iL [dim|]]|].
         3-4: discriminate.
         {
-            case (get_access [:: cst] acc nil); case acc.
+            case (get_access [:: Some cst] acc nil); case acc.
             + move=> l' HEq; inversion HEq; simpl.
                 clear; induction l' as [|hd tl HRec]; simpl; trivial.
                 f_equal; assumption.
