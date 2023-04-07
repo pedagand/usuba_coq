@@ -7,7 +7,17 @@ Module Import NatMap := FMapList.Make(String_as_OT).
 From Coq Require Import Program Arith.
 From Coq Require Recdef.
 
-Definition ident := string.
+Inductive ident :=
+    | Id_s : string -> ident
+    | Num : nat -> ident.
+Scheme Equality for ident.
+
+Lemma ident_beq_eq: forall x y, ident_beq x y = true <-> x = y.
+Proof.
+    intros; split; intro.
+    + apply internal_ident_dec_bl; assumption.
+    + apply internal_ident_dec_lb; assumption.
+Qed.
 
 Notation " p <- e ; f " :=
     match (e : option _) return option _ with
@@ -58,8 +68,7 @@ Function arith_expr_list_size (el : list arith_expr) :=
     end.
 
 Definition alpha_equal_ident (ctxt :  NatMap.t ident) (id1 : ident) (id2 : ident) : bool :=
-    internal_string_beq id1 id2.
-
+    ident_beq id1 id2.
 
 Fixpoint alpha_equal_arith_expr (ctxt :  NatMap.t ident) (ae1 : arith_expr) (ae2 : arith_expr) : bool :=
     match (ae1, ae2) with

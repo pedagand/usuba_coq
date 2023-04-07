@@ -1,5 +1,5 @@
 From mathcomp Require Import all_ssreflect.
-From Usuba Require Import usuba_AST usuba_sem equiv_rel.
+From Usuba Require Import usuba_AST usuba_ASTProp usuba_sem equiv_rel.
 
 Goal
     forall arch prog type_ctxt ctxt opt_ctxt' var typ dir,
@@ -23,7 +23,7 @@ Proof.
     { by discriminate. }
     {
         move=> _ _; simpl.
-        rewrite String.eqb_refl; simpl.
+        rewrite ident_beq_refl; simpl.
         move=> <-; simpl; reflexivity.
     }
 Qed.
@@ -33,7 +33,7 @@ Goal
         find_val type_ctxt var = Some typ ->
         well_typed_ctxt type_ctxt ctxt ->
         convert_type typ nil = Some (dir, 1::nil) ->
-        (exists v, eval_var ctxt (Index (Var var) (Const_e 0)) AAll = Some v) ->
+        (exists v, eval_var (Index (Var var) (Const_e 0)) ctxt AAll = Some v) ->
         eval_deq arch prog type_ctxt ctxt
             (Eqn (Index (Var var) (Const_e 0) :: (Index (Var var) (Const_e 0)) :: nil) (Tuple (ECons (Const 1 None)
                             (ECons (Const 2 None) Enil)))
@@ -55,9 +55,9 @@ Proof.
         destruct HEq'; clear HEqType.
         destruct c as [|d [|hd tl] form]; simpl.
         {
-            rewrite String.eqb_refl; simpl.
+            rewrite ident_beq_refl; simpl.
             move=> _ <-; simpl.
-            rewrite String.eqb_refl; reflexivity.
+            rewrite ident_beq_refl; reflexivity.
         }
         all: apply (val_of_type_len _ _ _ dir _ [:: 1]) in valoType; trivial.
         {
@@ -78,9 +78,9 @@ Proof.
         2: by discriminate.
         destruct hd as [hd|].
         2: by move=> []; discriminate.
-        simpl; rewrite String.eqb_refl; simpl.
+        simpl; rewrite ident_beq_refl; simpl.
         move=> _ <-; simpl.
-        rewrite String.eqb_refl; reflexivity.
+        rewrite ident_beq_refl; reflexivity.
     }
     {
         move=> _ []; discriminate.
@@ -118,7 +118,7 @@ Proof.
     {
         simpl.
         move=> _ _ <-; simpl.
-        rewrite String.eqb_refl.
+        rewrite ident_beq_refl.
         reflexivity.
     }
 Qed.
@@ -128,8 +128,8 @@ Goal
         find_val type_ctxt var = Some typ ->
         well_typed_ctxt type_ctxt ctxt ->
         convert_type typ nil = Some (dir, 2::nil) ->
-        (exists v, eval_var ctxt (Index (Var var) (Const_e 0)) AAll = Some v) ->
-        (exists v, eval_var ctxt (Index (Var var) (Const_e 1)) AAll = Some v) ->
+        (exists v, eval_var (Index (Var var) (Const_e 0)) ctxt AAll = Some v) ->
+        (exists v, eval_var (Index (Var var) (Const_e 1)) ctxt AAll = Some v) ->
         eval_deq arch prog type_ctxt ctxt
              (Eqn (Range (Var var) (Const_e 1) (Const_e 0)::nil) (Tuple (ECons (Const 1 None)
                             (ECons (Const 2 None) Enil)))
@@ -165,10 +165,13 @@ Proof.
             {
                 destruct m.
                 + move=> []; destruct d; auto.
-                    3-6: by discriminate.
-                    1-2: move=> a []; simpl; discriminate.
+                    4,6: by discriminate.
+                    1-3: by move=> a []; simpl; discriminate.
+                    by move=> a []; discriminate.
                 + discriminate.
-                + discriminate.
+                + move=> [|hd tl] HNeq.
+                    - exfalso; apply HNeq; reflexivity.
+                    - destruct d; destruct tl; discriminate.
             }
             {
                 destruct (eval_arith_expr nil len').
@@ -184,36 +187,33 @@ Proof.
         2,3: by destruct valoType.
         destruct c as [|d' l form]; simpl.
         {
-            destruct d.
-            3-6: discriminate.
-            all: inversion Convert.
-            all: destruct valoType as [_ [_ HEq2]].
-            all: symmetry in HEq2; destruct HEq2; discriminate.
+            by destruct valoType.
         }
         destruct form.
         2: by destruct valoType.
         rewrite muln1 in valoType.
         destruct d.
-        3-5: by discriminate.
+        4: by discriminate.
+        5: by discriminate.
         all: inversion Convert as [[HEq2 HEq3]]; clear Convert; simpl.
         all: destruct HEq2.
         all: symmetry in HEq3; destruct HEq3.
-        all: destruct valoType as [simpl_eq [length_eq dir_eq]].
+        all: destruct valoType as [simpl_eq [_ [length_eq dir_eq]]].
         all: rewrite length_eq; simpl.
         all: destruct l as [|h1 l].
-        1,3: by discriminate.
+        1,3,5,7: by discriminate.
         all: destruct l as [|h2 l].
-        1,3: by discriminate.
+        1,3,5,7: by discriminate.
         all: destruct l as [|].
-        2,4: by discriminate.
+        2,4,6,8: by discriminate.
         all: rewrite simpl_eq; simpl.
         all: destruct h1.
-        2,4: by move=> []; discriminate.
+        2,4,6,8: by move=> []; discriminate.
         all: destruct h2.
-        2,4: by move=> _ []; discriminate.
+        2,4,6,8: by move=> _ []; discriminate.
         all: simpl.
         all: move=> _ _ <-; simpl.
-        all: rewrite String.eqb_refl.
+        all: rewrite ident_beq_refl.
         all: reflexivity.
     }
     {

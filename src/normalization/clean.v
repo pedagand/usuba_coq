@@ -30,3 +30,5 @@ Definition clean_node (node : def) : def :=
         |}
     | _ => node
     end.
+
+Definition clean_prog : prog -> prog := List.map clean_node.

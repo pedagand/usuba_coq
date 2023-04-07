@@ -14,7 +14,11 @@ Definition IntSize_of_nat (n : nat) : option IntSize := Some n.
 Inductive dir :=
     | DirH of IntSize
     | DirV of IntSize
-    | DirB.
+    | DirB
+    | Dir__
+    | DirH_
+    | DirV_
+    | Dir_S of IntSize.
 Scheme Equality for dir.
 
 Inductive cst_or_int {A : Type} :=
@@ -51,7 +55,7 @@ Fixpoint find_val {A : Type} (ctxt : list (ident * A)) (i : ident) : option A :=
     match ctxt with
         | nil => None
         | ((name, val)::tl) =>
-            if String.eqb i name
+            if ident_beq i name
             then Some val
             else find_val tl i
     end.
@@ -60,7 +64,7 @@ Fixpoint find_node (p : prog) (i : ident) : option def :=
     match p with
         | nil => None
         | node::tl =>
-            if String.eqb i (ID node)
+            if ident_beq i (ID node)
             then Some node
             else find_node tl i
     end.
@@ -69,7 +73,7 @@ Fixpoint find_const (ctxt : context) (var : ident) : option nat :=
     match ctxt with
         | nil => None
         | ((name, v)::tl) =>
-            if String.eqb var name
+            if ident_beq var name
             then match v with
                 | CoIL i => Some i
                 | _ => None
@@ -102,7 +106,7 @@ Definition eval_binop_coi (binop : dir -> option (nat -> nat -> nat)) (v1 v2 : @
         end
     end.
 
-Fixpoint eval_binop (binop : dir -> option (nat -> nat -> nat)) (l1 l2 : list (@cst_or_int nat)) : option (list (@cst_or_int nat)) :=
+(* Fixpoint eval_binop_inner (binop : dir -> option (nat -> nat -> nat)) (l1 l2 : list (@cst_or_int nat)) : option (list (@cst_or_int nat)) :=
     match l1 with
     | nil => match l2 with
         | nil => Some nil
@@ -112,10 +116,41 @@ Fixpoint eval_binop (binop : dir -> option (nat -> nat -> nat)) (l1 l2 : list (@
         | nil => None
         | h2::tl2 =>
             hd <- eval_binop_coi binop h1 h2;
-            tl <- eval_binop binop tl1 tl2;
+            tl <- eval_binop_inner binop tl1 tl2;
             Some (hd :: tl)
         end
+    end. *)
+
+Fixpoint get_dir (l : list (@cst_or_int nat)) : option dir :=
+    match l with
+    | nil => None
+    | CoIL _ ::tl => get_dir tl
+    | CoIR d _ _::_ => Some d
     end.
+
+Fixpoint coerce_to (d : dir) (l1 : list (@cst_or_int nat)) : option (list nat) :=
+    match l1 with
+    | nil => Some nil
+    | CoIL n::tl =>
+        tl <- coerce_to d tl; Some (n::tl)
+    | CoIR d' iL _::tl =>
+        if dir_beq d d'
+        then
+            tl <- coerce_to d tl;
+            Some (iL ++ tl)
+        else None
+    end.
+
+Definition eval_binop (binop : dir -> option (nat -> nat -> nat)) (l1 l2 : list (@cst_or_int nat)) : option (list (@cst_or_int nat)) :=
+    d <- match get_dir l1 with
+        | None => get_dir l2
+        | Some d => Some d
+        end;
+    v1 <- coerce_to d l1;
+    v2 <- coerce_to d l2;
+    op <- binop d;
+    v3 <- list_map2 op v1 v2;
+    Some (CoIR d v3 None::nil).
 
 Definition eval_monop_coi (monop : dir -> option (nat -> nat)) (v : @cst_or_int nat) : option (@cst_or_int nat) :=
     match v with
@@ -171,7 +206,7 @@ Fixpoint take_n {A : Type} (nb : nat) (l : list A) : option (list A * list A) :=
     end.
 
 
-Definition eval_shift (op : shift_op) (arch : architecture) (v : list (@cst_or_int nat)) (v2 : nat) : option (list (@cst_or_int nat)) :=
+Definition eval_shift (arch : architecture) (op : shift_op) (v : list (@cst_or_int nat)) (v2 : nat) : option (list (@cst_or_int nat)) :=
     match v with
     | CoIR d (i::nil) len::nil =>
         f <- match op with
@@ -287,7 +322,7 @@ Definition gen_range (i1 i2 : nat) : list nat :=
     then gen_range_incr i1 i2
     else gen_range_decr i1 i2.
 
-Fixpoint eval_var (ctxt : context) (v : var) (acc : access) : option (list (@cst_or_int nat)) :=
+Fixpoint eval_var (v : var) (ctxt : context) (acc : access) : option (list (@cst_or_int nat)) :=
     match v with
     | Var v => 
         val <- find_val ctxt v;
@@ -302,26 +337,26 @@ Fixpoint eval_var (ctxt : context) (v : var) (acc : access) : option (list (@cst
         end
     | Index v ae =>
         i <- eval_arith_expr ctxt ae;
-        eval_var ctxt v (ASlice [:: i] acc)
+        eval_var v ctxt (ASlice [:: i] acc)
     | Range v ae1 ae2 =>
         i1 <- eval_arith_expr ctxt ae1;
         i2 <- eval_arith_expr ctxt ae2;
-        eval_var ctxt v (ASlice (gen_range i1 i2) acc)
+        eval_var v ctxt (ASlice (gen_range i1 i2) acc)
     | Slice v ael =>
         il <- fold_right (fun ae l =>
             l' <- l; i <- eval_arith_expr ctxt ae; Some (i::l')) (Some nil) ael;
-        eval_var ctxt v (ASlice il acc)
+        eval_var v ctxt (ASlice il acc)
     end.
 
 Function loop_rec (ctxt : context) (iter : context -> option context) i (s_i e_i : nat) : option context :=
-    match e_i with
-    | 0 => Some ctxt
-    | S e_i' =>
-        if (Nat.leb e_i s_i)
-        then Some ctxt
-        else
+    if (Nat.ltb e_i s_i)
+    then Some ctxt
+    else
+        match e_i with
+        | 0 => iter ((i, CoIL e_i)::ctxt)
+        | S e_i' =>
             ctxt' <- loop_rec ctxt iter i s_i e_i';
-            iter ((i, CoIL e_i')::ctxt')
+            iter ((i, CoIL e_i)::ctxt')
     end.
 
 Fixpoint replace_id {A : Type} (i : nat) (l : list A) (v : A) : option (list A) :=
@@ -343,7 +378,7 @@ Definition prog_ctxt := list (ident * node_sem_type).
 Fixpoint get_node (prog : prog_ctxt) (id : ident) : option node_sem_type :=
     match prog with
     | nil => None
-    | (name, f) :: tl => if String.eqb name id
+    | (name, f) :: tl => if ident_beq name id
         then Some f
         else get_node tl id
     end.
@@ -397,7 +432,7 @@ Function eval_expr (arch : architecture) (prog : prog_ctxt) (ctxt : context) (e 
     match e with
         | Const n None => Some (CoIL n::nil)
         | Const n (Some typ) => build_integer typ n
-        | ExpVar var => eval_var ctxt var AAll
+        | ExpVar var => eval_var var ctxt AAll
         | Tuple el => eval_expr_list arch prog ctxt el
         | Not e =>
             v <- eval_expr arch prog ctxt e;
@@ -427,7 +462,7 @@ Function eval_expr (arch : architecture) (prog : prog_ctxt) (ctxt : context) (e 
         | Shift op e1 e2 =>
             v1 <- eval_expr arch prog ctxt e1;
             v2 <- eval_arith_expr ctxt e2;
-            eval_shift op arch v1 v2
+            eval_shift arch op v1 v2
         | Shuffle v l => None
         | Bitmask e ae => None
         | Pack e1 e2 None => None
@@ -457,14 +492,14 @@ Inductive int_or_list (A : Type) : Type :=
     | IoLL : nat -> int_or_list A
     | IoLR : list A -> int_or_list A.
 
-Fixpoint try_take_n {A : Type} (nb : nat) (l : list A) : option ((list A) * int_or_list A) :=
+Fixpoint try_take_n {A : Type} (nb : nat) (l : list A) : ((list A) * int_or_list A) :=
     match nb with
-    | 0 => Some (nil, IoLR A l)
+    | 0 => (nil, IoLR A l)
     | S nb' => match l with
-        | nil => Some (nil, IoLL A nb)
+        | nil => (nil, IoLL A nb)
         | hd :: tl =>
-            (s, e) <- try_take_n nb' tl;
-            Some (hd :: s, e)
+            let (s, e) := try_take_n nb' tl in
+            (hd :: s, e)
         end
     end.
 
@@ -479,7 +514,7 @@ Fixpoint build_ctxt_aux_take_n (nb : nat) (input : list (@cst_or_int nat)) (d : 
         | (CoIR d' iL _)::in_tl =>
             if dir_beq d d'
             then
-                (hd, tl) <- try_take_n nb iL;
+                let (hd, tl) := try_take_n nb iL in
                 match tl with
                 | IoLR nil => Some (hd, in_tl)
                 | IoLR tl => Some(hd, CoIR d' tl None::in_tl)
@@ -508,6 +543,7 @@ Fixpoint build_ctxt_aux (typ : typ) (input : list (@cst_or_int nat)) (l : list n
         d <- match d with
             | Hslice => Some (DirH annot)
             | Vslice => Some (DirV annot)
+            | Bslice => Some DirB
             | _ => None
         end;
         (valL, input') <- build_ctxt_aux_take_n (nb * prod_list l) input d;
@@ -539,11 +575,20 @@ Fixpoint convert_type (typ : typ) (l : list nat) : option (dir * list nat) :=
         d <- match d with
             | Hslice => Some (DirH annot)
             | Vslice => Some (DirV annot)
+            | Bslice => Some DirB
+            | Varslice _ => Some (Dir_S annot) 
             | _ => None
         end;
         Some (d, l ++ nb::nil)
     | Uint _ Mnat nb => None
-    | Uint _ (Mvar _) nb => None
+    | Uint d (Mvar _) nb =>
+        d <- match d with
+            | Hslice => Some DirH_
+            | Vslice => Some DirV_
+            | Varslice _ => Some Dir__ 
+            | _ => None
+        end;
+        Some (d, l ++ nb::nil)
     | Array typ' len =>
         len' <- eval_arith_expr nil len;
         convert_type typ' (len'::l)
@@ -681,16 +726,64 @@ Fixpoint build_type_ctxt (l : p) : type_ctxt :=
     | hd::tl => (VD_ID hd, VD_TYP hd) :: build_type_ctxt tl
     end.
 
+Print fold_right.
+
+Fixpoint transpose_nat_list (n : nat) (l : list nat) : list nat :=
+    match n with
+    | 0 => nil
+    | S n' =>
+        let (num, l') :=
+            fold_right (fun i (p : nat * list nat) =>
+                let (nb, tl) := p in (2 * nb + (i mod 2), i / 2 :: tl))
+                (0, nil) l
+        in num::transpose_nat_list n' l'
+    end.
+
+Goal
+    transpose_nat_list 3 (3::2::7::nil) = (5::7::4::nil).
+Proof.
+    cbn; reflexivity.
+Qed.
+
+Goal
+    transpose_nat_list 8 (65::nil) = [:: 1; 0; 0; 0; 0; 0; 1; 0].
+Proof.
+    cbn; reflexivity.
+Qed.
+
+Fixpoint transpose_nat_list2 (iL : list nat) (len : nat) : list nat :=
+    match iL with
+    | nil => map (fun _=> 0) (@undefined nat len)
+    | hd::tl =>
+        let iL' := transpose_nat_list2 tl len in
+        let t2 := transpose_nat_list len (hd::nil) in
+        match list_map2 (fun i j => i * 2 + j) iL' t2 with
+        | Some l => l
+        | None => nil
+        end
+    end.
+
 Fixpoint eval_node_inner (arch : architecture) (prog : prog_ctxt) (in_names out_names : p) (def : def_i) (i : option nat) (input : list (@cst_or_int nat)) : option (list (@cst_or_int nat)) :=
     match def, i with
     | Single temp_vars eqns, None =>
         ctxt <- build_ctxt in_names input;
         ctxt' <- eval_deq_list arch prog (build_type_ctxt (temp_vars ++ in_names ++ out_names)) ctxt eqns;
         extract_ctxt out_names ctxt'
-    | Table l, None => match input with
-        | (CoIL i)::nil | CoIR _ (i::nil) _::nil =>
-            i' <- nth_error l i;
-            Some (CoIL i'::nil)
+    | Table l, None => match (in_names, input) with
+        | (n1::nil, CoIR d iL _::nil) =>
+            match convert_type (VD_TYP n1) nil with
+            | Some (d', len::nil) =>
+                if dir_beq d d' && Nat.eqb len (length iL)
+                then 
+                    size <- match d' with
+                        | DirH i | DirV i => Some i
+                        | DirB => Some 1 | _ => None end;
+                    let iL' := transpose_nat_list size iL in
+                    iL2 <- remove_option_from_list (map (nth_error l) iL');
+                    Some (CoIR d' (transpose_nat_list2 iL2 len) None::nil)
+                else None
+            | _ => None
+            end
         | _ => None
         end
     | Perm l, None => None
@@ -707,9 +800,186 @@ with eval_node_list arch prog in_names out_names l i input :=
         end
     end.
 
-Definition eval_node (node : def) (arch : architecture) (prog : prog_ctxt) : node_sem_type :=
+Record monomorph_info : Type := {
+    DIR_MONO : option usuba_AST.dir;
+    SIZE_MONO : option nat;
+}.
+
+Fixpoint extract_n {A : Type} (n : nat) (l : list (@cst_or_int A)) : option (list cst_or_int) :=
+    match l with
+    | nil => match n with
+        | 0 => Some nil
+        | _ => None
+        end
+    | CoIL _::tl => match n with
+        | 0 => Some l
+        | S n' => extract_n n' tl
+        end
+    | CoIR d iL form::tl =>
+        match try_take_n n iL with
+        | (_, IoLR nil) => Some tl
+        | (_, IoLR iL') => Some (CoIR d iL' None::tl)
+        | (_, IoLL n') => extract_n n' tl
+        end
+    end.
+
+Fixpoint extract_dir {A : Type} (n : nat) (l : list (@cst_or_int A)) : option usuba_AST.dir :=
+    match l with
+    | nil => None
+    | CoIL _::tl => match n with
+        | 0 => None
+        | S n' => extract_dir n' tl
+        end
+    | CoIR d iL form::tl =>
+        match n with
+        | 0 => None
+        | _ => 
+            match d with
+            | DirB   => Some Bslice
+            | DirH _ => Some Hslice
+            | DirV _ => Some Vslice
+            | _ => None
+            end
+        end
+    end.
+
+Fixpoint extract_size {A : Type} (n : nat) (l : list (@cst_or_int A)) : option nat :=
+    match l with
+    | nil => None
+    | CoIL _::tl => match n with
+        | 0 => None
+        | S n' => extract_size n' tl
+        end
+    | CoIR d iL form::tl =>
+        match n with
+        | 0 => None
+        | _ => 
+            match d with
+            | DirB   => Some 1
+            | DirH i | DirV i => Some i
+            | _ => None
+            end
+        end
+    end.
+
+Fixpoint infer_types (args : p) (input : list (@cst_or_int nat)) : option monomorph_info :=
+    match args with
+    | nil => Some {| DIR_MONO := None; SIZE_MONO := None |}
+    | hd :: tl => 
+        (d, form) <- convert_type (VD_TYP hd) nil;
+        let ed := extract_dir (prod_list form) input in
+        let es := extract_size (prod_list form) input in
+        input' <- extract_n (prod_list form) input;
+        info <- infer_types tl input';
+        match d with
+        | Dir__ =>
+            let d := match (ed, DIR_MONO info) with
+                | (Some d, _) | (_, Some d) => Some d
+                | (None, None) => None
+            end in
+            let s := match (es, SIZE_MONO info) with
+                | (Some s, _) | (_, Some s) => Some s
+                | (None, None) => None
+            end in
+            Some {| DIR_MONO := d; SIZE_MONO := s; |}
+        | Dir_S i =>
+            let d := match (ed, DIR_MONO info) with
+                | (Some d, _) | (_, Some d) => Some d
+                | (None, None) => None
+            end in
+            Some {| DIR_MONO := d; SIZE_MONO := SIZE_MONO info; |}
+        | DirH_ | DirV_ =>
+            let s := match (es, SIZE_MONO info) with
+                | (Some s, _) | (_, Some s) => Some s
+                | (None, None) => None
+            end in
+            Some {| DIR_MONO := DIR_MONO info; SIZE_MONO := s; |}
+        | _ => Some info
+        end
+    end.
+
+Fixpoint subst_infer_typ (infered : monomorph_info) (type : typ) : typ :=
+    match type with
+    | Uint d m l =>
+        let d' := match (d, DIR_MONO infered) with
+            | (Varslice _, Some d) => d
+            | _ => d
+        end in
+        let m' := match (m, SIZE_MONO infered) with
+            | (Mvar _, Some i) => Mint i
+            | _ => m
+        end in Uint d' m' l
+    | Nat => Nat
+    | Array t len => Array (subst_infer_typ infered t) len
+    end.
+
+Fixpoint subst_infer_p (infered : monomorph_info) (args : p) : p :=
+    match args with
+    | nil => nil
+    | hd :: tl =>
+        let tl := subst_infer_p infered tl in
+        {|
+            VD_ID := VD_ID hd;
+            VD_TYP := subst_infer_typ infered (VD_TYP hd);
+            VD_OPTS := VD_OPTS hd;
+        |}::tl
+    end.
+
+Fixpoint subst_infer_expr (infered : monomorph_info) (e : expr) : expr :=
+    match e with
+    | Const _ None | ExpVar _ | Shuffle _ _ => e
+    | Const i (Some t) => Const i (Some (subst_infer_typ infered t))
+    | Tuple el => Tuple (subst_infer_list_expr infered el)
+    | Not e => Not (subst_infer_expr infered e)
+    | Log op e1 e2 => Log op (subst_infer_expr infered e1) (subst_infer_expr infered e2)
+    | Arith op e1 e2 => Arith op (subst_infer_expr infered e1) (subst_infer_expr infered e2)
+    | Shift op e ae => Shift op (subst_infer_expr infered e) ae
+    | Bitmask e ae => Bitmask (subst_infer_expr infered e) ae
+    | Pack e1 e2 o_typ => Pack (subst_infer_expr infered e1) (subst_infer_expr infered e2) (option_map (subst_infer_typ infered) o_typ)
+    | Fun v el => Fun v (subst_infer_list_expr infered el)
+    | Fun_v v ae el => Fun_v v ae (subst_infer_list_expr infered el)
+    end
+with subst_infer_list_expr (infered : monomorph_info) (el : expr_list) : expr_list :=
+    match el with
+    | Enil => Enil
+    | ECons hd tl =>
+        ECons (subst_infer_expr infered hd)
+            (subst_infer_list_expr infered tl)
+    end.
+
+Fixpoint subst_infer_deq (infered : monomorph_info) (d : deq) : deq :=
+    match d with
+    | Eqn v e b => Eqn v (subst_infer_expr infered e) b
+    | Loop i ae1 ae2 eqns opt =>
+        Loop i ae1 ae2 (subst_infer_list_deq infered eqns) opt
+    end
+with subst_infer_list_deq (infered : monomorph_info) (eqns : list_deq) : list_deq :=
+    match eqns with
+    | Dnil => Dnil
+    | Dcons hd tl =>
+        Dcons (subst_infer_deq infered hd)
+            (subst_infer_list_deq infered tl)
+    end.
+
+Fixpoint subst_infer_def (infered : monomorph_info) (node : def_i) : def_i :=
+    match node with
+    | Single tmp eqns => Single (subst_infer_p infered tmp) (subst_infer_list_deq infered eqns)
+    | Perm p => Perm p
+    | Table t => Table t
+    | Multiple l => Multiple (subst_infer_list_def infered l)
+    end
+with subst_infer_list_def (infered : monomorph_info) (l : list_def_i) : list_def_i :=
+    match l with
+    | LDnil => LDnil
+    | LDcons hd tl =>
+        LDcons (subst_infer_def infered hd)
+            (subst_infer_list_def infered tl)
+    end.
+
+Definition eval_node (arch : architecture) (node : def) (prog : prog_ctxt) : node_sem_type :=
     fun opt input =>
-        eval_node_inner arch prog (P_IN node) (P_OUT node) (NODE node) opt input.
+        infered <- infer_types (P_IN node) input;
+        eval_node_inner arch prog (subst_infer_p infered (P_IN node)) (subst_infer_p infered (P_OUT node)) (subst_infer_def infered (NODE node)) opt input.
     
 
 Fixpoint eval_prog (arch : architecture) (fprog : prog) : prog_ctxt :=
@@ -717,9 +987,14 @@ Fixpoint eval_prog (arch : architecture) (fprog : prog) : prog_ctxt :=
     | nil => nil
     | node::prog =>
         let tl := eval_prog arch prog in
-        (ID node, eval_node node arch tl)::tl
+        (ID node, eval_node arch node tl)::tl
     end.
 
+Definition prog_sem (arch : architecture) (fprog : prog) : node_sem_type :=
+    match eval_prog arch fprog with
+    | nil => fun _ _ => None
+    | (_, hd)::_ => hd
+    end.
     
 (* Freevars *)
     

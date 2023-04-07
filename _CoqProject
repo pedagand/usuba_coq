@@ -1,18 +1,21 @@
 -R src Usuba
 src/utils.v
 src/usuba_AST.v
+src/usuba_ASTProp.v
 src/coq_missing_lemmas.v
 src/usuba_sem.v
-src/usuba_semProp.v
-src/extract.v
-src/equiv_rel.v
 src/syntax.v
+src/examples/arch.v
+src/examples/aes.v
+src/usuba_semProp.v
+src/equiv_rel.v
 src/normalization/collect.v
 src/normalization/collectProof.v
 src/normalization/clean.v
 src/normalization/cleanProof.v
 src/normalization/expand.v
 src/test_sem.v
+src/extract.v
 
 # generate CoqMakefile with 
 # coq_makefile -f _CoqProject -o CoqMakefile
