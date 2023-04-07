@@ -1,4 +1,7 @@
 -R src Usuba
+
+-arg -w -arg -notation-overridden
+
 src/utils.v
 src/usuba_AST.v
 src/usuba_ASTProp.v

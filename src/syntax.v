@@ -39,6 +39,8 @@ Notation "x '/' y"   := (Arith Div (x)%ua_expr (y)%ua_expr) (at level 40, left a
 Notation "f '@' '[' x , .. , y ']'" := (Fun (f)%string (ECons ((x)%ua_expr : expr) .. (ECons ((y)%ua_expr : expr) Enil) ..)) (at level 75, no associativity) : Usuba_expr.
 Notation "'[' x , .. , y ']'" := (Tuple (ECons ((x)%ua_expr : expr) .. (ECons ((y)%ua_expr : expr) Enil) ..)) (at level 87, no associativity) : Usuba_expr.
 
+Notation "f '$' '[' x , .. , y ']'" := (Slice (f)%ua_var (map Const_e (cons (x : nat) .. (cons (y : nat) nil) ..))) (at level 75, no associativity) : Usuba_var.
+Notation "f '$' '[' x , .. , y ']'" := (Slice (f)%ua_var (map Const_e (cons (x : nat) .. (cons (y : nat) nil) ..))) (at level 75, no associativity) : Usuba_expr.
 Notation "x '+' y"   := (Op_e Add (x)%ua_aexpr (y)%ua_aexpr) (at level 50, left associativity) : Usuba_arith_expr.
 Notation "x '-' y"   := (Op_e Sub (x)%ua_aexpr (y)%ua_aexpr) (at level 50, left associativity) : Usuba_arith_expr.
 Notation "x '*' y"   := (Op_e Mul (x)%ua_aexpr (y)%ua_aexpr) (at level 40, left associativity) : Usuba_arith_expr.

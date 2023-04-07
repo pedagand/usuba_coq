@@ -15,7 +15,7 @@ Inductive dir :=
     | DirH of IntSize
     | DirV of IntSize
     | DirB
-    | Dir__
+    | DirUnknow
     | DirH_
     | DirV_
     | Dir_S of IntSize.
@@ -585,7 +585,7 @@ Fixpoint convert_type (typ : typ) (l : list nat) : option (dir * list nat) :=
         d <- match d with
             | Hslice => Some DirH_
             | Vslice => Some DirV_
-            | Varslice _ => Some Dir__ 
+            | Varslice _ => Some DirUnknow 
             | _ => None
         end;
         Some (d, l ++ nb::nil)
@@ -872,7 +872,7 @@ Fixpoint infer_types (args : p) (input : list (@cst_or_int nat)) : option monomo
         input' <- extract_n (prod_list form) input;
         info <- infer_types tl input';
         match d with
-        | Dir__ =>
+        | DirUnknow =>
             let d := match (ed, DIR_MONO info) with
                 | (Some d, _) | (_, Some d) => Some d
                 | (None, None) => None

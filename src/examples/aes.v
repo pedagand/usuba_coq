@@ -45,7 +45,7 @@ tel.
 
 Definition node_shift_rows := node ShiftRows args inputSR:b8[16] returns output:b1[128] vars nil
 let
-    Var output :: nil <|- inputSR @ [0,5,10,15,4,9,14,3,8,13,2,7,12,1,6,11 ]
+    Var output :: nil <|- inputSR $ [0,5,10,15,4,9,14,3,8,13,2,7,12,1,6,11 ]
 tel.
 
 Definition node_times2 := node times2 args i:b1[8] returns o:b1[8] vars nil
@@ -104,4 +104,4 @@ Definition prog_tl4 : prog := node_times3 :: prog_tl5.
 Definition prog_tl3 : prog := node_MixColumn_single :: prog_tl4.
 Definition prog_tl2 : prog := node_MixColumn :: prog_tl3.
 Definition prog_tl : prog := node_AddRoundKey :: prog_tl2.
-Definition prog : prog := node_AES :: prog_tl.
+Definition prog_aes : prog := node_AES :: prog_tl.
