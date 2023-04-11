@@ -1531,7 +1531,7 @@ Proof.
                 unfold In; assumption.
             }
             destruct (loop_rec ctxt ((eval_deq_list arch prog type_ctxt)^~(list_deq_of_deqL body)) i i1 i2) as [ctxt'|]; trivial.
-            specialize HRecBody with type_ctxt ((i, CoIL i2.+1) :: ctxt').
+            specialize HRecBody with type_ctxt ((i, CoIL (Z.pos (Pos.of_succ_nat i2))) :: ctxt').
             destruct eval_deq_list as [ctxt'2|]; trivial.
             transitivity ctxt'; trivial.
             move=> elt HIn; rewrite <- HRecBody.
@@ -1604,8 +1604,8 @@ Proof.
         unfold In; assumption.
     }
     destruct (loop_rec ctxt ((eval_deq_list arch prog type_ctxt)^~ (list_deq_of_deqL body)) i i1 i2) as [ctxt'|]; trivial.
-    pose (p := eval_deq_list_unchanged_ctxt arch prog body type_ctxt ((i, CoIL i2.+1)::ctxt')); move:p.
-    destruct (eval_deq_list arch prog type_ctxt ((i, CoIL i2.+1)::ctxt') (list_deq_of_deqL body)) as [ctxt'2|]; trivial.
+    pose (p := eval_deq_list_unchanged_ctxt arch prog body type_ctxt ((i, CoIL (Z.pos (Pos.of_succ_nat i2)))::ctxt')); move:p.
+    destruct (eval_deq_list arch prog type_ctxt ((i, CoIL (Z.pos (Pos.of_succ_nat i2)))::ctxt') (list_deq_of_deqL body)) as [ctxt'2|]; trivial.
     move=> HBody; transitivity ctxt'; trivial.
     move=> elt HIn; rewrite <- HBody.
     + simpl.

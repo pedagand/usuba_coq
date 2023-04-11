@@ -25,7 +25,9 @@ Coercion c_e : nat >-> arith_expr.
 Coercion Const_e : Z >-> arith_expr.
 
 Definition c x := Const x None.
-Coercion c : nat >-> expr.
+Coercion c : Z >-> expr.
+Definition c' x := Const (Z.of_nat x) None.
+Coercion c' : nat >-> expr.
 Coercion Var : ident >-> var.
 Coercion Id_s : string >-> ident.
 
@@ -76,7 +78,7 @@ Notation " var ':' typ" :=
 
 Notation "'node' name 'args' var_decl1 , .. , var_decl1b 'returns' var_decl2 , .. , var_decl2b 'vars' var_decl3 'let' x ; .. ; y 'tel'" :=
     {|
-        ID := name;
+        ID := (name)%string;
         P_IN := (cons (var_decl1)%ua_var_decl .. (cons (var_decl1b)%ua_var_decl nil) ..)%ua_var_decl;
         P_OUT := (cons (var_decl2)%ua_var_decl .. (cons (var_decl2b)%ua_var_decl nil) ..)%ua_var_decl;
         OPT := No_opt;

@@ -129,7 +129,7 @@ Fixpoint list_eq {A} (eq : A -> A -> bool) (l1 : seq A) (l2 : seq A) :=
 (** EXPRESSIONS *)
 
 Inductive expr :=
-  | Const : nat -> option typ -> expr
+  | Const : Z -> option typ -> expr
   | ExpVar : var -> expr
   | Tuple : expr_list -> expr
   | Not : expr -> expr

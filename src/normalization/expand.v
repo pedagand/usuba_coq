@@ -183,7 +183,7 @@ Fixpoint change_access (i : nat) (acc : access) : access :=
     end.
 
 Theorem get_access_split_lemma:
-    forall n : nat, forall iL l_tl : list (list (option nat)),
+    forall n : nat, forall iL l_tl : list (list (option Z)),
     forall form_tl,
         Forall (fun l => length l = prod_list form_tl) (iL ++ l_tl) ->
         length iL = n ->

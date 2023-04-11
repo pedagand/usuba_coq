@@ -39,7 +39,7 @@ Goal
             (Eqn (Index (Var var) (Const_e 0%Z) :: (Index (Var var) (Const_e 0%Z)) :: nil) (Tuple (ECons (Const 1 None)
                             (ECons (Const 2 None) Enil)))
                 true) = opt_ctxt'
-        -> (ctxt' <- opt_ctxt'; find_val ctxt' var) = Some (CoIR dir (Some 2::nil) (Some (1::nil))).
+        -> (ctxt' <- opt_ctxt'; find_val ctxt' var) = Some (CoIR dir (Some 2%Z::nil) (Some (1::nil))).
 Proof.
     simpl.
     unfold bind; unfold bind_aux_list.
@@ -89,7 +89,7 @@ Proof.
 Qed.
 
 Goal
-    update (2::nil) (Some 1::Some 2::nil) (ASlice [:: 0] AAll) [:: CoIL 1] (DirH 8) true = Some (Some 1::Some 2::nil, nil).
+    update (2::nil) (Some 1::Some 2::nil)%Z (ASlice [:: 0] AAll) [:: CoIL 1] (DirH 8) true = Some (Some 1::Some 2::nil, nil)%Z.
 Proof.
     simpl; reflexivity.
 Qed.
@@ -104,7 +104,7 @@ Goal
              (Eqn (Range (Var var) (Const_e 1) (Const_e 0)::nil) (Tuple (ECons (Const 1 None)
                             (ECons (Const 2 None) Enil)))
                 false) = opt_ctxt'
-        -> (ctxt' <- opt_ctxt'; find_val ctxt' var) = Some (CoIR dir (Some 2::Some 1::nil) (Some (2::nil))).
+        -> (ctxt' <- opt_ctxt'; find_val ctxt' var) = Some (CoIR dir (Some 2::Some 1::nil)%Z (Some (2::nil))).
 Proof.
     simpl.
     unfold bind; unfold bind_aux_list.
@@ -135,7 +135,7 @@ Goal
              (Eqn (Range (Var var) (Const_e 1) (Const_e 0)::nil) (Tuple (ECons (Const 1 None)
                             (ECons (Const 2 None) Enil)))
                 true) = opt_ctxt'
-        -> (ctxt' <- opt_ctxt'; find_val ctxt' var) = Some (CoIR dir (Some 2::Some 1::nil) (Some (2::nil))).
+        -> (ctxt' <- opt_ctxt'; find_val ctxt' var) = Some (CoIR dir (Some 2::Some 1::nil)%Z (Some (2::nil))).
 Proof.
     simpl.
     unfold bind; unfold bind_aux_list.

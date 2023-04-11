@@ -1,5 +1,5 @@
 Require Import Bool.
-Require Import PeanoNat.
+Require Import ZArith.
 Require Import List.
 From Usuba Require Import usuba_AST.
 
@@ -29,7 +29,7 @@ Inductive dir :=
     | Dir_S : IntSize -> dir.
 Scheme Equality for dir.
 
-Fixpoint to_bits (len n : nat) : list bool :=
+(* Fixpoint to_bits (len n : nat) : list bool :=
     match len with
     | 0 => nil
     | S len' =>
@@ -43,7 +43,7 @@ Fixpoint from_bits (l : list bool) : nat :=
     end.
 
 Definition chop (len n : nat) :=
-    from_bits (to_bits len n).
+    from_bits (to_bits len n). *)
 
 Definition arith_wrapper {A : Type} (arch : dir -> bool) (op : nat -> A) (d : dir) : option A :=
     if arch d
@@ -55,17 +55,17 @@ Definition arith_wrapper {A : Type} (arch : dir -> bool) (op : nat -> A) (d : di
         end
     else None.
 
-Fixpoint extend (len a : nat) : nat :=
+(* Fixpoint extend (len a : nat) : nat :=
     match len with
     | 0 => 1
     | S len' => (a mod 2) + 2 * extend len' (a / 2)
-    end.
+    end. *)
 
-Definition add_fun (len a b : nat) : nat := chop len (a + b).
-Definition sub_fun (len a b : nat) : nat := chop len ((extend len a) - b).
-Definition mod_fun (len a b : nat) : nat := chop len (a mod b).
-Definition div_fun (len a b : nat) : nat := chop len (a / b).
-Definition mul_fun (len a b : nat) : nat := chop len (a * b).
+Definition add_fun (len : nat) (a b : Z) : Z := (a + b) mod (2 ^ (Z.of_nat len)).
+Definition sub_fun (len : nat) (a b : Z) : Z := (a - b) mod (2 ^ (Z.of_nat len)).
+Definition mod_fun (_   : nat) (a b : Z) : Z := (a mod b).
+Definition div_fun (_   : nat) (a b : Z) : Z := (a / b).
+Definition mul_fun (len : nat) (a b : Z) : Z := (a * b) mod (2 ^ (Z.of_nat len)).
 
 Fixpoint map2 {A B C : Type} (f : A -> B -> C) l1 l2 : list C :=
     match (l1, l2) with
@@ -73,68 +73,47 @@ Fixpoint map2 {A B C : Type} (f : A -> B -> C) l1 l2 : list C :=
     | (h1::t1, h2::t2) => f h1 h2::map2 f t1 t2
     end. 
 
-Definition lnot (len n : nat) : nat :=
-    from_bits (map negb (to_bits len n)).
 
-Definition land (len n1 n2 : nat) : nat :=
-    from_bits (map2 andb (to_bits len n1) (to_bits len n2)).
+Definition lnot (len : nat) (n : Z) : Z := Z.lxor n ((2 ^Z.of_nat len) - 1).
 
-Definition lor (len n1 n2 : nat) : nat :=
-    from_bits (map2 orb (to_bits len n1) (to_bits len n2)).
+Definition land (len : nat) (n1 n2 : Z) : Z := Z.land n1 n2.
 
-Definition lxor (len n1 n2 : nat) : nat :=
-    from_bits (map2 xorb (to_bits len n1) (to_bits len n2)).
+Definition lor   (len : nat) (n1 n2 : Z) : Z := Z.lor n1 n2.
+Definition lxor  (len : nat) (n1 n2 : Z) : Z := Z.lxor n1 n2.
+Definition landn (len : nat) (n1 n2 : Z) : Z := Z.land n1 (lnot len n2).
 
-Definition landn (len n1 n2 : nat) : nat :=
-    from_bits (map2 (fun a b => a && (negb b)) (to_bits len n1) (to_bits len n2)).
-
-Definition lshift (len s nb : nat) :=
-    match take_n (len - s) (to_bits len nb) with
-    | None => 0
-    | Some (l1, l2) => from_bits (map (fun _ => false) l2 ++ l1)
-    end.
+Definition lshift (len s : nat) (nb : Z) : Z := (nb * 2 ^ (Z.of_nat s)) mod (2 ^ Z.of_nat len).
 
 Goal
-    lshift 8 3 129 = 8.
+    lshift 8 3 129 = 8%Z.
 Proof. cbn. reflexivity. Qed.
 
-Definition rshift (len s nb : nat) :=
-    match take_n s (to_bits len nb) with
-    | None => 0
-    | Some (l1, l2) => from_bits (map (fun _ => false) l2 ++ l1)
-    end.
+Definition rshift (len s : nat) (nb : Z) : Z := nb / (2 ^ (Z.of_nat s)).
 
-Definition rashift (len s nb : nat) :=
+(* Definition rashift (len s nb : nat) :=
     let l := (to_bits len nb) in
     let lst := last l false in
     match take_n s l with
     | None => 0
     | Some (l1, l2) =>
         from_bits (map (fun _ => lst) l2 ++ l1)
-    end.
+    end. *)
     
-Definition lrotate (len s nb : nat) :=
-    match take_n (len - s) (to_bits len nb) with
-    | None => 0
-    | Some (l1, l2) => from_bits (l2 ++ l1)
-    end.
+Definition lrotate (len s : nat) (nb : Z) : Z := 
+    Z.lor (lshift len s nb) (rshift len (len - s) nb).
+Definition rrotate (len s : nat) (nb : Z) :
+    Z := Z.lor (rshift len s nb) (lshift len (len - s) nb).
 
-Definition rrotate (len s nb : nat) :=
-    match take_n s (to_bits len nb) with
-    | None => 0
-    | Some (l1, l2) => from_bits (l2 ++ l1)
-    end.
-
-Definition shift_wrapper (param : dir -> nat -> bool) (op : shift_op) (n : nat) (d : dir) (i : nat) : option nat :=
+Definition shift_wrapper (param : dir -> nat -> bool) (op : shift_op) (n : nat) (d : dir) (i : Z) : option Z :=
     if param d n
     then
-        let op := match op with
-            | Lshift => lshift
-            | Rshift => rshift
-            | RAshift => rashift
-            | Rrotate => rrotate
-            | Lrotate => lrotate
-        end in
+        op <- match op with
+            | Lshift  => Some lshift
+            | Rshift  => Some rshift
+            | RAshift => None
+            | Rrotate => Some rrotate
+            | Lrotate => Some lrotate
+        end;
         match d with
         | DirB => Some (op 1 n i)
         | DirH len | DirV len => Some (op len n i)

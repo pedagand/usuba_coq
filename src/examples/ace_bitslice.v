@@ -1,4 +1,4 @@
-Require Import String List.
+Require Import String List ZArith.
 From Usuba Require Import usuba_AST syntax arch.
 
 Definition simeck_box : string := "simeck_box".
@@ -30,7 +30,7 @@ let
     round[0] :: nil <|- input;
 
     for i in 0 to 7 do
-      (round[i + 1] $ [0,1])%ua_var :: nil <|- [f @ [round[i][0]] xor round[i][1] xor 0xfffffffe xor ((rc >> i) & 1), round[i][0]]
+      (round[i + 1] $ [0,1])%ua_var :: nil <|- [f @ [round[i][0]] xor round[i][1] xor 0xfffffffe%Z xor ((rc >> i) & 1), round[i][0]]
     done;
 
     Var output :: nil <|- round[8]
@@ -43,9 +43,9 @@ let
     Var A :: nil <:- simeck_box @ [A,RC[0]];
     Var C :: nil <:- simeck_box @ [C,RC[1]];
     Var E :: nil <:- simeck_box @ [E,RC[2]];
-    Var B :: nil <:- B xor C xor [0,SC[0]] xor [0xffffffff,0xffffff00];
-    Var D :: nil <:- D xor E xor [0,SC[1]] xor [0xffffffff,0xffffff00];
-    Var E :: nil <:- E xor A xor [0,SC[2]] xor [0xffffffff,0xffffff00];
+    Var B :: nil <:- B xor C xor [0,SC[0]] xor [0xffffffff%Z,0xffffff00%Z];
+    Var D :: nil <:- D xor E xor [0,SC[1]] xor [0xffffffff%Z,0xffffff00%Z];
+    Var E :: nil <:- E xor A xor [0,SC[2]] xor [0xffffffff%Z,0xffffff00%Z];
     Var Ar :: Var Br :: Var Cr :: Var Dr :: Var Er :: nil <:- [D, C, A, E, B]
 tel.
 
@@ -72,4 +72,4 @@ let
     Var output :: nil <|- tmp[16]
 tel.
 
-Definition prog_ace_bs := node_ACE :: node_ACE_step :: node_simeck_box :: nil.
+Definition prog_ace_bs := node_ACE :: node_ACE_step :: node_simeck_box :: node_f :: nil.

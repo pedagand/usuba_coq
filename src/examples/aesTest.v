@@ -9,7 +9,7 @@ Ltac simpl_1 iL Abs :=
     [> discriminate Abs | simpl in Abs].
 
 
-    Theorem build_ctxt_lemma:
+Theorem build_ctxt_lemma:
     forall n name args_tl iL iL_tl,
         length iL = n ->
         iL_tl <> nil ->

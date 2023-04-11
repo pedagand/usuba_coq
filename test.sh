@@ -1,7 +1,7 @@
 #!/bin/sh
 
 make -f CoqMakefile
-cat semantic_aes.ml > tmp.ml
-cat test.ml >> tmp.ml
-ocaml tmp.ml
-rm tmp.ml
+rm -f semantic_aes.mli
+ocamlfind ocamlopt -o a.out -linkpkg -package zarith semantic_aes.ml test.ml
+./a.out
+rm a.out semantic_aes.cm* semantic_aes.o

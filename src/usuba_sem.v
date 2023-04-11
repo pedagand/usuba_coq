@@ -9,14 +9,14 @@ From mathcomp Require Import ssrnat.
 From Usuba Require Import usuba_AST arch.
 
 Inductive cst_or_int {A : Type} :=
-    | CoIL : nat -> cst_or_int
+    | CoIL : Z -> cst_or_int
     | CoIR : dir -> list A -> option (list nat) -> cst_or_int.
 Scheme Equality for option.
 Scheme Equality for list.
 
-Definition Value := list (@cst_or_int nat).
+Definition Value := list (@cst_or_int Z).
 
-Definition context : Type := list (ident * @cst_or_int (option nat)).
+Definition context : Type := list (ident * @cst_or_int (option Z)).
 
 Fixpoint find_val {A : Type} (ctxt : list (ident * A)) (i : ident) : option A :=
     match ctxt with
@@ -42,7 +42,7 @@ Fixpoint find_const (ctxt : context) (var : ident) : option nat :=
         | ((name, v)::tl) =>
             if ident_beq var name
             then match v with
-                | CoIL i => Some i
+                | CoIL i => if (0 <=? i)%Z then Some (Z.to_nat i) else None
                 | _ => None
                 end
             else find_const tl var
@@ -57,7 +57,7 @@ Fixpoint list_map2 {A B C : Type} (op : A -> B -> C) (l1 : list A) (l2 : list B)
     | _, _ => None
     end.
 
-Definition eval_binop_coi (binop : dir -> option (nat -> nat -> nat)) (v1 v2 : @cst_or_int nat) : option (@cst_or_int nat) :=
+Definition eval_binop_coi (binop : dir -> option (Z -> Z -> Z)) (v1 v2 : @cst_or_int Z) : option (@cst_or_int Z) :=
     match v1 with
     | CoIL i => None
     | CoIR d1 i1 l1 =>
@@ -73,29 +73,14 @@ Definition eval_binop_coi (binop : dir -> option (nat -> nat -> nat)) (v1 v2 : @
         end
     end.
 
-(* Fixpoint eval_binop_inner (binop : dir -> option (nat -> nat -> nat)) (l1 l2 : list (@cst_or_int nat)) : option (list (@cst_or_int nat)) :=
-    match l1 with
-    | nil => match l2 with
-        | nil => Some nil
-        | _::_ => None
-        end
-    | h1::tl1 => match l2 with
-        | nil => None
-        | h2::tl2 =>
-            hd <- eval_binop_coi binop h1 h2;
-            tl <- eval_binop_inner binop tl1 tl2;
-            Some (hd :: tl)
-        end
-    end. *)
-
-Fixpoint get_dir (l : list (@cst_or_int nat)) : option dir :=
+Fixpoint get_dir (l : list (@cst_or_int Z)) : option dir :=
     match l with
     | nil => None
     | CoIL _ ::tl => get_dir tl
     | CoIR d _ _::_ => Some d
     end.
 
-Fixpoint coerce_to (d : dir) (l1 : list (@cst_or_int nat)) : option (list nat) :=
+Fixpoint coerce_to (d : dir) (l1 : list (@cst_or_int Z)) : option (list Z) :=
     match l1 with
     | nil => Some nil
     | CoIL n::tl =>
@@ -108,7 +93,7 @@ Fixpoint coerce_to (d : dir) (l1 : list (@cst_or_int nat)) : option (list nat) :
         else None
     end.
 
-Definition eval_binop (binop : dir -> option (nat -> nat -> nat)) (l1 l2 : list (@cst_or_int nat)) : option (list (@cst_or_int nat)) :=
+Definition eval_binop (binop : dir -> option (Z -> Z -> Z)) (l1 l2 : list (@cst_or_int Z)) : option (list (@cst_or_int Z)) :=
     d <- match get_dir l1 with
         | None => get_dir l2
         | Some d => Some d
@@ -119,7 +104,7 @@ Definition eval_binop (binop : dir -> option (nat -> nat -> nat)) (l1 l2 : list 
     v3 <- list_map2 op v1 v2;
     Some (CoIR d v3 None::nil).
 
-Definition eval_monop_coi (monop : dir -> option (nat -> nat)) (v : @cst_or_int nat) : option (@cst_or_int nat) :=
+Definition eval_monop_coi (monop : dir -> option (Z -> Z)) (v : @cst_or_int Z) : option (@cst_or_int Z) :=
     match v with
     | CoIL _ => None
     | CoIR d i l => 
@@ -127,7 +112,7 @@ Definition eval_monop_coi (monop : dir -> option (nat -> nat)) (v : @cst_or_int 
         Some (CoIR d (map op i) l)
     end.
 
-Fixpoint eval_monop (monop : dir -> option (nat -> nat)) (v : list (@cst_or_int nat)) : option (list (@cst_or_int nat)) :=
+Fixpoint eval_monop (monop : dir -> option (Z -> Z)) (v : list (@cst_or_int Z)) : option (list (@cst_or_int Z)) :=
     match v with
     | nil => Some nil
     | hd::tl =>
@@ -136,7 +121,7 @@ Fixpoint eval_monop (monop : dir -> option (nat -> nat)) (v : list (@cst_or_int 
         Some (hd' :: tl')
     end.
 
-Definition eval_shift (arch : architecture) (op : shift_op) (v : list (@cst_or_int nat)) (v2 : nat) : option (list (@cst_or_int nat)) :=
+Definition eval_shift (arch : architecture) (op : shift_op) (v : list (@cst_or_int Z)) (v2 : nat) : option (list (@cst_or_int Z)) :=
     match v with
     | CoIR d (i::nil) len::nil =>
         i' <- shift_wrapper (IMPL_SHIFT arch) op v2 d i;
@@ -144,7 +129,7 @@ Definition eval_shift (arch : architecture) (op : shift_op) (v : list (@cst_or_i
     | CoIR d i len::nil => match op with
         | Lshift =>
             (hd, tl) <- take_n v2 i;
-            Some (CoIR d (app tl (map (fun _=> 0) hd)) len::nil)
+            Some (CoIR d (app tl (map (fun _=> 0%Z) hd)) len::nil)
         | _ => None
         end
     | _ => None
@@ -199,7 +184,7 @@ Fixpoint remove_option_from_list {A : Type} (l : list (option A)) : option (list
     end.
 
 (** We assert that `length values = prod_list dim` *)
-Fixpoint get_access (values : list (option nat)) (acc : access) (dim : list nat) : option (list nat) :=
+Fixpoint get_access (values : list (option Z)) (acc : access) (dim : list nat) : option (list Z) :=
     match dim with
     | nil =>
         match values with
@@ -252,7 +237,7 @@ Definition gen_range (i1 i2 : nat) : list nat :=
     then gen_range_incr i1 i2
     else gen_range_decr i1 i2.
 
-Fixpoint eval_var (v : var) (ctxt : context) (acc : access) : option (list (@cst_or_int nat)) :=
+Fixpoint eval_var (v : var) (ctxt : context) (acc : access) : option (list (@cst_or_int Z)) :=
     match v with
     | Var v => 
         val <- find_val ctxt v;
@@ -283,10 +268,10 @@ Fixpoint loop_rec (ctxt : context) (iter : context -> option context) i (s_i e_i
     then Some ctxt
     else
         match e_i with
-        | 0 => iter ((i, CoIL e_i)::ctxt)
+        | 0 => iter ((i, CoIL (Z.of_nat e_i))::ctxt)
         | S e_i' =>
             ctxt' <- loop_rec ctxt iter i s_i e_i';
-            iter ((i, CoIL e_i)::ctxt')
+            iter ((i, CoIL (Z.of_nat e_i))::ctxt')
     end.
 
 Fixpoint replace_id {A : Type} (i : nat) (l : list A) (v : A) : option (list A) :=
@@ -302,7 +287,7 @@ Fixpoint replace_id {A : Type} (i : nat) (l : list A) (v : A) : option (list A) 
 
 Definition type_ctxt : Type := list (ident * typ).
 
-Definition node_sem_type := option nat -> list (@cst_or_int nat) -> option (list (@cst_or_int nat)).
+Definition node_sem_type := option nat -> list (@cst_or_int Z) -> option (list (@cst_or_int Z)).
 Definition prog_ctxt := list (ident * node_sem_type).
 
 Fixpoint get_node (prog : prog_ctxt) (id : ident) : option node_sem_type :=
@@ -313,7 +298,7 @@ Fixpoint get_node (prog : prog_ctxt) (id : ident) : option node_sem_type :=
         else get_node tl id
     end.
 
-Definition build_integer (typ : typ) (n : nat) : option (list (@cst_or_int nat)) :=
+Definition build_integer (typ : typ) (n : Z) : option (list (@cst_or_int Z)) :=
     match typ with
     | Nat => Some (CoIL n::nil)
     | Uint Hslice (Mint size) 1 =>
@@ -342,7 +327,7 @@ Fixpoint linearize_list_value {A : Type} (inL : list (@cst_or_int A)) (outL : li
         end
     end.
 
-Fixpoint extract_ctxt (var_names : p) (ctxt : context) : option (list (@cst_or_int nat)) :=
+Fixpoint extract_ctxt (var_names : p) (ctxt : context) : option (list (@cst_or_int Z)) :=
     match var_names with
     | nil => Some nil
     | v::tl =>
@@ -358,7 +343,7 @@ Fixpoint extract_ctxt (var_names : p) (ctxt : context) : option (list (@cst_or_i
         end
     end.
 
-Fixpoint eval_expr (arch : architecture) (prog : prog_ctxt) (ctxt : context) (e : expr) : option (list (@cst_or_int nat)) :=
+Fixpoint eval_expr (arch : architecture) (prog : prog_ctxt) (ctxt : context) (e : expr) : option (list (@cst_or_int Z)) :=
     match e with
         | Const n None => Some (CoIL n::nil)
         | Const n (Some typ) => build_integer typ n
@@ -409,7 +394,7 @@ Fixpoint eval_expr (arch : architecture) (prog : prog_ctxt) (ctxt : context) (e 
             l_val <- f (Some i) args;
             Some (linearize_list_value l_val nil)
     end
-with eval_expr_list (arch : architecture) (prog : prog_ctxt) (ctxt : context) (el : expr_list) : option (list (@cst_or_int nat)) :=
+with eval_expr_list (arch : architecture) (prog : prog_ctxt) (ctxt : context) (el : expr_list) : option (list (@cst_or_int Z)) :=
     match el with
     | Enil => Some nil
     | ECons e tl =>
@@ -433,7 +418,7 @@ Fixpoint try_take_n {A : Type} (nb : nat) (l : list A) : ((list A) * int_or_list
         end
     end.
 
-Fixpoint build_ctxt_aux_take_n (nb : nat) (input : list (@cst_or_int nat)) (d : dir) : option (list nat * list (@cst_or_int nat)) :=
+Fixpoint build_ctxt_aux_take_n (nb : nat) (input : list (@cst_or_int Z)) (d : dir) : option (list Z * list (@cst_or_int Z)) :=
     match nb with
     | 0 => Some (nil, input)
     | S nb' => match input with
@@ -462,7 +447,7 @@ Fixpoint prod_list (l : list nat) : nat :=
     | hd::tl => hd * prod_list tl
     end.
 
-Fixpoint build_ctxt_aux (typ : typ) (input : list (@cst_or_int nat)) (l : list nat) : option (@cst_or_int (option nat) * list (@cst_or_int nat)) :=
+Fixpoint build_ctxt_aux (typ : typ) (input : list (@cst_or_int Z)) (l : list nat) : option (@cst_or_int (option Z) * list (@cst_or_int Z)) :=
     match typ with
     | Nat => match input with
         | CoIL n :: input' => Some (CoIL n, input') 
@@ -485,7 +470,7 @@ Fixpoint build_ctxt_aux (typ : typ) (input : list (@cst_or_int nat)) (l : list n
         build_ctxt_aux typ input (len::l)
     end.
 
-Fixpoint build_ctxt (args : p) (input : list (@cst_or_int nat)) : option context :=
+Fixpoint build_ctxt (args : p) (input : list (@cst_or_int Z)) : option context :=
     match args with
     | nil => match input with
         | nil => Some nil
@@ -554,7 +539,7 @@ Fixpoint can_bind {A : Type} (l : list (option A)) (b : bool) : bool :=
     end.
 
 (* We assert that `prod_list form = length val` *)
-Fixpoint update (form : list nat) (val : list (option nat)) (acc : access) (e : list (@cst_or_int nat)) (dir : dir) (b : bool) : option (list (option nat) * list (@cst_or_int nat)) :=
+Fixpoint update (form : list nat) (val : list (option Z)) (acc : access) (e : list (@cst_or_int Z)) (dir : dir) (b : bool) : option (list (option Z) * list (@cst_or_int Z)) :=
     match form with
     | nil => match acc with
         | AAll =>
@@ -586,7 +571,7 @@ Fixpoint update (form : list nat) (val : list (option nat)) (acc : access) (e : 
         else None
     end.
 
-Fixpoint bind_aux (ctxt : context) (type_ctxt : type_ctxt) (v : var) (acc : access) (e : list (@cst_or_int nat)) (b : bool) : option (context * list (@cst_or_int nat)) :=
+Fixpoint bind_aux (ctxt : context) (type_ctxt : type_ctxt) (v : var) (acc : access) (e : list (@cst_or_int Z)) (b : bool) : option (context * list (@cst_or_int Z)) :=
     match v with
     | Var v =>
         typ <- find_val type_ctxt v;
@@ -611,7 +596,7 @@ Fixpoint bind_aux (ctxt : context) (type_ctxt : type_ctxt) (v : var) (acc : acce
         bind_aux ctxt type_ctxt v (ASlice il acc) e b
     end.
 
-Fixpoint bind_aux_list ctxt type_ctxt (vl : list var) (el : list (@cst_or_int nat)) (b : bool) : option (context * list (@cst_or_int nat)) :=
+Fixpoint bind_aux_list ctxt type_ctxt (vl : list var) (el : list (@cst_or_int Z)) (b : bool) : option (context * list (@cst_or_int Z)) :=
     match vl with
     | nil => match el with
         | nil => Some (ctxt, el)
@@ -622,7 +607,7 @@ Fixpoint bind_aux_list ctxt type_ctxt (vl : list var) (el : list (@cst_or_int na
         bind_aux_list ctxt' type_ctxt vl' el' b
     end.
 
-Definition bind ctxt type_ctxt (vl : list var) (el : list (@cst_or_int nat)) (b : bool) : option context :=
+Definition bind ctxt type_ctxt (vl : list var) (el : list (@cst_or_int Z)) (b : bool) : option context :=
     match bind_aux_list ctxt type_ctxt vl el b with
     | Some (ctxt', nil) => Some ctxt'
     | _ => None
@@ -656,42 +641,42 @@ Fixpoint build_type_ctxt (l : p) : type_ctxt :=
     | hd::tl => (VD_ID hd, VD_TYP hd) :: build_type_ctxt tl
     end.
 
-Fixpoint transpose_nat_list (n : nat) (l : list nat) : list nat :=
+Fixpoint transpose_nat_list (n : nat) (l : list Z) : list Z :=
     match n with
     | 0 => nil
     | S n' =>
         let (num, l') :=
-            fold_right (fun i (p : nat * list nat) =>
-                let (nb, tl) := p in (2 * nb + (i mod 2), i / 2 :: tl))
-                (0, nil) l
+            fold_right (fun i (p : Z * list Z) =>
+                let (nb, tl) := p in (2 * nb + (i mod 2), i / 2 :: tl)%Z)
+                (0%Z, nil) l
         in num::transpose_nat_list n' l'
     end.
 
 Goal
-    transpose_nat_list 3 (3::2::7::nil) = (5::7::4::nil).
+    transpose_nat_list 3 (3::2::7::nil)%Z = (5::7::4::nil)%Z.
 Proof.
     cbn; reflexivity.
 Qed.
 
 Goal
-    transpose_nat_list 8 (65::nil) = [:: 1; 0; 0; 0; 0; 0; 1; 0].
+    transpose_nat_list 8 (65::nil)%Z = [:: 1; 0; 0; 0; 0; 0; 1; 0]%Z.
 Proof.
     cbn; reflexivity.
 Qed.
 
-Fixpoint transpose_nat_list2 (iL : list nat) (len : nat) : list nat :=
+Fixpoint transpose_nat_list2 (iL : list Z) (len : nat) : list Z :=
     match iL with
-    | nil => map (fun _=> 0) (@undefined nat len)
+    | nil => map (fun _=> 0%Z) (@undefined Z len)
     | hd::tl =>
         let iL' := transpose_nat_list2 tl len in
         let t2 := transpose_nat_list len (hd::nil) in
-        match list_map2 (fun i j => i * 2 + j) iL' t2 with
+        match list_map2 (fun i j => i * 2 + j)%Z iL' t2 with
         | Some l => l
         | None => nil
         end
     end.
 
-Fixpoint eval_node_inner (arch : architecture) (prog : prog_ctxt) (in_names out_names : p) (def : def_i) (i : option nat) (input : list (@cst_or_int nat)) : option (list (@cst_or_int nat)) :=
+Fixpoint eval_node_inner (arch : architecture) (prog : prog_ctxt) (in_names out_names : p) (def : def_i) (i : option nat) (input : list (@cst_or_int Z)) : option (list (@cst_or_int Z)) :=
     match def, i with
     | Single temp_vars eqns, None =>
         ctxt <- build_ctxt in_names input;
@@ -707,8 +692,8 @@ Fixpoint eval_node_inner (arch : architecture) (prog : prog_ctxt) (in_names out_
                         | DirH i | DirV i => Some i
                         | DirB => Some 1 | _ => None end;
                     let iL' := transpose_nat_list size iL in
-                    iL2 <- remove_option_from_list (map (nth_error l) iL');
-                    Some (CoIR d' (transpose_nat_list2 iL2 len) None::nil)
+                    iL2 <- remove_option_from_list (map (fun i => nth_error l (Z.to_nat i)) iL');
+                    Some (CoIR d' (transpose_nat_list2 (map Z.of_nat iL2) len) None::nil)
                 else None
             | _ => None
             end
@@ -790,7 +775,7 @@ Fixpoint extract_size {A : Type} (n : nat) (l : list (@cst_or_int A)) : option n
         end
     end.
 
-Fixpoint infer_types (args : p) (input : list (@cst_or_int nat)) : option monomorph_info :=
+Fixpoint infer_types (args : p) (input : list (@cst_or_int Z)) : option monomorph_info :=
     match args with
     | nil => Some {| DIR_MONO := None; SIZE_MONO := None |}
     | hd :: tl => 
