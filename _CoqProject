@@ -6,10 +6,13 @@ src/utils.v
 src/usuba_AST.v
 src/usuba_ASTProp.v
 src/coq_missing_lemmas.v
+src/arch.v
 src/usuba_sem.v
+
 src/syntax.v
-src/examples/arch.v
 src/examples/aes.v
+src/examples/ace_bitslice.v
+
 src/usuba_semProp.v
 src/equiv_rel.v
 src/normalization/collect.v

@@ -1,12 +1,12 @@
-From Usuba Require Import utils usuba_AST usuba_sem usuba_semProp.
-From mathcomp Require Import all_ssreflect.
-Require Setoid.
+From Usuba Require Import utils usuba_AST usuba_sem usuba_semProp arch.
+Require Import ZArith.
 Require Import RelationClasses.
 Require Import Coq.Lists.List.
 Require Import Coq.Sets.Ensembles.
-From Coq Require Import Bool.Bool.
+(* Require Import Bool. *)
 Require Import Lia.
-Require Import Coq.Setoids.Setoid.
+Require Import Setoid.
+From mathcomp Require Import all_ssreflect.
 
 Section Rel.
 
@@ -360,10 +360,10 @@ End Rel.
 Fixpoint unfold_access (acc : access) (v : var) : var :=
     match acc with
     | AAll => v
-    | ASlice (i::nil) acc_tl => unfold_access acc_tl (Index v (Const_e i))
-    | ASlice l acc_tl => unfold_access acc_tl (Slice v (map Const_e l))
+    | ASlice (i::nil) acc_tl => unfold_access acc_tl (Index v (Const_e (Z.of_nat i)))
+    | ASlice l acc_tl => unfold_access acc_tl (Slice v (map (fun i => Const_e (Z.of_nat i)) l))
     end.
-    
+
 Lemma unfold_access_var_equiv:
     forall acc v1 v2,
         var_equiv v1 v2 -> var_equiv (unfold_access acc v1) (unfold_access acc v2).
@@ -566,15 +566,16 @@ Qed.
 
 (* Properties about changing context *)
 
-Theorem eval_aexpr_change_ctxt:
+Lemma eval_aexpr_change_ctxt_lemma:
     (forall e ctxt1 ctxt2,
         (context_csrel (aexpr_freevars e) ctxt1 ctxt2) ->
-        eval_arith_expr ctxt1 e = eval_arith_expr ctxt2 e).
+        eval_arith_expr_inner ctxt1 e = eval_arith_expr_inner ctxt2 e).
 Proof.
     move=> e; induction e as [| |op e1 HRec1 e2 HRec2]; simpl; trivial.
     {
-        move=> c1 c2 HImpl; apply HImpl.
-        constructor.
+        move=> c1 c2 HImpl.
+        eq_match.
+        apply HImpl; constructor.
     }
     {
         move=> ctxt1 ctxt2 HImpl.
@@ -584,6 +585,16 @@ Proof.
         2: move=> x HIn; apply HImpl; constructor; assumption.
         reflexivity.
     }
+Qed.
+
+Theorem eval_aexpr_change_ctxt:
+    (forall e ctxt1 ctxt2,
+        (context_csrel (aexpr_freevars e) ctxt1 ctxt2) ->
+        eval_arith_expr ctxt1 e = eval_arith_expr ctxt2 e).
+Proof.
+    unfold eval_arith_expr.
+    intros; eq_match.
+    apply eval_aexpr_change_ctxt_lemma; trivial.
 Qed.
 
 #[global]
@@ -1527,7 +1538,7 @@ Proof.
             + simpl.
                 assert (ident_beq elt i = false) as HEq.
                 2: by rewrite HEq; reflexivity.
-                rewrite <- not_true_iff_false; move=> HEq; apply internal_ident_dec_bl in HEq; destruct HEq.
+                rewrite <- Bool.not_true_iff_false; move=> HEq; apply internal_ident_dec_bl in HEq; destruct HEq.
                 destruct HIn; do 2 constructor 1.
             + unfold Complement, In; intro; destruct HIn; constructor 2; unfold In; assumption.
         }
@@ -1548,7 +1559,7 @@ Proof.
             + simpl.
                 assert (ident_beq x i = false) as HEq.
                 2: by rewrite HEq; reflexivity.
-                rewrite <- not_true_iff_false; move=> HEq; apply internal_ident_dec_bl in HEq; destruct HEq.
+                rewrite <- Bool.not_true_iff_false; move=> HEq; apply internal_ident_dec_bl in HEq; destruct HEq.
                 destruct HIn; do 3 constructor 1.
             + unfold Complement, In; intro; destruct HIn; constructor 2; unfold In; assumption.
         }
@@ -1600,7 +1611,7 @@ Proof.
     + simpl.
         assert (ident_beq elt i = false) as HEq.
         2: by rewrite HEq; reflexivity.
-        rewrite <- not_true_iff_false; move=> HEq; apply internal_ident_dec_bl in HEq; destruct HEq.
+        rewrite <- Bool.not_true_iff_false; move=> HEq; apply internal_ident_dec_bl in HEq; destruct HEq.
         destruct HIn; do 2 constructor 1.
     + unfold Complement, In; intro; destruct HIn; constructor 2; unfold In; assumption.
 Qed.

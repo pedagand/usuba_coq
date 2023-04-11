@@ -1,5 +1,5 @@
 From Usuba Require Import 
-    usuba_AST usuba_ASTProp collect usuba_sem usuba_semProp equiv_rel utils
+    usuba_AST usuba_ASTProp arch collect usuba_sem usuba_semProp equiv_rel utils
     coq_missing_lemmas.
 From Coq Require Import FMapAVL.
 From Coq Require Import String.
@@ -9,6 +9,7 @@ Require Import Lia.
 Require Import List.
 Require Import OrderedType.
 Require Import Coq.Structures.OrdersEx.
+Require Import ZArith.
 
 Module Ident_as_OT <: OrderedType.
     Definition t := ident.
@@ -122,15 +123,15 @@ Fixpoint expand_var_inner (typ : typ) (env_it : context) (partial : bool) (v : v
     | Nat => v::nil
     | Uint _ _ 1 => v::nil
     | Uint _ _ n =>
-        map (fun i => Index v (Const_e i)) (gen_list_0_int n)
+        map (fun i => Index v (Const_e (Z.of_nat i))) (gen_list_0_int n)
     | Array typ s =>
         match eval_arith_expr env_it s with
         | Some len =>
             if partial then
-                List.map (fun i => Index v (Const_e i)) (gen_list_0_int len)
+                List.map (fun i => Index v (Const_e (Z.of_nat i))) (gen_list_0_int len)
             else
                 flat_map
-                (fun i => expand_var_inner typ env_it partial (Index v (Const_e i)))
+                (fun i => expand_var_inner typ env_it partial (Index v (Const_e (Z.of_nat i))))
                 (gen_list_0_int len)
         | None => nil
         end
@@ -896,7 +897,11 @@ Proof.
         2: by discriminate.
         induction (gen_list_0_int n.+2) as [|hd tl HRec]; simpl; trivial.
         rewrite <- HRec; clear HRec.
-        reflexivity.
+        cbn.
+        assert ((Z.of_nat hd <? 0)%Z = false) as HEq.
+        2: rewrite HEq; rewrite Nat2Z.id; reflexivity.
+        rewrite Z.ltb_ge.
+        exact (Nat2Z.is_nonneg _).
     }
     {
         admit.

@@ -1,5 +1,6 @@
 From mathcomp Require Import all_ssreflect.
-From Usuba Require Import usuba_AST usuba_ASTProp usuba_sem equiv_rel.
+Require Import ZArith.
+From Usuba Require Import usuba_AST usuba_ASTProp arch usuba_sem equiv_rel.
 
 Goal
     forall arch prog type_ctxt ctxt opt_ctxt' var typ dir,
@@ -8,7 +9,7 @@ Goal
         convert_type typ nil = Some (dir, 1::nil) ->
         find_val ctxt var = None ->
         eval_deq arch prog type_ctxt ctxt
-            (Eqn (Index (Var var) (Const_e 0) :: (Index (Var var) (Const_e 0)) :: nil) (Tuple (ECons (Const 1 None)
+            (Eqn (Index (Var var) (Const_e 0%Z) :: (Index (Var var) (Const_e 0%Z)) :: nil) (Tuple (ECons (Const 1 None)
                             (ECons (Const 2 None) Enil)))
                 false) = opt_ctxt'
         -> (ctxt' <- opt_ctxt'; find_val ctxt' var) = None.
@@ -35,7 +36,7 @@ Goal
         convert_type typ nil = Some (dir, 1::nil) ->
         (exists v, eval_var (Index (Var var) (Const_e 0)) ctxt AAll = Some v) ->
         eval_deq arch prog type_ctxt ctxt
-            (Eqn (Index (Var var) (Const_e 0) :: (Index (Var var) (Const_e 0)) :: nil) (Tuple (ECons (Const 1 None)
+            (Eqn (Index (Var var) (Const_e 0%Z) :: (Index (Var var) (Const_e 0%Z)) :: nil) (Tuple (ECons (Const 1 None)
                             (ECons (Const 2 None) Enil)))
                 true) = opt_ctxt'
         -> (ctxt' <- opt_ctxt'; find_val ctxt' var) = Some (CoIR dir (Some 2::nil) (Some (1::nil))).

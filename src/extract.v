@@ -1,7 +1,7 @@
 Require Import List.
 Require Import ZArith.
 From Usuba Require Import usuba_AST collect clean
-    usuba_sem aes arch.
+    usuba_sem arch aes ace_bitslice.
 Require Extraction.
 Require Import ExtrOcamlNativeString.
 

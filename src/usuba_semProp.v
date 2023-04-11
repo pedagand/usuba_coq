@@ -1,10 +1,11 @@
 Require Import Lia.
-Require Import Coq.Lists.List.
-Require Import Coq.Arith.PeanoNat.
+Require Import List.
+Require Import PeanoNat.
+Require Import ZArith.
 Require Import Coq.Sets.Ensembles.
 From mathcomp Require Import all_ssreflect.
 
-From Usuba Require Import utils usuba_AST usuba_sem coq_missing_lemmas.
+From Usuba Require Import utils usuba_AST usuba_sem coq_missing_lemmas arch.
 
 (* Properties on prod_list *)
 

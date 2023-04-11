@@ -1,25 +1,12 @@
-Require Import Lia.
-Require Import Coq.Lists.List.
-Require Import Coq.Arith.PeanoNat.
+(* Require Import Lia. *)
+Require Import List Bool.
+Require Import ZArith.
 Require Import Coq.Sets.Ensembles.
-From mathcomp Require Import all_ssreflect.
+From mathcomp Require Import seq.
+From mathcomp Require Import ssrnat.
+(* From mathcomp Require Import all_ssreflect. *)
 
-From Usuba Require Import usuba_AST.
-
-Definition IntSize : Type := nat.
-Definition IntSize_beq := Nat.eqb.
-
-Definition IntSize_of_nat (n : nat) : option IntSize := Some n.
-
-Inductive dir :=
-    | DirH of IntSize
-    | DirV of IntSize
-    | DirB
-    | DirUnknow
-    | DirH_
-    | DirV_
-    | Dir_S of IntSize.
-Scheme Equality for dir.
+From Usuba Require Import usuba_AST arch.
 
 Inductive cst_or_int {A : Type} :=
     | CoIL : nat -> cst_or_int
@@ -28,26 +15,6 @@ Scheme Equality for option.
 Scheme Equality for list.
 
 Definition Value := list (@cst_or_int nat).
-
-Record architecture : Type := {
-    ARCH_ADD : dir -> option (nat -> nat -> nat);
-    ARCH_SUB : dir -> option (nat -> nat -> nat);
-    ARCH_DIV : dir -> option (nat -> nat -> nat);
-    ARCH_MOD : dir -> option (nat -> nat -> nat);
-    ARCH_MUL : dir -> option (nat -> nat -> nat);
-
-    ARCH_NOT : dir -> option (nat -> nat);
-    ARCH_AND : dir -> option (nat -> nat -> nat);
-    ARCH_OR  : dir -> option (nat -> nat -> nat);
-    ARCH_XOR : dir -> option (nat -> nat -> nat);
-    ARCH_ANDN : dir -> option (nat -> nat -> nat);
-
-    ARCH_LSHIFT : nat -> dir -> option (nat -> nat);
-    ARCH_RSHIFT  : nat -> dir -> option (nat -> nat);
-    ARCH_RASHIFT : nat -> dir -> option (nat -> nat);
-    ARCH_LROTATE : nat -> dir -> option (nat -> nat);
-    ARCH_RROTATE : nat -> dir -> option (nat -> nat);
-}.
 
 Definition context : Type := list (ident * @cst_or_int (option nat)).
 
@@ -169,80 +136,43 @@ Fixpoint eval_monop (monop : dir -> option (nat -> nat)) (v : list (@cst_or_int 
         Some (hd' :: tl')
     end.
 
-(* Fixpoint repeat_value (nb : nat) (zero : Value) : list_Value :=
-    match nb with
-    | 0 => lV_nil
-    | S nb' => lV_cons zero (repeat_value nb' zero)
-    end. *)
-
-(* Function zero_from_val (v : Value) : Value :=
-    match v with
-    | VConst n => VConst 0
-    | VInt d n l => VInt d (map (fun _ => 0) n) l
-    | VTuple l => VTuple (zero_from_valL l)
-    end
-with zero_from_valL l :=
-    match l with
-    | lV_nil => lV_nil
-    | lV_cons hd tl => lV_cons (zero_from_val hd) (zero_from_valL tl)
-    end. *)
-
-(* Definition zero_from (t : list_Value) : option Value :=
-    match t with
-    | lV_nil => None
-    | lV_cons hd _ => Some (zero_from_val hd)
-    end. *)
-
-
-Fixpoint take_n {A : Type} (nb : nat) (l : list A) : option (list A * list A) :=
-    match nb with
-    | 0 => Some (nil, l)
-    | S nb' => match l with
-        | nil => None
-        | hd :: tl =>
-            (s, e) <- take_n nb' tl;
-            Some (hd :: s, e)
-        end
-    end.
-
-
 Definition eval_shift (arch : architecture) (op : shift_op) (v : list (@cst_or_int nat)) (v2 : nat) : option (list (@cst_or_int nat)) :=
     match v with
     | CoIR d (i::nil) len::nil =>
-        f <- match op with
-            | Lshift => ARCH_LSHIFT arch v2 d
-            | Rshift => ARCH_RSHIFT arch v2 d
-            | RAshift => ARCH_RASHIFT arch v2 d
-            | Lrotate => ARCH_LROTATE arch v2 d
-            | Rrotate => ARCH_RROTATE arch v2 d
-            end;
-        Some (CoIR d (f i::nil) len::nil)
+        i' <- shift_wrapper (IMPL_SHIFT arch) op v2 d i;
+        Some (CoIR d (i'::nil) len::nil)
     | CoIR d i len::nil => match op with
         | Lshift =>
             (hd, tl) <- take_n v2 i;
-            Some (CoIR d (app tl (map (fun => 0) hd)) len::nil)
+            Some (CoIR d (app tl (map (fun _=> 0) hd)) len::nil)
         | _ => None
         end
     | _ => None
     end.
 
-
-Fixpoint eval_arith_expr (ctxt : context) (e : arith_expr) : option nat :=
+Fixpoint eval_arith_expr_inner (ctxt : context) (e : arith_expr) : option Z :=
     match e with
         | Const_e i => Some i
-        | Var_e var => find_const ctxt var
+        | Var_e var => 
+            i <- find_const ctxt var; Some (Z.of_nat i)
         | Op_e op e1 e2 =>
-            v1 <- eval_arith_expr ctxt e1;
-            v2 <- eval_arith_expr ctxt e2;
+            v1 <- eval_arith_expr_inner ctxt e1;
+            v2 <- eval_arith_expr_inner ctxt e2;
             match op with
-                | Add => Some (v1 + v2)
-                | Mul => Some (v1 * v2)
-                | Sub => Some (v1 - v2)
-                | Mod => Some (v1 mod v2)
-                | Div => some (v1 / v2)
+                | Add => Some (v1 + v2)%Z
+                | Mul => Some (v1 * v2)%Z
+                | Sub => Some (v1 - v2)%Z
+                | Mod => Some (v1 mod v2)%Z
+                | Div => Some (v1 / v2)%Z
             end
     end.
 
+Definition eval_arith_expr (ctxt : context) (e : arith_expr) : option nat :=
+    i <- eval_arith_expr_inner ctxt e;
+    if (i <? 0)%Z
+    then None
+    else Some (Z.to_nat i).
+    
 Inductive access : Type :=
     | AAll : access
     | ASlice : list nat -> access -> access.
@@ -348,7 +278,7 @@ Fixpoint eval_var (v : var) (ctxt : context) (acc : access) : option (list (@cst
         eval_var v ctxt (ASlice il acc)
     end.
 
-Function loop_rec (ctxt : context) (iter : context -> option context) i (s_i e_i : nat) : option context :=
+Fixpoint loop_rec (ctxt : context) (iter : context -> option context) i (s_i e_i : nat) : option context :=
     if (Nat.ltb e_i s_i)
     then Some ctxt
     else
@@ -395,7 +325,7 @@ Definition build_integer (typ : typ) (n : nat) : option (list (@cst_or_int nat))
     | _ => None (* TODO *)
     end.
 
-Function linearize_list_value {A : Type} (inL : list (@cst_or_int A)) (outL : list (@cst_or_int A)) : list (@cst_or_int A) :=
+Fixpoint linearize_list_value {A : Type} (inL : list (@cst_or_int A)) (outL : list (@cst_or_int A)) : list (@cst_or_int A) :=
     match inL with
     | nil => outL
     | hd :: tl =>
@@ -428,7 +358,7 @@ Fixpoint extract_ctxt (var_names : p) (ctxt : context) : option (list (@cst_or_i
         end
     end.
 
-Function eval_expr (arch : architecture) (prog : prog_ctxt) (ctxt : context) (e : expr) : option (list (@cst_or_int nat)) :=
+Fixpoint eval_expr (arch : architecture) (prog : prog_ctxt) (ctxt : context) (e : expr) : option (list (@cst_or_int nat)) :=
     match e with
         | Const n None => Some (CoIL n::nil)
         | Const n (Some typ) => build_integer typ n
@@ -436,15 +366,15 @@ Function eval_expr (arch : architecture) (prog : prog_ctxt) (ctxt : context) (e 
         | Tuple el => eval_expr_list arch prog ctxt el
         | Not e =>
             v <- eval_expr arch prog ctxt e;
-            eval_monop (ARCH_NOT arch) v
+            eval_monop (arith_wrapper (IMPL_LOG arch) lnot) v
         | Log op e1 e2 =>
             v1 <- eval_expr arch prog ctxt e1;
             v2 <- eval_expr arch prog ctxt e2;
             f <- match op with
-                | And | Masked And => Some (ARCH_AND arch)
-                | Or | Masked Or => Some (ARCH_OR arch)
-                | Xor | Masked Xor => Some (ARCH_XOR arch)
-                | Andn | Masked Andn => Some (ARCH_ANDN arch)
+                | And | Masked And =>   Some (arith_wrapper (IMPL_LOG arch) land)
+                | Or | Masked Or =>     Some (arith_wrapper (IMPL_LOG arch) lor)
+                | Xor | Masked Xor =>   Some (arith_wrapper (IMPL_LOG arch) lxor)
+                | Andn | Masked Andn => Some (arith_wrapper (IMPL_LOG arch) landn)
                 | Masked (Masked _) => None
             end;
             eval_binop f v1 v2
@@ -452,11 +382,11 @@ Function eval_expr (arch : architecture) (prog : prog_ctxt) (ctxt : context) (e 
             v1 <- eval_expr arch prog ctxt e1;
             v2 <- eval_expr arch prog ctxt e2;
             let f := match op with
-                | Add => ARCH_ADD arch
-                | Sub => ARCH_SUB arch
-                | Div => ARCH_DIV arch
-                | Mod => ARCH_MOD arch
-                | Mul => ARCH_MUL arch
+                | Add => arith_wrapper (IMPL_ARITH arch) add_fun
+                | Sub => arith_wrapper (IMPL_ARITH arch) sub_fun
+                | Div => arith_wrapper (IMPL_ARITH arch) div_fun
+                | Mod => arith_wrapper (IMPL_ARITH arch) mod_fun
+                | Mul => arith_wrapper (IMPL_ARITH arch) mul_fun
             end
             in eval_binop f v1 v2
         | Shift op e1 e2 =>
@@ -698,7 +628,7 @@ Definition bind ctxt type_ctxt (vl : list var) (el : list (@cst_or_int nat)) (b 
     | _ => None
     end. 
 
-Function eval_deq (arch : architecture) (prog : prog_ctxt) (type_ctxt : type_ctxt) (ctxt : context) (d : deq) : option context :=
+Fixpoint eval_deq (arch : architecture) (prog : prog_ctxt) (type_ctxt : type_ctxt) (ctxt : context) (d : deq) : option context :=
     match d with
     | Eqn v e b =>
         e <- eval_expr arch prog ctxt e;
@@ -725,8 +655,6 @@ Fixpoint build_type_ctxt (l : p) : type_ctxt :=
     | nil => nil
     | hd::tl => (VD_ID hd, VD_TYP hd) :: build_type_ctxt tl
     end.
-
-Print fold_right.
 
 Fixpoint transpose_nat_list (n : nat) (l : list nat) : list nat :=
     match n with
@@ -1031,7 +959,7 @@ Fixpoint varl_freevars vl :=
     | v :: tl => Union ident (var_freevars v) (varl_freevars tl)
     end.
 
-Function expr_freevars (e : expr) : Ensemble ident :=
+Fixpoint expr_freevars (e : expr) : Ensemble ident :=
     match e with
     | Const _ _ => Empty_set ident
     | ExpVar v => var_freevars v
@@ -1051,7 +979,7 @@ with exprl_freevars el :=
     | ECons e el => Union ident (expr_freevars e) (exprl_freevars el)
     end.
 
-Function deq_vars (d : deq) : Ensemble ident :=
+Fixpoint deq_vars (d : deq) : Ensemble ident :=
     match d with 
     | Eqn v e _ => Union ident (expr_freevars e) (varl_freevars v)
     | Loop i ae1 ae2 eqns _ =>
@@ -1065,7 +993,7 @@ with deqs_vars (d : list_deq) : Ensemble ident :=
     | Dcons hd tl => Union ident (deq_vars hd) (deqs_vars tl)
     end.
 
-Function deq_boundvars (d : deq) : Ensemble ident :=
+Fixpoint deq_boundvars (d : deq) : Ensemble ident :=
     match d with 
     | Eqn v e _ => (varl_freevars v)
     | Loop i _ _ eqns _ => Union ident (Singleton ident i) (deqs_boundvars eqns)

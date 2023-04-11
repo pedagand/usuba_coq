@@ -1,6 +1,7 @@
-From Usuba Require Import usuba_AST.
 Require Import String.
 Require Import List.
+Require Import ZArith.
+From Usuba Require Import usuba_AST.
 
 Declare Scope Usuba.
 Delimit Scope Usuba with usuba.
@@ -19,7 +20,9 @@ Delimit Scope Usuba_var with ua_var.
 
 Coercion ExpVar : var >-> expr.
 Coercion Var_e : ident >-> arith_expr.
-Coercion Const_e : nat >-> arith_expr.
+Definition c_e n := Const_e (Z.of_nat n).
+Coercion c_e : nat >-> arith_expr.
+Coercion Const_e : Z >-> arith_expr.
 
 Definition c x := Const x None.
 Coercion c : nat >-> expr.
@@ -39,8 +42,9 @@ Notation "x '/' y"   := (Arith Div (x)%ua_expr (y)%ua_expr) (at level 40, left a
 Notation "f '@' '[' x , .. , y ']'" := (Fun (f)%string (ECons ((x)%ua_expr : expr) .. (ECons ((y)%ua_expr : expr) Enil) ..)) (at level 75, no associativity) : Usuba_expr.
 Notation "'[' x , .. , y ']'" := (Tuple (ECons ((x)%ua_expr : expr) .. (ECons ((y)%ua_expr : expr) Enil) ..)) (at level 87, no associativity) : Usuba_expr.
 
-Notation "f '$' '[' x , .. , y ']'" := (Slice (f)%ua_var (map Const_e (cons (x : nat) .. (cons (y : nat) nil) ..))) (at level 75, no associativity) : Usuba_var.
-Notation "f '$' '[' x , .. , y ']'" := (Slice (f)%ua_var (map Const_e (cons (x : nat) .. (cons (y : nat) nil) ..))) (at level 75, no associativity) : Usuba_expr.
+Notation "f '$' '[' x , .. , y ']'" := (Slice (f)%ua_var (cons ((x)%ua_aexpr : arith_expr) .. (cons ((y)%ua_aexpr : arith_expr) nil) ..)) (at level 75, no associativity) : Usuba_var.
+Notation "f '$' '[' x , .. , y ']'" := (Slice (f)%ua_var (cons ((x)%ua_aexpr : arith_expr) .. (cons ((y)%ua_aexpr : arith_expr) nil) ..)) (at level 75, no associativity) : Usuba_expr.
+
 Notation "x '+' y"   := (Op_e Add (x)%ua_aexpr (y)%ua_aexpr) (at level 50, left associativity) : Usuba_arith_expr.
 Notation "x '-' y"   := (Op_e Sub (x)%ua_aexpr (y)%ua_aexpr) (at level 50, left associativity) : Usuba_arith_expr.
 Notation "x '*' y"   := (Op_e Mul (x)%ua_aexpr (y)%ua_aexpr) (at level 40, left associativity) : Usuba_arith_expr.
@@ -89,14 +93,26 @@ Notation "'table' name 'args' var_decl1 , .. , var_decl1b 'returns' var_decl2 , 
     |} (at level 90).
 
 Definition v8 : typ := Uint (Varslice (Id_s "D")) (Mvar (Id_s "m")) 8.
-Definition b16  : typ := Uint Bslice (Mint 1) 16.
-Definition b8   : typ := Uint Bslice (Mint 1) 8.
+
 Definition b1   : typ := Uint Bslice (Mint 1) 1.
+Definition b8   : typ := Uint Bslice (Mint 1) 8.
+Definition b16  : typ := Uint Bslice (Mint 1) 16.
 Definition b32  : typ := Uint Bslice (Mint 1) 32.
 Definition b64  : typ := Uint Bslice (Mint 1) 64.
 Definition b128 : typ := Uint Bslice (Mint 1) 128.
 Definition b256 : typ := Uint Bslice (Mint 1) 256.
 Definition b512 : typ := Uint Bslice (Mint 1) 512.
+
+Definition u1   : typ := Uint (Varslice (Id_s "d")) (Mint 1) 1.
+Definition u8   : typ := Uint (Varslice (Id_s "d")) (Mint 8) 1.
+Definition u16  : typ := Uint (Varslice (Id_s "d")) (Mint 16) 1.
+Definition u32  : typ := Uint (Varslice (Id_s "d")) (Mint 32) 1.
+Definition u32x2  : typ := Uint (Varslice (Id_s "d")) (Mint 32) 2.
+Definition u64  : typ := Uint (Varslice (Id_s "d")) (Mint 64) 1.
+Definition u128 : typ := Uint (Varslice (Id_s "d")) (Mint 128) 1.
+Definition u256 : typ := Uint (Varslice (Id_s "d")) (Mint 256) 1.
+Definition u512 : typ := Uint (Varslice (Id_s "d")) (Mint 512) 1.
+
 
 Definition input : string := "input".
 Definition output : string := "output".
@@ -107,6 +123,8 @@ Definition key : string := "key".
 Definition plain : string := "plain".
 Definition cipher : string := "cipher".
 Definition tmp : string := "tmp".
+Definition f : string := "f".
+Definition round : string := "round".
 
 Definition test : string := "test".
 Definition a : string := "a".
@@ -117,7 +135,6 @@ Definition node1 := node test args a : Nat returns b : Nat vars nil
         ( b [ 1 ])%ua_var :: nil <:- ExpVar (Var a)
     tel.
 
-Definition f : ident := "f"%string.
 Definition x : ident := "x"%string.
 Definition y : ident := "y"%string.
 
