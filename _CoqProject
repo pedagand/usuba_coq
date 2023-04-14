@@ -2,6 +2,7 @@
 
 -arg -w -arg -notation-overridden
 
+src/ident.v
 src/utils.v
 src/usuba_AST.v
 src/usuba_ASTProp.v

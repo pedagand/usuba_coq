@@ -1,7 +1,7 @@
 Require Import String.
 Require Import List.
 Require Import ZArith.
-From Usuba Require Import usuba_AST.
+From Usuba Require Import ident usuba_AST.
 
 Declare Scope Usuba.
 Delimit Scope Usuba with usuba.

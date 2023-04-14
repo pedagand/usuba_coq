@@ -1,5 +1,6 @@
-Require Import String List.
+Require Import String List ZArith.
 From Usuba Require Import usuba_AST syntax arch.
+Open Scope Z_scope.
 
 
 Definition SubBytes_single : string := "SubBytes_single".

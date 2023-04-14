@@ -1,5 +1,5 @@
-From Usuba Require Import usuba_AST arch usuba_sem usuba_ASTProp equiv_rel collect collectProof clean utils.
-From Coq Require Import MSets MSets.MSetToFiniteSet MSets.MSetFacts.
+Require Import Bool.
+From Usuba Require Import ident usuba_AST arch usuba_sem usuba_ASTProp equiv_rel collect collectProof clean utils.
 
 From mathcomp Require Import all_ssreflect.
 Require Import Coq.Sets.Ensembles.

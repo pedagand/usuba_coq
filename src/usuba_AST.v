@@ -2,19 +2,8 @@ Require Import String.
 Require Import List.
 Require Import ZArith.
 Require Import Bool.
+From Usuba Require Import ident.
 From mathcomp Require Import seq ssrnat.
-
-Inductive ident :=
-    | Id_s : string -> ident
-    | Num : nat -> ident.
-Scheme Equality for ident.
-
-Lemma ident_beq_eq: forall x y, ident_beq x y = true <-> x = y.
-Proof.
-    intros; split; intro.
-    + apply internal_ident_dec_bl; assumption.
-    + apply internal_ident_dec_lb; assumption.
-Qed.
 
 Notation " p <- e ; f " :=
     match (e : option _) return option _ with
@@ -157,7 +146,7 @@ Fixpoint expr_size (e : expr) : nat :=
     | Not e => 1 + expr_size e
     | Log op e1 e2 => 1 + log_op_size op + expr_size e1 + expr_size e2
     | Arith op e1 e2 => 1 + expr_size e1 + expr_size e2
-    | Shift op e1 e2 => 1 + shift_op_size op + expr_size e1 + arith_expr_size e2
+    | Shift op e1 ae2 => 1 + shift_op_size op + expr_size e1 + arith_expr_size ae2
     | Shuffle v l => 1 + var_size v + List.length l
     | Bitmask e ae => 1 + expr_size e + arith_expr_size ae
     | Pack e1 e2 None => 1 + expr_size e1 + expr_size e2
@@ -208,7 +197,7 @@ Definition p := seq var_d.
 Inductive def_i :=
     | Single : p -> list_deq -> def_i
     | Perm : seq nat -> def_i
-    | Table : seq nat -> def_i
+    | Table : seq Z -> def_i
     | Multiple : list_def_i -> def_i
 with list_def_i :=
     | LDnil

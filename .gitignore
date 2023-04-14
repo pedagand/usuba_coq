@@ -34,3 +34,12 @@ nra.cache
 
 usuba.ml*
 semantic_aes.ml*
+
+rapport/main.tex
+rapport/rules.tex
+*.aux
+*.fdb_latexmk
+*.fls
+*.log
+*.out
+*.run.xml

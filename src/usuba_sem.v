@@ -2,11 +2,10 @@
 Require Import List Bool.
 Require Import ZArith.
 Require Import Coq.Sets.Ensembles.
-From mathcomp Require Import seq.
-From mathcomp Require Import ssrnat.
+From mathcomp Require Import seq ssrnat.
 (* From mathcomp Require Import all_ssreflect. *)
 
-From Usuba Require Import usuba_AST arch.
+From Usuba Require Import ident usuba_AST arch.
 
 Inductive cst_or_int {A : Type} :=
     | CoIL : Z -> cst_or_int
@@ -693,7 +692,7 @@ Fixpoint eval_node_inner (arch : architecture) (prog : prog_ctxt) (in_names out_
                         | DirB => Some 1 | _ => None end;
                     let iL' := transpose_nat_list size iL in
                     iL2 <- remove_option_from_list (map (fun i => nth_error l (Z.to_nat i)) iL');
-                    Some (CoIR d' (transpose_nat_list2 (map Z.of_nat iL2) len) None::nil)
+                    Some (CoIR d' (transpose_nat_list2 iL2 len) None::nil)
                 else None
             | _ => None
             end
@@ -713,6 +712,7 @@ with eval_node_list arch prog in_names out_names l i input :=
         end
     end.
 
+(* TODO handle multiple type parameters *)
 Record monomorph_info : Type := {
     DIR_MONO : option usuba_AST.dir;
     SIZE_MONO : option nat;

@@ -1,4 +1,4 @@
-From Usuba Require Import utils usuba_AST usuba_sem usuba_semProp arch.
+From Usuba Require Import ident utils usuba_AST usuba_sem usuba_semProp arch.
 Require Import ZArith.
 Require Import RelationClasses.
 Require Import Coq.Lists.List.
@@ -12,9 +12,24 @@ Section Rel.
 
 Context { arch : architecture}.
 
+Definition aexpri_crel (ctxt : context) (e1 e2 : arith_expr) :=
+    eval_arith_expr_inner ctxt e1 = eval_arith_expr_inner ctxt e2.
+
+Definition aexpr_crel (ctxt : context) (e1 e2 : arith_expr) :=
+    eval_arith_expr ctxt e1 = eval_arith_expr ctxt e2.
+
+Definition var_crel (ctxt : context) (v1 v2 : var) :=
+    forall acc, eval_var v1 ctxt acc = eval_var v2 ctxt acc.
+
 Definition expr_rel (e1 e2 : expr) :=
     forall prog ctxt, eval_expr arch prog ctxt e1 = eval_expr arch prog ctxt e2.
 
+Definition expr_crel (ctxt : context) (e1 e2 : expr) :=
+    forall prog, eval_expr arch prog ctxt e1 = eval_expr arch prog ctxt e2.
+
+Definition expr_crel_list (ctxt : context) (e1 e2 : expr_list) :=
+    forall prog, eval_expr_list arch prog ctxt e1 = eval_expr_list arch prog ctxt e2.
+            
 Definition expr_rel2 (t1 t2 : (expr * prog_ctxt * context)) :=
     let (p1, ctxt1) := t1 in let (e1, prog1) := p1 in
     let (p2, ctxt2) := t2 in let (e2, prog2) := p2 in
@@ -60,6 +75,72 @@ Inductive prog_rel : prog -> prog -> Prop :=
         
 (* Properties on relations *)
 
+Lemma aexpri_crel_refl (c : context) :
+    forall x, aexpri_crel c x x.
+Proof. unfold aexpri_crel; auto. Qed.
+
+Lemma aexpri_crel_sym (c : context):
+    forall x y, aexpri_crel c x y -> aexpri_crel c y x.
+Proof. unfold aexpri_crel; auto. Qed.
+
+Lemma aexpri_crel_trans (c : context):
+    forall x y z, aexpri_crel c x y -> aexpri_crel c y z -> aexpri_crel c x z.
+Proof.
+    unfold aexpri_crel; auto.
+    move=> x y z Eq1 Eq2.
+    rewrite Eq1; auto.
+Qed.
+
+#[global]
+Add Parametric Relation {c : context} : arith_expr (aexpri_crel c)
+    reflexivity proved by (aexpri_crel_refl c)
+    symmetry proved by (aexpri_crel_sym c)
+    transitivity proved by (aexpri_crel_trans c) as aexpri_crel_def.
+
+Lemma aexpr_crel_refl (c : context) :
+    forall x, aexpr_crel c x x.
+Proof. unfold aexpr_crel; auto. Qed.
+
+Lemma aexpr_crel_sym (c : context):
+    forall x y, aexpr_crel c x y -> aexpr_crel c y x.
+Proof. unfold aexpr_crel; auto. Qed.
+
+Lemma aexpr_crel_trans (c : context):
+    forall x y z, aexpr_crel c x y -> aexpr_crel c y z -> aexpr_crel c x z.
+Proof.
+    unfold aexpr_crel; auto.
+    move=> x y z Eq1 Eq2.
+    rewrite Eq1; auto.
+Qed.
+
+#[global]
+Add Parametric Relation {c : context} : arith_expr (aexpr_crel c)
+    reflexivity proved by (aexpr_crel_refl c)
+    symmetry proved by (aexpr_crel_sym c)
+    transitivity proved by (aexpr_crel_trans c) as aexpr_crel_def.
+
+Lemma var_crel_refl (c : context) :
+    forall x, var_crel c x x.
+Proof. unfold var_crel; auto. Qed.
+
+Lemma var_crel_sym (c : context):
+    forall x y, var_crel c x y -> var_crel c y x.
+Proof. unfold var_crel; auto. Qed.
+
+Lemma var_crel_trans (c : context):
+    forall x y z, var_crel c x y -> var_crel c y z -> var_crel c x z.
+Proof.
+    unfold var_crel; auto.
+    move=> x y z Eq1 Eq2 acc.
+    rewrite Eq1; auto.
+Qed.
+
+#[global]
+Add Parametric Relation {c : context} : var (var_crel c)
+    reflexivity proved by (var_crel_refl c)
+    symmetry proved by (var_crel_sym c)
+    transitivity proved by (var_crel_trans c) as var_crel_def.
+
 Lemma expr_rel_refl:
     forall x, expr_rel x x.
 Proof.
@@ -85,6 +166,58 @@ Add Relation expr expr_rel
     reflexivity proved by expr_rel_refl
     symmetry proved by expr_rel_sym
     transitivity proved by expr_rel_trans as expr_rel_def.
+
+Lemma expr_crel_refl (c : context) :
+    forall x, expr_crel c x x.
+Proof.
+    unfold expr_crel; auto.
+Qed.
+
+Lemma expr_crel_sym (c : context):
+    forall x y, expr_crel c x y -> expr_crel c y x.
+Proof.
+    unfold expr_crel; auto.
+Qed.
+
+Lemma expr_crel_trans (c : context):
+    forall x y z, expr_crel c x y -> expr_crel c y z -> expr_crel c x z.
+Proof.
+    unfold expr_crel; auto.
+    move=> x y z Eq1 Eq2 prog.
+    rewrite Eq1; auto.
+Qed.
+
+#[global]
+Add Parametric Relation {c : context} : expr (expr_crel c)
+    reflexivity proved by (expr_crel_refl c)
+    symmetry proved by (expr_crel_sym c)
+    transitivity proved by (expr_crel_trans c) as expr_crel_def.
+
+Lemma expr_crel_list_refl (c : context) :
+    forall x, expr_crel_list c x x.
+Proof.
+    unfold expr_crel_list; auto.
+Qed.
+
+Lemma expr_crel_list_sym (c : context):
+    forall x y, expr_crel_list c x y -> expr_crel_list c y x.
+Proof.
+    unfold expr_crel_list; auto.
+Qed.
+
+Lemma expr_crel_list_trans (c : context):
+    forall x y z, expr_crel_list c x y -> expr_crel_list c y z -> expr_crel_list c x z.
+Proof.
+    unfold expr_crel_list; auto.
+    move=> x y z Eq1 Eq2 prog.
+    rewrite Eq1; auto.
+Qed.
+
+#[global]
+Add Parametric Relation {c : context} : expr_list (expr_crel_list c)
+    reflexivity proved by (expr_crel_list_refl c)
+    symmetry proved by (expr_crel_list_sym c)
+    transitivity proved by (expr_crel_list_trans c) as expr_crel_list_def.
 
 Lemma expr_rel2_refl:
     forall x, expr_rel2 x x.
@@ -1037,6 +1170,158 @@ Add Parametric Morphism (v : var) : (eval_var v)
 Proof.
     intros; apply eval_var_change_ctxt; assumption.
 Qed.
+
+(* Properties on relation between arith expressions *)
+
+#[global]
+Add Parametric Morphism (c : context) : Const_e
+    with signature eq ==> aexpri_crel c as const_e_morph.
+Proof. reflexivity. Qed.
+
+#[global]
+Add Parametric Morphism (c : context) : Var_e
+    with signature eq ==> aexpri_crel c as var_e_morph.
+Proof. reflexivity. Qed.
+
+#[global]
+Add Parametric Morphism (c : context) : Op_e
+    with signature eq ==> aexpri_crel c ==> aexpri_crel c ==> aexpri_crel c as op_e_moprh.
+Proof.
+    move=> op x1 x2 rel1 y1 y2 rel2.
+    unfold aexpri_crel in *.
+    simpl in *.
+    rewrite rel1; rewrite rel2.
+    reflexivity.
+Qed.
+
+Lemma aexpri_crel_imp_aexpr_crel:
+    forall c a1 a2, aexpri_crel c a1 a2 -> aexpr_crel c a1 a2.
+Proof.
+    unfold aexpr_crel, eval_arith_expr.
+    move=> c a1 a2 ->; reflexivity.
+Qed.
+
+(* Properties on relation between var *)
+
+#[global]
+Add Parametric Morphism (c : context) : Var
+    with signature eq ==> var_crel c as var_morph.
+Proof. reflexivity. Qed.
+
+#[global]
+Add Parametric Morphism (c : context) : Index
+    with signature var_crel c ==> aexpr_crel c ==> var_crel c as index_morph.
+Proof.
+    move=> v1 v2 rel1 a1 a2 arel acc.
+    unfold var_crel in *; simpl.
+    rewrite arel.
+    destruct eval_arith_expr; trivial.
+Qed.
+
+#[global]
+Add Parametric Morphism (c : context) : Index
+    with signature var_crel c ==> aexpri_crel c ==> var_crel c as index_morph'.
+Proof.
+    move=> v1 v2 rel1 a1 a2 arel.
+    apply aexpri_crel_imp_aexpr_crel in arel.
+    rewrite arel; rewrite rel1.
+    reflexivity.
+Qed.
+
+#[global]
+Add Parametric Morphism (c : context) : Range
+    with signature var_crel c ==> aexpr_crel c ==> aexpr_crel c ==> var_crel c as range_morph.
+Proof.
+    move=> v1 v2 rel1 a1 a2 arel a1b a2b arelb acc.
+    unfold var_crel in *; simpl.
+    rewrite arel; rewrite arelb.
+    do 2 (destruct eval_arith_expr; trivial).
+Qed.
+
+#[global]
+Add Parametric Morphism (c : context) : Range
+    with signature var_crel c ==> aexpri_crel c ==> aexpri_crel c ==> var_crel c as range_morph'.
+Proof.
+    move=> v1 v2 rel1 a1 a2 arel a1b a2b arelb.
+    apply aexpri_crel_imp_aexpr_crel in arel, arelb.
+    rewrite arel; rewrite arelb.
+    rewrite rel1; reflexivity.
+Qed.
+
+(* TODO same for slice *)
+
+(* Properties on relation between expr *)
+
+Add Parametric Morphism (arch : architecture) (c : context) : Const 
+    with signature eq ==> eq ==> @expr_crel arch c as const_morph.
+Proof. reflexivity. Qed.
+
+Add Parametric Morphism (arch : architecture) (c : context) : ExpVar
+    with signature var_crel c ==> @expr_crel arch c as evar_morph.
+Proof.
+    move=> x y rel prog; simpl.
+    rewrite rel; reflexivity.
+Qed.
+
+Add Parametric Morphism (arch : architecture) (c : context) : usuba_AST.Tuple
+    with signature @expr_crel_list arch c ==> @expr_crel arch c as tuple_morph.
+Proof.
+    move=> x y rel prog; simpl.
+    apply rel.
+Qed.
+
+Add Parametric Morphism (arch : architecture) (c : context) : Not
+    with signature @expr_crel arch c ==> @expr_crel arch c as not_morph.
+Proof.
+    move=> x y rel prog; simpl.
+    rewrite rel; destruct eval_expr; trivial.
+Qed.
+
+Add Parametric Morphism (arch : architecture) (c : context) : Log
+    with signature eq ==> @expr_crel arch c ==> @expr_crel arch c ==> @expr_crel arch c as log_morph.
+Proof.
+    move=> op x1 x2 rel_x y1 y2 rel_y prog; simpl.
+    rewrite rel_x rel_y; reflexivity.
+Qed.
+
+Add Parametric Morphism (arch : architecture) (c : context) : Arith
+    with signature eq ==> @expr_crel arch c ==> @expr_crel arch c ==> @expr_crel arch c as arith_morph.
+Proof.
+    move=> op x1 x2 rel_x y1 y2 rel_y prog; simpl.
+    rewrite rel_x rel_y; reflexivity.
+Qed.
+
+Add Parametric Morphism (arch : architecture) (c : context) : Shift
+    with signature eq ==> @expr_crel arch c ==> aexpr_crel c ==> @expr_crel arch c as shift_morph.
+Proof.
+    move=> op x1 x2 rel_x y1 y2 rel_y prog; simpl.
+    rewrite rel_x rel_y; reflexivity.
+Qed.
+
+Add Parametric Morphism (arch : architecture) (c : context) : Fun
+    with signature eq ==> @expr_crel_list arch c ==> @expr_crel arch c as fun_morph.
+Proof.
+    move=> i x y rel prog; simpl.
+    rewrite rel; reflexivity.
+Qed.
+
+Add Parametric Morphism (arch : architecture) (c : context) : Fun_v
+    with signature eq ==> aexpr_crel c ==> @expr_crel_list arch c ==> @expr_crel arch c as funv_morph.
+Proof.
+    move=> i a1 a2 rel x y relL prog; simpl.
+    rewrite rel; rewrite relL; reflexivity.
+Qed.
+
+Add Parametric Morphism (arch : architecture) (c : context) : Fun_v
+    with signature eq ==> aexpri_crel c ==> @expr_crel_list arch c ==> @expr_crel arch c as funv_morph'.
+Proof.
+    move=> i a1 a2 rel x y relL.
+    apply aexpri_crel_imp_aexpr_crel in rel.
+    rewrite rel; rewrite relL.
+    reflexivity.
+Qed.
+
+(* Other properties *)
 
 Theorem find_val_prog_ctxt:
     forall v prog1 prog2,

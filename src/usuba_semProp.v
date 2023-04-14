@@ -5,7 +5,7 @@ Require Import ZArith.
 Require Import Coq.Sets.Ensembles.
 From mathcomp Require Import all_ssreflect.
 
-From Usuba Require Import utils usuba_AST usuba_sem coq_missing_lemmas arch.
+From Usuba Require Import utils ident usuba_AST usuba_sem coq_missing_lemmas arch.
 
 (* Properties on prod_list *)
 

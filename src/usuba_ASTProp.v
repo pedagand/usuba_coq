@@ -1,4 +1,4 @@
-From Usuba Require Import usuba_AST.
+From Usuba Require Import ident usuba_AST.
 
 Lemma ident_beq_refl:
     forall x, ident_beq x x = true.

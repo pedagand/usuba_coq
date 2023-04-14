@@ -1,4 +1,4 @@
-From Usuba Require Import usuba_AST collect.
+From Usuba Require Import ident usuba_AST collect.
 From Coq Require Import Bool.Bool.
 
 Function clean_in_deqs (vars : iset.t) (dL : list_deq) : iset.t * list_deq :=
