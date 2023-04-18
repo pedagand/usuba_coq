@@ -454,26 +454,18 @@ Qed.
     
 (* other lemmas *)
 
-Theorem get_access_AAll:
-    forall n l, length l = n -> n <> 0 -> get_access (map Some l) AAll (n::nil) = Some l.
-Proof.
-    intros n l lengthEq NotZero; simpl.
-    rewrite map_length; rewrite lengthEq.
-    rewrite PeanoNat.Nat.mod_same; trivial; simpl.
-    rewrite PeanoNat.Nat.div_same; trivial; simpl.
-    rewrite split_into_segments_1_r.
-    {
-        clear; induction l as [|hd tl HRec]; simpl; trivial.
-        rewrite HRec; reflexivity.
-    }
-    rewrite map_length; assumption.
-Qed.
-
 Theorem remove_option_from_list_map_Some {A : Type}:
     forall l, @remove_option_from_list A (map Some l) = Some l.
 Proof.
     intro l; induction l as [|hd tl HRec]; simpl; trivial.
     rewrite HRec; reflexivity.
+Qed.
+
+Theorem get_access_AAll:
+    forall n l, length l = n -> n <> 0 -> get_access (map Some l) AAll (n::nil) = Some l.
+Proof.
+    intros n l lengthEq NotZero; simpl.
+    apply remove_option_from_list_map_Some.
 Qed.
 
 Theorem list_map2_soundness {A B C : Type}:

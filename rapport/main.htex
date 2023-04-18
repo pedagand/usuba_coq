@@ -17,91 +17,90 @@
 \include{rules}
 
 
+
 \begin{document}
 
 \begin{figure}[t]
     \begin{minipage}{0.20\textwidth}
-      \ottgrammartabular{\ottv}
-    \end{minipage}
-    \begin{minipage}{0.20\textwidth}
-      \ottgrammartabular{\otta}
+      \ottgrammartabular{
+        \ottinterrule
+        \ottv\ottinterrule
+        \otta\ottinterrule
+        \ottaop}
     \end{minipage}
     \begin{minipage}{0.25\textwidth}
         \ottgrammartabular{\otte}
     \end{minipage}
-    \begin{minipage}{0.20\textwidth}
-        \ottgrammartabular{\ottdeq}
+    \begin{minipage}{0.40\textwidth}
+        \ottmetavars\\[0pt]
+        \ottgrammartabular{
+          \ottinterrule
+          \ottdeq\ottinterrule
+          \ottnodeDef\ottinterrule
+          }
     \end{minipage}
     \caption{AST de Usuba}
     \label{fig:syntax}
 \end{figure}
 
-\renewcommand{\ottdrulename}[1]{ }
 \begin{figure}[t]
-  \begin{minipage}{0.45\textwidth}
-    \ottusedrule{\ottdruleVarJudgeVar{}} \\[-1em]
-    \ottusedrule{\ottdruleVarJudgeInd{}}
-  \end{minipage}
-  \begin{minipage}{0.45\textwidth}
-    \ottusedrule{\ottdruleVarJudgeRange{}} \\[-1em]
-    \ottusedrule{\ottdruleVarJudgeSlice{}}
-  \end{minipage}
+    \begin{minipage}{0.20\textwidth}
+      \ottgrammartabular{
+        \ottdir\ottinterrule
+          \ottsize
+      }
+    \end{minipage}
+    \begin{minipage}{0.20\textwidth}
+      \ottgrammartabular{
+        \otttypc\ottinterrule
+        \ottA
+      }
+    \end{minipage}
+    \begin{minipage}{0.20\textwidth}
+    \ottgrammartabular{
+      \ottP\ottinterrule
+      \ottG
+    }
+    \end{minipage}
+    \begin{minipage}{0.20\textwidth}
+    \ottgrammartabular{
+      \otttyp\ottinterrule
+      \otttypL}
+    \end{minipage}
+    \caption{Types et contextes en Usuba}
+    \label{fig:typ-grammar}
+\end{figure}
+
+\begin{figure}[t]
+  \ottdefnVarJudge{}
   \caption{Typage variables}
   \label{fig:typ-var}
 \end{figure}
 
-\renewcommand{\ottdrulename}[1]{ }
 \begin{figure}[t]
-  \ottusedrule{\ottdruleFromDBaseS{}}\\[-1em]
-  \ottusedrule{\ottdruleFromDBaseD{}}\\[-1em]
-  \caption{Definition de l'opérateur from}
-  \label{fig:comp-from}
+  \ottdefnTypeComp{}
+  \caption{Equivalence de types}
+  \label{fig:typ-rel}
 \end{figure}
 
 
-\renewcommand{\ottdrulename}[1]{ }
 \begin{figure}[t]
-  \ottusedrule{\ottdruleCNormBaseEmpty{}}\\[-1em]
-  \ottusedrule{\ottdruleCNormBase{}}\\[-1em]
-  \ottusedrule{\ottdruleCNormRecSame{}}\\[-1em]
-  \ottusedrule{\ottdruleCNormRecDiff{}}
-  \caption{Normalisation de type}
-  \label{fig:comp-normalize}
-\end{figure}
-
-\renewcommand{\ottdrulename}[1]{ }
-\begin{figure}[t]
-  \begin{minipage}{0.55\textwidth}
-    \ottusedrule{\ottdruleEInfTuple{}}\\[-1em]
-    \ottusedrule{\ottdruleEInfArith{}}\\[-1em]
-    \ottusedrule{\ottdruleEInfLogic{}}\\[-1em]
-    \ottusedrule{\ottdruleEInfNot{}}\\[-1em]
-  \end{minipage}
-  \begin{minipage}{0.48\textwidth}
-    \ottusedrule{\ottdruleEInfVar{}}\\[-1em]
-    \ottusedrule{\ottdruleEInfArithL{}}\\[-1em]
-    \ottusedrule{\ottdruleEInfLogicL{}}\\[-1em]
-    \ottusedrule{\ottdruleEInfNotL{}}\\[-1em]
-  \end{minipage}
-  \ottusedrule{\ottdruleEInfFun{}}
+  \ottdefnExpType{}
   \caption{Règles de typage des expressions}
   \label{fig:typ-expr}
 \end{figure}
 
 NB : Si l'on as $x : u32$ et $y : u16$, alors $(x, y) + (x, y)$ est non typable.
 
-\renewcommand{\ottdrulename}[1]{ }
 \begin{figure}[t]
-  \ottusedrule{\ottdruleTDeqEqnT{}}\\[-1em]
-  \ottusedrule{\ottdruleTDeqEqnF{}}\\[-1em]
-  \ottusedrule{\ottdruleTDeqLoop{}}\\[-1em]
+  \ottdefnTypeDeq{}
   \caption{Typage des equations}
   \label{fig:typ-deq}
 \end{figure}
 
-\renewcommand{\ottdrulename}[1]{ }
+%\renewcommand{\ottdrulename}[1]{ }
 \begin{figure}[t]
-  \ottusedrule{\ottdruleIFunNode{}}\\[-1em]
+  \ottdefnTypeNode{}
   \caption{Typage d'un noeud}
   \label{fig:typ-node}
 \end{figure}

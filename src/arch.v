@@ -71,7 +71,7 @@ Fixpoint map2 {A B C : Type} (f : A -> B -> C) l1 l2 : list C :=
     match (l1, l2) with
     | (nil, _) | (_, nil) => nil
     | (h1::t1, h2::t2) => f h1 h2::map2 f t1 t2
-    end. 
+    end.
 
 
 Definition lnot (len : nat) (n : Z) : Z := Z.lxor n ((2 ^Z.of_nat len) - 1).
@@ -85,7 +85,7 @@ Definition landn (len : nat) (n1 n2 : Z) : Z := Z.land n1 (lnot len n2).
 Definition lshift (len s : nat) (nb : Z) : Z := (nb * 2 ^ (Z.of_nat s)) mod (2 ^ Z.of_nat len).
 
 Goal
-    lshift 8 3 129 = 8%Z.
+    lshift 9 3 129 = 8%Z.
 Proof. cbn. reflexivity. Qed.
 
 Definition rshift (len s : nat) (nb : Z) : Z := nb / (2 ^ (Z.of_nat s)).

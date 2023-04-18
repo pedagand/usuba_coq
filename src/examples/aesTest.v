@@ -1,6 +1,6 @@
-
-
-From Usuba Require Import utils usuba_ASTProp usuba_sem usuba_semProp aes.
+Require Import ZArith.
+From mathcomp Require Import seq.
+From Usuba Require Import arch utils usuba_ASTProp usuba_sem usuba_semProp aes.
 Require Import Lia.
 
 Ltac simpl_1 iL Abs :=
@@ -8,6 +8,42 @@ Ltac simpl_1 iL Abs :=
     destruct iL as [|h iL];
     [> discriminate Abs | simpl in Abs].
 
+Definition list_d4 : list Z := [:: 1; 1; 0; 1; 0; 1; 0; 0].
+Definition list_bf : list Z := [:: 1; 0; 1; 1; 1; 1; 1; 1].
+Definition list_5d : list Z := [:: 0; 1; 0; 1; 1; 1; 0; 1].
+Definition list_30 : list Z := [:: 0; 0; 1; 1; 0; 0; 0; 0].
+Definition list_04 : list Z := [:: 0; 0; 0; 0; 0; 1; 0; 0].
+Definition list_cb : list Z := [:: 1; 1; 0; 0; 1; 0; 1; 1].
+Definition list_19 : list Z := [:: 0; 0; 0; 1; 1; 0; 0; 1].
+Definition list_9a : list Z := [:: 1; 0; 0; 1; 1; 0; 1; 1].
+
+Ltac gen_notation_inner a :=
+    lazymatch a with
+    | match ?b with Some _ => _ | None => _ end => gen_notation_inner b
+    | _ => let H := fresh "H" in pose (H := a)
+    end.
+
+Ltac gen_notation :=
+    lazymatch goal with
+    | |- ?g = _ => gen_notation_inner g
+    end.
+
+(* Theorem
+    eval_expr prog_tl4 [:: (Id_s "v", CoIR DirB (list_d4 ++ list_bf ++ list_5d ++ list_30) (Some [:: 4; 8]))]
+    = Some (CoIR DirB ) *)
+
+Theorem node_MixColumn_single_test:
+    prog_sem default_arch prog_tl3 None [:: CoIR DirB (list_d4 ++ list_bf ++ list_5d ++ list_30) None]
+    = Some [:: CoIR DirB (list_04 ++ list_cb ++ list_19 ++ list_9a) (Some [:: 4; 8])].
+Proof.
+    cbn - [prog_tl4].
+    unfold eval_node; cbn - [prog_tl4].
+    unfold Pos.to_nat; cbn - [prog_tl4].
+    cbn; unfold eval_node; cbn.
+    unfold Pos.to_nat; cbn.
+    unfold bind; cbn.
+    unfold Pos.to_nat; cbn.
+    gen_notation.
 
 Theorem build_ctxt_lemma:
     forall n name args_tl iL iL_tl,

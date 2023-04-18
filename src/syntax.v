@@ -94,26 +94,26 @@ Notation "'table' name 'args' var_decl1 , .. , var_decl1b 'returns' var_decl2 , 
         NODE := Table (cons x .. (cons y nil) ..)
     |} (at level 90).
 
-Definition v8 : typ := Uint (Varslice (Id_s "D")) (Mvar (Id_s "m")) 8.
+Definition v8 : typ := Uint (Varslice (Id_s "D")) (Mvar (Id_s "m")) (Some 8).
 
-Definition b1   : typ := Uint Bslice (Mint 1) 1.
-Definition b8   : typ := Uint Bslice (Mint 1) 8.
-Definition b16  : typ := Uint Bslice (Mint 1) 16.
-Definition b32  : typ := Uint Bslice (Mint 1) 32.
-Definition b64  : typ := Uint Bslice (Mint 1) 64.
-Definition b128 : typ := Uint Bslice (Mint 1) 128.
-Definition b256 : typ := Uint Bslice (Mint 1) 256.
-Definition b512 : typ := Uint Bslice (Mint 1) 512.
+Definition b1   : typ := Uint Bslice (Mint 1) (Some 1).
+Definition b8   : typ := Uint Bslice (Mint 1) (Some 8).
+Definition b16  : typ := Uint Bslice (Mint 1) (Some 16).
+Definition b32  : typ := Uint Bslice (Mint 1) (Some 32).
+Definition b64  : typ := Uint Bslice (Mint 1) (Some 64).
+Definition b128 : typ := Uint Bslice (Mint 1) (Some 128).
+Definition b256 : typ := Uint Bslice (Mint 1) (Some 256).
+Definition b512 : typ := Uint Bslice (Mint 1) (Some 512).
 
-Definition u1   : typ := Uint (Varslice (Id_s "d")) (Mint 1) 1.
-Definition u8   : typ := Uint (Varslice (Id_s "d")) (Mint 8) 1.
-Definition u16  : typ := Uint (Varslice (Id_s "d")) (Mint 16) 1.
-Definition u32  : typ := Uint (Varslice (Id_s "d")) (Mint 32) 1.
-Definition u32x2  : typ := Uint (Varslice (Id_s "d")) (Mint 32) 2.
-Definition u64  : typ := Uint (Varslice (Id_s "d")) (Mint 64) 1.
-Definition u128 : typ := Uint (Varslice (Id_s "d")) (Mint 128) 1.
-Definition u256 : typ := Uint (Varslice (Id_s "d")) (Mint 256) 1.
-Definition u512 : typ := Uint (Varslice (Id_s "d")) (Mint 512) 1.
+Definition u1   : typ := Uint (Varslice (Id_s "d")) (Mint 1) None.
+Definition u8   : typ := Uint (Varslice (Id_s "d")) (Mint 8) None.
+Definition u16  : typ := Uint (Varslice (Id_s "d")) (Mint 16) None.
+Definition u32  : typ := Uint (Varslice (Id_s "d")) (Mint 32) None.
+Definition u32x2  : typ := Uint (Varslice (Id_s "d")) (Mint 32) (Some 2).
+Definition u64  : typ := Uint (Varslice (Id_s "d")) (Mint  64) None.
+Definition u128 : typ := Uint (Varslice (Id_s "d")) (Mint 128) None.
+Definition u256 : typ := Uint (Varslice (Id_s "d")) (Mint 256) None.
+Definition u512 : typ := Uint (Varslice (Id_s "d")) (Mint 512) None.
 
 
 Definition input : string := "input".
@@ -142,7 +142,7 @@ Definition y : ident := "y"%string.
 
 Definition refresh : ident := "refresh"%string.
 
-Definition f_node := node f args (x : Uint Vslice (Mint 32) 1) returns (y: Uint Vslice (Mint 32) 1) vars nil
+Definition f_node := node f args (x : Uint Vslice (Mint 32) None) returns (y: Uint Vslice (Mint 32) None) vars nil
     let
         Var y :: nil <:- ((x <<< 5) & Fun refresh (ECons x Enil)) xor (x <<< 1)
     tel.

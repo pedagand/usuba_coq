@@ -184,33 +184,29 @@ Fixpoint remove_option_from_list {A : Type} (l : list (option A)) : option (list
 
 (** We assert that `length values = prod_list dim` *)
 Fixpoint get_access (values : list (option Z)) (acc : access) (dim : list nat) : option (list Z) :=
-    match dim with
-    | nil =>
-        match values with
-        | n::nil =>
-            match acc with
-            | AAll => remove_option_from_list values
-            | ASlice indices tl =>
+    match acc with
+    | AAll => remove_option_from_list values
+    | ASlice indices acc_tl =>
+        match dim with
+        | nil =>
+            match values with
+            | n::nil =>
                 if forallb (fun x => x =? 0) indices
                 then
-                    l <- get_access values tl nil;
+                    l <- get_access values acc_tl nil;
                     Some (flat_map (fun _ => l) indices)
                 else
                     None
+            | _ => None (** Assertion not verified *)
             end
-        | _ => None (** Assertion not verified *)
-        end
-    | d::dim_tl =>
-        if length values mod d =? 0
-        then
-            l' <- split_into_segments d (length values / d) values;
-            match acc with
-            | AAll => remove_option_from_list values
-            | ASlice indices acc_tl =>
+        | d::dim_tl =>
+            if length values mod d =? 0
+            then
+                l' <- split_into_segments d (length values / d) values;
                 fold_right (fun v l => l' <- l; v' <- v; v'' <- get_access v' acc_tl dim_tl; Some (v'' ++ l'))
-                                (Some nil) (map (fun i => nth_error l' i) indices) 
-            end
-        else None (** Assertion not verified *)
+                        (Some nil) (map (fun i => nth_error l' i) indices) 
+            else None (** Assertion not verified *)
+        end
     end.
 
 Fixpoint gen_range_incr (i1 i2 : nat) : list nat :=
@@ -300,12 +296,18 @@ Fixpoint get_node (prog : prog_ctxt) (id : ident) : option node_sem_type :=
 Definition build_integer (typ : typ) (n : Z) : option (list (@cst_or_int Z)) :=
     match typ with
     | Nat => Some (CoIL n::nil)
-    | Uint Hslice (Mint size) 1 =>
+    | Uint Hslice (Mint size) (Some 1) =>
         annot <- IntSize_of_nat size;
         Some (CoIR (DirH annot) (n::nil) (Some (1::nil))::nil)
-    | Uint Vslice (Mint size) 1 =>
+    | Uint Hslice (Mint size) None =>
+        annot <- IntSize_of_nat size;
+        Some (CoIR (DirH annot) (n::nil) (Some nil)::nil)
+    | Uint Vslice (Mint size) (Some 1) =>
         annot <- IntSize_of_nat size;
         Some (CoIR (DirV annot) (n::nil) (Some (1::nil))::nil)
+    | Uint Vslice (Mint size) None =>
+        annot <- IntSize_of_nat size;
+        Some (CoIR (DirV annot) (n::nil) (Some nil)::nil)
     | _ => None (* TODO *)
     end.
 
@@ -452,7 +454,17 @@ Fixpoint build_ctxt_aux (typ : typ) (input : list (@cst_or_int Z)) (l : list nat
         | CoIL n :: input' => Some (CoIL n, input') 
         | _ => None
         end
-    | Uint d (Mint n) nb =>
+    | Uint d (Mint n) None =>
+        annot <- IntSize_of_nat n;
+        d <- match d with
+            | Hslice => Some (DirH annot)
+            | Vslice => Some (DirV annot)
+            | Bslice => Some DirB
+            | _ => None
+        end;
+        (valL, input') <- build_ctxt_aux_take_n (prod_list l) input d;
+        Some (CoIR d (map Some valL) (Some l), input')
+    | Uint d (Mint n) (Some nb) =>
         annot <- IntSize_of_nat n;
         d <- match d with
             | Hslice => Some (DirH annot)
@@ -484,7 +496,17 @@ Fixpoint build_ctxt (args : p) (input : list (@cst_or_int Z)) : option context :
 Fixpoint convert_type (typ : typ) (l : list nat) : option (dir * list nat) :=
     match typ with
     | Nat => None
-    | Uint d (Mint n) nb =>
+    | Uint d (Mint n) None =>
+        annot <- IntSize_of_nat n;
+        d <- match d with
+            | Hslice => Some (DirH annot)
+            | Vslice => Some (DirV annot)
+            | Bslice => Some DirB
+            | Varslice _ => Some (Dir_S annot) 
+            | _ => None
+        end;
+        Some (d, l)
+    | Uint d (Mint n) (Some nb) =>
         annot <- IntSize_of_nat n;
         d <- match d with
             | Hslice => Some (DirH annot)
@@ -495,7 +517,15 @@ Fixpoint convert_type (typ : typ) (l : list nat) : option (dir * list nat) :=
         end;
         Some (d, l ++ nb::nil)
     | Uint _ Mnat nb => None
-    | Uint d (Mvar _) nb =>
+    | Uint d (Mvar _) None =>
+        d <- match d with
+            | Hslice => Some DirH_
+            | Vslice => Some DirV_
+            | Varslice _ => Some DirUnknow 
+            | _ => None
+        end;
+        Some (d, l)
+    | Uint d (Mvar _) (Some nb) =>
         d <- match d with
             | Hslice => Some DirH_
             | Vslice => Some DirV_
@@ -640,25 +670,27 @@ Fixpoint build_type_ctxt (l : p) : type_ctxt :=
     | hd::tl => (VD_ID hd, VD_TYP hd) :: build_type_ctxt tl
     end.
 
+(* Print fold_left. *)
+
 Fixpoint transpose_nat_list (n : nat) (l : list Z) : list Z :=
     match n with
     | 0 => nil
     | S n' =>
         let (num, l') :=
-            fold_right (fun i (p : Z * list Z) =>
-                let (nb, tl) := p in (2 * nb + (i mod 2), i / 2 :: tl)%Z)
-                (0%Z, nil) l
-        in num::transpose_nat_list n' l'
+            fold_left (fun (p : Z * list Z) i =>
+                let (nb, tl) := p in (2 * nb + (i mod 2), tl ++ [:: i / 2])%Z)
+                l (0%Z, nil)
+        in transpose_nat_list n' l' ++ [:: num]
     end.
 
 Goal
-    transpose_nat_list 3 (3::2::7::nil)%Z = (5::7::4::nil)%Z.
+    transpose_nat_list 3 (3::2::7::nil)%Z = (1::7::5::nil)%Z.
 Proof.
     cbn; reflexivity.
 Qed.
 
 Goal
-    transpose_nat_list 8 (65::nil)%Z = [:: 1; 0; 0; 0; 0; 0; 1; 0]%Z.
+    transpose_nat_list 8 (65::nil)%Z = [:: 0; 1; 0; 0; 0; 0; 0; 1]%Z.
 Proof.
     cbn; reflexivity.
 Qed.

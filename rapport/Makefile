@@ -9,7 +9,7 @@ rules.tex : rules.ott
 
 all: main.pdf
 
-cleans = main.tex rules.tex main.bbl
+cleans = main.tex rules.tex main.bbl main.run.xml
 
 clean:
 	latexmk -c

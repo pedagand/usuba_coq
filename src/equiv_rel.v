@@ -518,7 +518,8 @@ Qed.
 (* Well type context *)
 
 Inductive valid_type : typ -> Prop :=
-    | VTUint : forall d m nb, nb <> 0 -> valid_type (Uint d m nb)
+    | VTUintNone : forall d m, valid_type (Uint d m None)
+    | VTUintSome : forall d m nb, nb <> 0 -> valid_type (Uint d m (Some nb))
     | VTArray : forall t l, valid_type t -> valid_type (Array t l)
     | VTNat : valid_type Nat.
 
@@ -531,7 +532,22 @@ Fixpoint val_of_type {A : Type} (val : @cst_or_int A) (typ : typ) (form : list n
         | CoIL _ => form = nil
         | CoIR _ _ _ => False
         end
-    | Uint d (Mint n) nb =>
+    | Uint d (Mint n) None =>
+        match val with
+        | CoIL _ => False
+        | CoIR _ _ None => False
+        | CoIR d' iL (Some form') =>
+            form' = form
+            /\ length iL <> 0
+            /\ length iL = prod_list form
+            /\ match d with
+                | Hslice => DirH n = d'
+                | Vslice => DirV n = d'
+                | Bslice => DirB = d'
+                | _ => False
+                end
+        end
+    | Uint d (Mint n) (Some nb) =>
         match val with
         | CoIL _ => False
         | CoIR _ _ None => False
@@ -620,11 +636,11 @@ Proof.
         move=> d0 d' form form' l.
         destruct m.
         2-3: by move=> [].
-        destruct form.
-        2: by move=> [].
-        destruct d.
-        4-6: by move=> [_ [_ [_ []]]].
-        all: move=> [HEq_sf [_ [HEq_prod ->]]] HEq_some; inversion HEq_some.
+        destruct n; destruct form.
+        2,4: by move=> [].
+        all: destruct d.
+        4-6,10-12: by move=> [_ [_ [_ []]]].
+        all: move=> [-> [_ [-> ->]]] HEq_some; inversion HEq_some.
         all: auto.
     }
     {

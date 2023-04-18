@@ -76,13 +76,13 @@ Definition mtyp_size (m : mtyp) := 1.
 
 Inductive typ :=
     | Nat : typ
-    | Uint : dir -> mtyp -> nat -> typ
+    | Uint : dir -> mtyp -> option nat -> typ
     | Array : typ -> arith_expr -> typ.
-Scheme Equality for typ.
+(* Scheme Equality for typ. *)
 Fixpoint typ_size (t : typ) :=
     match t with
     | Nat => 1
-    | Uint d m n => 1 + dir_size d + mtyp_size m + n
+    | Uint d m _ => 1 + dir_size d + mtyp_size m
     | Array t e => 1 + typ_size t + arith_expr_size e
     end.
 
