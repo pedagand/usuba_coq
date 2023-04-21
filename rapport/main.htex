@@ -64,6 +64,7 @@
     \end{minipage}
     \begin{minipage}{0.20\textwidth}
     \ottgrammartabular{
+      \otttypi\ottinterrule
       \otttyp\ottinterrule
       \otttypL}
     \end{minipage}
@@ -83,6 +84,12 @@
   \label{fig:typ-rel}
 \end{figure}
 
+
+\begin{figure}[t]
+  \ottdefnTClass{}
+  \caption{Inférence des type-class}
+  \label{fig:typclass}
+\end{figure}
 
 \begin{figure}[t]
   \ottdefnExpType{}

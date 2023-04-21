@@ -61,18 +61,28 @@ v :: 'Var' ::=
     | range v a1 a2                     :: :: Range {{ tex [[v]] [ [[a1]] .. [[a2]] ]}}
     | v [ </ an // , // n /> ]          :: :: Slice
 
+
+monop :: 'Monop' ::=
+    | sop a                             :: :: SOp
+    | not                               :: :: NotOp
+
+binop :: 'BinOp' ::=
+    | aop                               :: :: AOp
+    | lop                               :: :: LOp
+
+op :: 'Op' ::=
+  | binop                               :: :: BOp {{ tex [[binop]] }}
+  | monop                               :: :: MOp {{ tex [[monop]] }}
+
+opi :: 'Op' ::=
+  | op typ                              :: :: Op {{ tex [[op]]_{[[typ]]} }}
+
 e :: 'Exp' ::=
     | const z                           :: :: Const {{ tex [[z]] }}
     | evar v                            :: :: ExpVar {{ tex [[v]] }}
     | ( </ en // , // n /> )            :: :: Tuple
-    |    not dir s e                    :: :: NotOp  {{ tex           [[not]]_{[[dir]], [[s]]}         \; [[e]] }}
-    |    not dir s [ a ] e              :: :: NotL   {{ tex           [[not]]_{[[dir]], [[s]]}^{[[a]]} \; [[e]] }}
-    | e1 lop dir s e2                   :: :: Log    {{ tex [[e1]] \; [[lop]]_{[[dir]], [[s]]}         \; [[e2]]}}
-    | e1 lop dir s [ a ] e2             :: :: LogL   {{ tex [[e1]] \; [[lop]]_{[[dir]], [[s]]}^{[[a]]} \; [[e2]] }}
-    | e1 aop dir s e2                   :: :: Arith  {{ tex [[e1]] \; [[aop]]_{[[dir]], [[s]]}         \; [[e2]]}}
-    | e1 aop dir s [ a ] e2             :: :: ArithL {{ tex [[e1]] \; [[aop]]_{[[dir]], [[s]]}^{[[a]]} \; [[e2]] }}
-    | e  sop dir s a2                   :: :: Shift  {{ tex [[e]]  \; [[sop]]_{[[dir]], [[s]]}         \; [[a2]]}}
-    | e  sop dir s [ a ] a2             :: :: ShiftL {{ tex [[e]]  \; [[sop]]_{[[dir]], [[s]]}^{[[a]]} \; [[a2]] }}
+    |    monop typ e                    :: :: NotL   {{ tex           [[monop]]_{[[typ]]} \; [[e]] }}
+    | e1 binop typ e2                   :: :: Log    {{ tex [[e1]] \; [[binop]]_{[[typ]]} \; [[e2]]}}
     | f ( </ en // , // n /> )          :: :: Fun
     | f < a > ( </ en // , // n /> )    :: :: Fun_v
 
@@ -94,6 +104,8 @@ dir :: 'Dir' ::=
 form :: 'Form' ::=
     | nil                                 :: :: nil
     | a cons form                         :: :: Cons
+    | [ </ an // cons // n /> ]           :: :: Extend
+    | [ </ an // cons // n /> ] add form  :: :: Add
     | ( form )                            :: :: Paren
 
 size :: 'Size' ::=
@@ -101,9 +113,10 @@ size :: 'Size' ::=
     | z                                   :: :: SizeVal
 
 typc :: 'TypeClass' ::=
-  | Arith dir a                     :: :: Arith
-  | Logic dir a                     :: :: Logic
-  | Shift dir a1 a2                 :: :: Shift
+  | Arith typ                             :: :: Arith
+  | Logic typ                             :: :: Logic
+  | Shift typ a2                          :: :: Shift
+  | ClassOf op typ                        :: :: COf
   | typc [ </ dn <- d'n // n /> ; </ sm <- s'm // m /> ] :: S :: Spec
 
 A :: 'TypeClassL' ::= % TypeClass list
@@ -111,11 +124,22 @@ A :: 'TypeClassL' ::= % TypeClass list
 
 P :: 'ProgCtxt' ::=
   | nil                             :: :: Nil
-  | P <- nodeDef                :: :: Cons
+  | P <- nodeDef                    :: :: Cons
 
-typ {{ tex \sigma }} :: 'Type' ::=
-    | ( typ )                             :: S :: Parenthesis
-    | Uint dir size form                  :: :: Array
+acL :: 'acL' ::=
+  | </ [ an ] // n />              :: :: L
+
+typi {{ tex \sigma }} :: 'TypeIn' ::=
+  | U dir size                      :: :: Base
+  | D typi { a }                    :: :: Rec {{ tex [[typi]] \{ [[a]] \} }}
+  | typi </ { an } // n />          :: S :: RecH
+  | L typi acL                      :: S :: L {{ tex [[typi]] [[acL]] }}
+
+typ {{ tex \tau }} :: 'TypeOut' ::=
+  | typi                            :: :: I
+  | D typ [ a ]                     :: :: D {{ tex [[typ]] [ [[a]] ] }}
+  | typ </ [ an ] // n />           :: S :: A
+  | ( typ )                         :: S :: Parent
 
 typLL :: 'typLL' ::=
   | </ typLn // n /> :: :: T
@@ -173,28 +197,47 @@ defn |- 0 <= </ an // n /> < a :: :: BoundedAExprEvalL :: 'BAEEvalL' by
 defn G |-I x : typ has G' :: :: CtxtVar :: 'CtxtVar' by
 
 defn G |-V </ vn // n /> : typL :: :: VarJudgeL :: '' by
-defn G |-V v : typL :: :: VarJudge :: '' by
+defn G |-V v : typ :: :: VarJudge :: '' by
+
 G |-I x : typ has G
 ------------------------------ :: Ident
 G |-V x : typ
 
-G |-V v : Uint dir s (const_e l cons form) pow a'
+G |-V v : typi [ const_e l ] </ [ dn ] // n />
 |- 0 <= a < l
 ------------------------------ :: Index
-G |-V index v a : Uint dir s form pow a'
+G |-V index v a : typi </ [dn] // n />
 
-G |-V v : Uint dir s (const_e l cons form) pow a
+G |-V v : typi [const_e l] </ [dn] // n />
 |- 0 <= a1 < l
 |- 0 <= a2 < l
 ------------------------------ :: Range
-G |-V range v a1 a2 : Uint dir s form pow a mul (abs(a1 sub a2) add const_e 1)
+G |-V range v a1 a2 : typi {abs(a1 sub a2) add const_e 1} </ [dn] // n />
 
-G |-V v : Uint dir s (const_e l cons form) pow a
+G |-V v : typi [const_e l] </ [dn] // n />
 |- 0 <= </ an // n /> < l
 ------------------------------ :: Slice
-G |-V v [</ an // n /> ] : Uint dir s form pow a mul len </ an // n />
+G |-V v [</ an // n /> ] : typi {len </ an // n />} </ [dn] // n />
 
-defn A |- </ typcn // n /> :: :: ImplClass :: 'ITClass' by
+defn A |- </ typcn // n /> :: :: TClass :: '' by
+
+A |- Arith typi
+------------------ :: ArithLI
+A |- Arith typi{l}
+
+A |- Arith typ
+------------------ :: ArithL
+A |- Arith typ[l]
+
+
+A |- Logic typi
+------------------ :: LogicLI
+A |- Logic typi{l}
+
+A |- Logic typ
+------------------ :: LogicL
+A |- Logic typ[l]
+
 
 defn typL1 <> typL2 :: :: DiffT :: '' by
 
@@ -230,74 +273,32 @@ typL1 comp typL2
 typ cons typL1 comp typ cons typL2
 
 ----------------------------------------------- :: SimplForm
-Uint dir s form cons typL comp Uint dir s (prod form cons nil) cons typL
+U dir s </ { an } // n /> </ [ a'm ] // m /> cons typL comp U dir s [prod [</ an // n />]  mul prod [</ a'm // m/>] ] cons typL
 
 ----------------------------------------------- :: Bool
-Uint V 1 form cons typL comp Uint H 1 form cons typL
+U V 1 </ {an} // n /> </ [a'm] // m /> cons typL comp U H 1 </ {an} // n /> </ [a'm] // m /> cons typL
 
 
 ----------------------------------------------- :: Join
-(Uint dir s (l1 cons nil)) cons (Uint dir s (l2 cons nil)) cons typL comp (Uint dir s (l1 add l2 cons nil)) cons typL
+U dir s [ l1 ] cons U dir s [ l2 ] cons typL comp U dir s [ l1 add l2 ] cons typL
 
 
 defn G , P , A |-E e : typL :: :: ExpType :: '' by
 
-G |-V v : typL
+G |-V v : typ
 ----------------------------- :: Var
-G , P , A |-E evar v : typL
+G , P , A |-E evar v : typ
 
-G , P , A |-E e1 : Uint dir s nil
-G , P , A |-E e2 : Uint dir s nil
-A |- Arith dir s
-------------------------------------------- :: Arith
-G , P , A |-E e1 aop dir s e2 : Uint dir s nil
+G , P , A |-E e1 : typ
+G , P , A |-E e2 : typ
+A |- ClassOf binop typ
+------------------------------------------- :: Binop
+G , P , A |-E e1 binop typ e2 : typ
 
-G , P , A |-E e1 : typL1
-G , P , A |-E e2 : typL2
-A |- Arith dir s
-Uint dir s (a cons nil) comp typL1 /\ forall d, typL1 <> Uint d s nil
-Uint dir s (a cons nil) comp typL2 /\ forall d, typL2 <> Uint d s nil
-------------------------------------------- :: ArithL
-G , P , A |-E e1 aop dir s [prod form] e2 : Uint dir s (a cons nil)
-
-
-G , P , A |-E e1 : Uint dir s nil
-G , P , A |-E e2 : Uint dir s nil
-A |- Logic dir s
--------------------------------------------- :: Logic
-G , P , A |-E e1 lop dir s e2 : Uint dir s nil
-
-G , P , A |-E e1 : typL1
-G , P , A |-E e2 : typL2
-A |- Logic dir s
-Uint dir s (a cons nil) comp typL1 /\ forall d, typL1 <> Uint d s nil
-Uint dir s (a cons nil) comp typL2 /\ forall d, typL2 <> Uint d s nil
--------------------------------------------- :: LogicL
-G , P , A |-E e1 lop dir s [prod form] e2 : Uint dir s (a cons nil)
-
-
-G , P , A |-E e : Uint dir s nil
-A |- Logic dir s
---------------------------------------------- :: Not
-G , P , A |-E not dir s e : Uint dir s nil
-
-G , P , A |-E e : typL
-A |- Logic dir s
-Uint dir s (a cons nil) comp typL /\ forall d, Uint dir s nil <> typL
---------------------------------------------- :: NotL
-G , P , A |-E not dir s [prod form] e : Uint dir s (a cons nil)
-
-G , P , A |-E e : Uint dir s nil
-A |- Shift dir s a
---------------------------------------------- :: Shift
-G, P, A |-E e sop dir s a : Uint dir s nil
-
-G , P , A |-E e : typL
-|- 0 <= a < l
-Uint dir s (l cons nil) comp typL /\ forall d, Uint dir s nil <> typL
---------------------------------------------- :: ShiftL
-G, P, A |-E e sop dir s [l] a : typL
-
+G , P , A |-E e : typ
+A |- ClassOf monop typ
+--------------------------------------------- :: Monop
+G , P , A |-E monop typ e : typ
 
 G , P , A |-E </ en : typLn // n />
 ---------------------------------------------- :: Tuple
@@ -338,9 +339,9 @@ P <- nodeDef |- f : forall </ dn // n /> , forall </ sm // m /> , A => </ typm /
 
 |- 0 <= </ zn // n /> < 1 lshift i2
 len </ zn // n/> = 1 lshift i1
-nodeDef = table f ( x : Uint d s (i1 cons nil) ) -> ( y : Uint d s (i2 cons nil) ) [ </ zn // n /> ]
+nodeDef = table f ( x : U d s [ i1 ] ) -> ( y : U d s [ i2 ] ) [ </ zn // n /> ]
 ------------------------------------------------------------------------------------------------------------- :: Table
-P <- nodeDef |- f : forall d , forall s, Logic d ( aevarH s ) => Uint dir s (i1 cons nil) -> Uint dir s (i2 cons nil)
+P <- nodeDef |- f : forall d , forall s, Logic (U d s) => U dir s [ i1 ] -> U dir s [ i2 ]
 
 
 defn foreach i has [ a1 , a2 ] . G , P , A |-D </ deqn [ xn <- in ] // n /> :: :: TypeLDeq :: 'TDeq' by
