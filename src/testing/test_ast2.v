@@ -92,31 +92,44 @@ Variables (Array : nat -> T -> T)
     (map : forall A B n, (Val A -> Val B) -> Val (Array n A) -> Val (Array n B))
     (map2 : forall A B C n, (Val A -> Val B -> Val C) -> Val (Array n A) -> Val (Array n B) -> Val (Array n C))
     (get_ind : forall A (n i : nat), (i < n)%coq_nat -> Val (Array n A) -> Val A) (* TODO add security on i *)
+    (map_ind : forall A n (iL : list nat), Forall (fun i => (i < n)%coq_nat) iL -> Val (Array n A) -> Val (Array (length iL) A))
     .
 
 (*
     Types class pour l'indiçage
 *)
-Class Indexing (t : T) (i : nat) := {
+Class Indexing (depth : nat) (t : T) (i : nat) := {
     INDEX : T;
     GET_INDEX : Val t -> Val INDEX;
 }.
 
-Class IndexingL (t : T) (i : list nat) := {
+Class IndexingL (depth : nat) (t : T) (i : list nat) := {
     INDEXES : T;
     GET_INDEXES : Val t -> Val INDEXES;
 }.
 
 #[global]
-Program Instance liftIndex (t : T) (n i : nat) (it : Indexing t i) : Indexing (Array n t) i := {
+Program Instance liftIndexBase (t : T) (n i : nat) (p : (i < n)%coq_nat) : Indexing 0 (Array n t) i := {
+    INDEX := t;
+    GET_INDEX l := get_ind t n i p l
+}.
+
+#[global]
+Program Instance liftIndex (depth : nat) (t : T) (n i : nat) (it : Indexing (S depth) t i) : Indexing (depth) (Array n t) i := {
     INDEX := Array n INDEX;
     GET_INDEX l := map _ _ _ GET_INDEX l
 }.
 
 #[global]
-Program Instance liftIndexL (t : T) (n : nat) (i : list nat) (it : IndexingL t i) : IndexingL (Array n t) i := {
+Program Instance liftIndexL (depth : nat) (t : T) (n: nat) (i : list nat) (it : IndexingL (S depth) t i) : IndexingL depth (Array n t) i := {
     INDEXES := Array n INDEXES;
     GET_INDEXES l := map _ _ _ GET_INDEXES l
+}.
+
+#[global]
+Program Instance liftIndexLBase (t : T) (n: nat) (i : list nat) (ip : Forall (fun j => (j < n)%coq_nat) i) : IndexingL 0 (Array n t) i := {
+    INDEXES := Array (length i) t;
+    GET_INDEXES l := map_ind _ _ _ ip l
 }.
 
 (*
@@ -174,8 +187,8 @@ Program Instance listAIBL (A : T) (AL : list T) (o : binop) (tc : ArchImplB A o)
 *)
 Inductive var : T -> Type :=
     | VIdent {t : T} : ident t -> var t
-    | Index {t : T} (v : var t) (i : nat) {ind : Indexing t i} : var (@INDEX _ _ ind)
-    | Slice {t : T} (v : var t) (i : list nat) {ind : IndexingL t i} : var (@INDEXES _ _ ind)
+    | Index {t : T} (v : var t) (depth i : nat) {ind : Indexing depth t i} : var (@INDEX _ _ _ ind)
+    | Slice {t : T} (v : var t) (depth : nat) (i : list nat) {ind : IndexingL depth t i} : var (@INDEXES _ _ _ ind)
     .
 
 (*
