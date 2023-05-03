@@ -20,16 +20,13 @@ Delimit Scope Usuba_var with ua_var.
 
 Coercion ExpVar : var >-> expr.
 Coercion Var_e : ident >-> arith_expr.
-Definition c_e n := Const_e (Z.of_nat n).
-Coercion c_e : nat >-> arith_expr.
 Coercion Const_e : Z >-> arith_expr.
 
 Definition c x := Const x None.
 Coercion c : Z >-> expr.
-Definition c' x := Const (Z.of_nat x) None.
-Coercion c' : nat >-> expr.
 Coercion Var : ident >-> var.
 Coercion Id_s : string >-> ident.
+Coercion Z.to_nat : Z >-> nat.
 
 Notation "x '&' y" := (Log And (x)%ua_expr (y)%ua_expr) (at level 87, left associativity) : Usuba_expr.
 Notation "x 'xor' y" := (Log Xor (x)%ua_expr (y)%ua_expr) (at level 87, left associativity) : Usuba_expr.
@@ -54,7 +51,14 @@ Notation "x '/' y"   := (Op_e Div (x)%ua_aexpr (y)%ua_aexpr) (at level 40, left 
 
 Notation "v '[' e ']'" := (Index (v)%ua_var  (e)%ua_aexpr) (at level 61, left associativity) : Usuba_var.
 Notation "v '[' e ']'" := (Index (v)%ua_var  (e)%ua_aexpr) (at level 61, left associativity) : Usuba_expr.
-Notation "t '[' e ']'" := (Array (t)%ua_type (e)%ua_aexpr) (at level 61, left associativity) : Usuba_type.
+
+Fixpoint push_array (t : typ) (l : nat) : typ :=
+    match t with
+    | Array t' l' => Array (push_array t' l) l'
+    | _ => Array t l
+    end.
+
+Notation "t '[' e ']'" := (push_array (t)%ua_type e) (at level 61, left associativity) : Usuba_type.
 
 Notation " a '<|-' b" := (Eqn (a)%ua_var (b)%ua_expr false)
     (at level 89, right associativity) : Usuba_eqn.
@@ -131,6 +135,8 @@ Definition round : string := "round".
 Definition test : string := "test".
 Definition a : string := "a".
 Definition b : string := "b".
+
+Open Scope Z_scope.
 
 Definition node1 := node test args a : Nat returns b : Nat vars nil 
     let 

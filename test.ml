@@ -35,8 +35,8 @@ let () =
     let input = convert input_raw in
     let out_raw   = (0xd4, 0xe0, 0xb8, 0x1e, 0x27, 0xbf, 0xb4, 0x41, 0x11, 0x98, 0x5d, 0x52, 0xae, 0xf1, 0xe5, 0x30) in
     let out = convert out_raw in
-    match prog_sem default_arch prog_tl7 None [CoIR (DirB, input, None)] with
-    | Some [CoIR (DirB, l, Some _)] when List.length l = List.length out ->
+    match prog_sem default_arch prog_tl7 None [CoIR (DirB, input, [length input])] with
+    | Some [CoIR (DirB, l, _)] when List.length l = List.length out ->
       if l <> out
       then
         begin
@@ -65,24 +65,24 @@ let () =
   let input = convert input_raw in
   let out_raw  = (0xd4, 0xe0, 0xb8, 0x1e, 0xbf, 0xb4, 0x41, 0x27, 0x5d, 0x52, 0x11, 0x98, 0x30, 0xae, 0xf1, 0xe5) in
   let out = convert out_raw in
-  match prog_sem default_arch prog_tl6 None [CoIR (DirB, input, None)] with
-  | Some [CoIR (DirB, l, Some _)] when List.length l = List.length out ->
+  match prog_sem default_arch prog_tl6 None [CoIR (DirB, input, [length input])] with
+  | Some [CoIR (DirB, l, _)] when List.length l = List.length out ->
     assert (l = out)
   | _ -> assert false;;
 
 let () =
     let input = bit_list 8 0x57 in
     let out = bit_list 8 0xae in
-    match prog_sem default_arch prog_tl5 None [CoIR (DirB, input, None)] with
-    | Some [CoIR (DirB, l, Some _)] when List.length l = List.length out ->
+    match prog_sem default_arch prog_tl5 None [CoIR (DirB, input, [length input])] with
+    | Some [CoIR (DirB, l, _)] when List.length l = List.length out ->
       assert (l = out)
     | _ -> assert false;;
 
 let () =
   let input = [0xd4; 0xbf; 0x5d; 0x30] |> List.map (bit_list 8) |> List.flatten in
   let out = [0x04; 0x66; 0x81; 0xe5] |> List.map (bit_list 8) |> List.flatten in
-  match prog_sem default_arch prog_tl3 None [CoIR (DirB, input, None)] with
-  | Some [CoIR (DirB, l, Some _)] when List.length l = List.length out ->
+  match prog_sem default_arch prog_tl3 None [CoIR (DirB, input, [length input])] with
+  | Some [CoIR (DirB, l, _)] when List.length l = List.length out ->
     for i = 0 to 3 do
       let k = ref 0 in
       for j = 0 to 7 do
@@ -112,8 +112,8 @@ let () =
     0xe5, 0x9a, 0x7a, 0x4c
   ) in
   let out = convert out_raw in
-  match prog_sem default_arch prog_tl2 None [CoIR (DirB, input, None)] with
-  | Some [CoIR (DirB, l, Some _)] when List.length l = List.length out ->
+  match prog_sem default_arch prog_tl2 None [CoIR (DirB, input, [length input])] with
+  | Some [CoIR (DirB, l, _)] when List.length l = List.length out ->
     for i = 0 to 15 do
       let k = ref 0 in
       for j = 0 to 7 do
@@ -149,11 +149,11 @@ let test_aes =
     (0xac, 0x19, 0x28, 0x57, 0x77, 0xfa, 0xd1, 0x5c, 0x66, 0xdc, 0x29, 0x00, 0xf3, 0x21, 0x41, 0x6e);
     (0xd0, 0xc9, 0xe1, 0xb6, 0x14, 0xee, 0x3f, 0x63, 0xf9, 0x25, 0x0c, 0x0c, 0xa8, 0x89, 0xc8, 0xa6)
   ] |> List.map convert |> List.flatten in
-  prog_sem default_arch prog_aes None [CoIR (DirB, input @ keys, None)]
+  prog_sem default_arch prog_aes None [CoIR (DirB, input @ keys, [length (input @ keys)])]
 
 let () = match test_aes with
   | None -> print_endline "Failure AES"
-  | Some [CoIR (DirB, l, Some _)] when List.length l = 128 ->
+  | Some [CoIR (DirB, l, _)] when List.length l = 128 ->
     let l_expected = (0x39, 0x02, 0xdc, 0x19, 0x25, 0xdc, 0x11, 0x6a, 0x84, 0x09, 0x85, 0x0b, 0x1d, 0xfb, 0x97, 0x32)
       |> convert in
     List.iter (fun i -> print_int (Big_int_Z.int_of_big_int i)) l;
@@ -166,11 +166,11 @@ let () = match test_aes with
 
 let test_ace =
   let l = gen_zeros (2 * 5) in
-  prog_sem default_arch prog_ace_bs None [CoIR (DirV (to_nat 32), l, None)]
+  prog_sem default_arch prog_ace_bs None [CoIR (DirV (to_nat 32), l, [length l])]
 
 let () = match test_ace with
   | None -> print_endline "Failure ACE"
-  | Some [CoIR (DirV s, l, Some _)] when s = to_nat 32 && List.length l = 10 ->
+  | Some [CoIR (DirV s, l, _)] when s = to_nat 32 && List.length l = 10 ->
     let l = List.map Big_int_Z.int_of_big_int l in
     let l2 = [
       0x5C93691A; 0xD5060935;

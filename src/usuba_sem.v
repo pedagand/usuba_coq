@@ -9,7 +9,7 @@ From Usuba Require Import ident usuba_AST arch.
 
 Inductive cst_or_int {A : Type} :=
     | CoIL : Z -> cst_or_int
-    | CoIR : dir -> list A -> option (list nat) -> cst_or_int.
+    | CoIR : dir -> list A -> list nat -> cst_or_int.
 Scheme Equality for option.
 Scheme Equality for list.
 
@@ -56,6 +56,24 @@ Fixpoint list_map2 {A B C : Type} (op : A -> B -> C) (l1 : list A) (l2 : list B)
     | _, _ => None
     end.
 
+Fixpoint prod_list (l : list nat) : nat := 
+    match l with
+    | nil => 1
+    | hd::tl => hd * prod_list tl
+    end.
+    
+Fixpoint scm (l1 l2 : list nat) : list nat :=
+    match l1 with
+    | nil => nil
+    | h1::t1 => match l2 with
+        | nil => nil
+        | h2::t2 =>
+            if Nat.eqb h1 h2
+            then h1::scm t1 t2
+            else (prod_list l1)::nil
+        end
+    end.
+(* 
 Definition eval_binop_coi (binop : dir -> option (Z -> Z -> Z)) (v1 v2 : @cst_or_int Z) : option (@cst_or_int Z) :=
     match v1 with
     | CoIL i => None
@@ -67,10 +85,10 @@ Definition eval_binop_coi (binop : dir -> option (Z -> Z -> Z)) (v1 v2 : @cst_or
             then
                 op <- binop d1;
                 l <- list_map2 op i1 i2;
-                Some (CoIR d1 l None)
+                Some (CoIR d1 l (scm l1 l2))
             else None
         end
-    end.
+    end. *)
 
 Fixpoint get_dir (l : list (@cst_or_int Z)) : option dir :=
     match l with
@@ -92,6 +110,20 @@ Fixpoint coerce_to (d : dir) (l1 : list (@cst_or_int Z)) : option (list Z) :=
         else None
     end.
 
+Fixpoint sum_length {A} (l: list (@cst_or_int A)) : nat :=
+    match l with
+    | nil => 0
+    | CoIL _::tl => 1 + sum_length tl
+    | CoIR _ l _::tl => length l + sum_length tl
+    end.
+
+Definition compute_form {A} (l1 : list (@cst_or_int A)) : list nat :=
+    match l1 with
+    | CoIL _::nil => 1::nil
+    | CoIR _ _ form::nil => form
+    | _ => sum_length l1::nil
+    end.
+
 Definition eval_binop (binop : dir -> option (Z -> Z -> Z)) (l1 l2 : list (@cst_or_int Z)) : option (list (@cst_or_int Z)) :=
     d <- match get_dir l1 with
         | None => get_dir l2
@@ -101,7 +133,9 @@ Definition eval_binop (binop : dir -> option (Z -> Z -> Z)) (l1 l2 : list (@cst_
     v2 <- coerce_to d l2;
     op <- binop d;
     v3 <- list_map2 op v1 v2;
-    Some (CoIR d v3 None::nil).
+    let form1 := compute_form l1 in
+    let form2 := compute_form l2 in
+    Some (CoIR d v3 (scm form1 form2)::nil).
 
 Definition eval_monop_coi (monop : dir -> option (Z -> Z)) (v : @cst_or_int Z) : option (@cst_or_int Z) :=
     match v with
@@ -183,28 +217,24 @@ Fixpoint remove_option_from_list {A : Type} (l : list (option A)) : option (list
     end.
 
 (** We assert that `length values = prod_list dim` *)
-Fixpoint get_access (values : list (option Z)) (acc : access) (dim : list nat) : option (list Z) :=
+Fixpoint get_access (values : list (option Z)) (acc : access) (dim : list nat) : option (list Z * list nat) :=
     match acc with
-    | AAll => remove_option_from_list values
+    | AAll => 
+        vL <- remove_option_from_list values;
+        Some (vL, dim)
     | ASlice indices acc_tl =>
         match dim with
         | nil =>
-            match values with
-            | n::nil =>
-                if forallb (fun x => x =? 0) indices
-                then
-                    l <- get_access values acc_tl nil;
-                    Some (flat_map (fun _ => l) indices)
-                else
-                    None
-            | _ => None (** Assertion not verified *)
-            end
+            None
         | d::dim_tl =>
             if length values mod d =? 0
             then
                 l' <- split_into_segments d (length values / d) values;
-                fold_right (fun v l => l' <- l; v' <- v; v'' <- get_access v' acc_tl dim_tl; Some (v'' ++ l'))
-                        (Some nil) (map (fun i => nth_error l' i) indices) 
+                (l', dim') <- fold_right (fun v l => (l', _) <- l; v' <- v; (v'', dim') <- get_access v' acc_tl dim_tl; Some (v'' ++ l', dim'))
+                        (Some (nil, nil)) (map (fun i => nth_error l' i) indices);
+                if length indices =? 1
+                then Some (l', dim')
+                else Some (l', length indices::dim')
             else None (** Assertion not verified *)
         end
     end.
@@ -237,13 +267,12 @@ Fixpoint eval_var (v : var) (ctxt : context) (acc : access) : option (list (@cst
     | Var v => 
         val <- find_val ctxt v;
         match val, acc with
-        | CoIR _ _ None, _ => None
         | CoIL cst, _ =>
-            iL' <- get_access (Some cst::nil) acc nil;
+            (iL', form) <- get_access (Some cst::nil) acc nil;
             Some (map CoIL iL')
-        | CoIR dir iL (Some dim), _ =>
-            iL' <- get_access iL acc dim;
-            Some ((CoIR dir iL' None)::nil)
+        | CoIR dir iL dim, _ =>
+            (iL', form) <- get_access iL acc dim;
+            Some ((CoIR dir iL' form)::nil)
         end
     | Index v ae =>
         i <- eval_arith_expr ctxt ae;
@@ -298,17 +327,67 @@ Definition build_integer (typ : typ) (n : Z) : option (list (@cst_or_int Z)) :=
     | Nat => Some (CoIL n::nil)
     | Uint Hslice (Mint size) (Some 1) =>
         annot <- IntSize_of_nat size;
-        Some (CoIR (DirH annot) (n::nil) (Some (1::nil))::nil)
+        Some (CoIR (DirH annot) (n::nil) (1::nil)::nil)
     | Uint Hslice (Mint size) None =>
         annot <- IntSize_of_nat size;
-        Some (CoIR (DirH annot) (n::nil) (Some nil)::nil)
+        Some (CoIR (DirH annot) (n::nil) nil::nil)
     | Uint Vslice (Mint size) (Some 1) =>
         annot <- IntSize_of_nat size;
-        Some (CoIR (DirV annot) (n::nil) (Some (1::nil))::nil)
+        Some (CoIR (DirV annot) (n::nil) (1::nil)::nil)
     | Uint Vslice (Mint size) None =>
         annot <- IntSize_of_nat size;
-        Some (CoIR (DirV annot) (n::nil) (Some nil)::nil)
+        Some (CoIR (DirV annot) (n::nil) nil::nil)
     | _ => None (* TODO *)
+    end.
+
+Inductive Sum (A : Type) (B : Type) : Type :=
+    | SumL : A -> Sum A B
+    | SumR : B -> Sum A B.
+
+Arguments SumL {_} {_} _.
+Arguments SumR {_} {_} _.
+
+Fixpoint merge_inner fuel form1 form2 : Sum (nat * nat * list nat) (list nat) :=
+    match fuel with
+    | 0 => SumL (prod_list form1, prod_list form2, nil)
+    | S fuel => if length form1 <? length form2
+        then match form2 with
+            | nil => SumL (0, 0, nil)
+            | h2::t2 => match merge_inner fuel form1 t2 with
+                    | SumL (len1, len2, form) => SumL (len1, h2 * len2, form)
+                    | SumR l => SumR (h2 + 1::l)
+                end
+            end
+        else if length form2 <? length form1
+        then match form1 with
+            | nil => SumL (0, 0, nil)
+            | h1::t1 => match merge_inner fuel t1 form2 with
+                    | SumL (len1, len2, form) => SumL (h1 * len1, len2, form)
+                    | SumR l => SumR (h1 + 1::l)
+                end
+            end
+        else match form1 with
+            | nil => match form2 with
+                | nil => SumR nil
+                | _ => SumL (0, 0, nil)
+                end
+            | h1::t1 => match form2 with
+                | nil => SumL (0, 0, nil)
+                | h2::t2 => match merge_inner fuel t1 t2 with
+                    | SumL (len1, len2, form) => SumL (h1 * len1, h2 * len2, form)
+                    | SumR l =>
+                        if Nat.eqb h1 h2
+                        then SumR (h1::l)
+                        else SumL (h1, h2, l)
+                    end
+                end
+            end
+    end.
+
+Definition merge form1 form2 :=
+    match merge_inner (length form1 + length form2) form1 form2 with
+    | SumR form => 2::form
+    | SumL (len1, len2, form) => (len1 + len2::form)
     end.
 
 Fixpoint linearize_list_value {A : Type} (inL : list (@cst_or_int A)) (outL : list (@cst_or_int A)) : list (@cst_or_int A) :=
@@ -317,10 +396,10 @@ Fixpoint linearize_list_value {A : Type} (inL : list (@cst_or_int A)) (outL : li
     | hd :: tl =>
         let outL := linearize_list_value tl outL in
         match hd with
-        | CoIR d l a => match outL with
-            | (CoIR d' l' a') :: tl =>
+        | CoIR d l form => match outL with
+            | (CoIR d' l' form') :: tl =>
                 if dir_beq d d'
-                then (CoIR d (l ++ l') None) :: tl
+                then (CoIR d (l ++ l') (merge form form')) :: tl
                 else hd :: outL
             | _ => hd :: outL
             end
@@ -404,15 +483,11 @@ with eval_expr_list (arch : architecture) (prog : prog_ctxt) (ctxt : context) (e
         Some (linearize_list_value v tl)
     end.
 
-Inductive int_or_list (A : Type) : Type :=
-    | IoLL : nat -> int_or_list A
-    | IoLR : list A -> int_or_list A.
-
-Fixpoint try_take_n {A : Type} (nb : nat) (l : list A) : ((list A) * int_or_list A) :=
+Fixpoint try_take_n {A : Type} (nb : nat) (l : list A) : ((list A) * Sum nat (list A)) :=
     match nb with
-    | 0 => (nil, IoLR A l)
+    | 0 => (nil, SumR l)
     | S nb' => match l with
-        | nil => (nil, IoLL A nb)
+        | nil => (nil, SumL nb)
         | hd :: tl =>
             let (s, e) := try_take_n nb' tl in
             (hd :: s, e)
@@ -432,20 +507,14 @@ Fixpoint build_ctxt_aux_take_n (nb : nat) (input : list (@cst_or_int Z)) (d : di
             then
                 let (hd, tl) := try_take_n nb iL in
                 match tl with
-                | IoLR nil => Some (hd, in_tl)
-                | IoLR tl => Some(hd, CoIR d' tl None::in_tl)
-                | IoLL nb =>
+                | SumR nil => Some (hd, in_tl)
+                | SumR tl => Some(hd, CoIR d' tl (length tl::nil)::in_tl)
+                | SumL nb =>
                     (out, rest) <- build_ctxt_aux_take_n nb in_tl d;
                     Some (hd ++ out, rest)
                 end
             else None
         end
-    end.
-
-Fixpoint prod_list (l : list nat) : nat := 
-    match l with
-    | nil => 1
-    | hd::tl => hd * prod_list tl
     end.
 
 Fixpoint build_ctxt_aux (typ : typ) (input : list (@cst_or_int Z)) (l : list nat) : option (@cst_or_int (option Z) * list (@cst_or_int Z)) :=
@@ -463,7 +532,7 @@ Fixpoint build_ctxt_aux (typ : typ) (input : list (@cst_or_int Z)) (l : list nat
             | _ => None
         end;
         (valL, input') <- build_ctxt_aux_take_n (prod_list l) input d;
-        Some (CoIR d (map Some valL) (Some l), input')
+        Some (CoIR d (map Some valL) l, input')
     | Uint d (Mint n) (Some nb) =>
         annot <- IntSize_of_nat n;
         d <- match d with
@@ -473,11 +542,10 @@ Fixpoint build_ctxt_aux (typ : typ) (input : list (@cst_or_int Z)) (l : list nat
             | _ => None
         end;
         (valL, input') <- build_ctxt_aux_take_n (nb * prod_list l) input d;
-        Some (CoIR d (map Some valL) (Some (l ++ nb::nil)), input')
+        Some (CoIR d (map Some valL) (l ++ nb::nil), input')
     | Uint _ Mnat nb => None
     | Uint _ (Mvar _) nb => None
     | Array typ len =>
-        len <- eval_arith_expr nil len;
         build_ctxt_aux typ input (len::l)
     end.
 
@@ -493,7 +561,7 @@ Fixpoint build_ctxt (args : p) (input : list (@cst_or_int Z)) : option context :
         Some ((VD_ID var, val)::ctxt)
     end.
 
-Fixpoint convert_type (typ : typ) (l : list nat) : option (dir * list nat) :=
+Fixpoint convert_type (typ : typ) : option (dir * list nat) :=
     match typ with
     | Nat => None
     | Uint d (Mint n) None =>
@@ -505,7 +573,7 @@ Fixpoint convert_type (typ : typ) (l : list nat) : option (dir * list nat) :=
             | Varslice _ => Some (Dir_S annot) 
             | _ => None
         end;
-        Some (d, l)
+        Some (d, nil)
     | Uint d (Mint n) (Some nb) =>
         annot <- IntSize_of_nat n;
         d <- match d with
@@ -515,7 +583,7 @@ Fixpoint convert_type (typ : typ) (l : list nat) : option (dir * list nat) :=
             | Varslice _ => Some (Dir_S annot) 
             | _ => None
         end;
-        Some (d, l ++ nb::nil)
+        Some (d, nb::nil)
     | Uint _ Mnat nb => None
     | Uint d (Mvar _) None =>
         d <- match d with
@@ -524,7 +592,7 @@ Fixpoint convert_type (typ : typ) (l : list nat) : option (dir * list nat) :=
             | Varslice _ => Some DirUnknow 
             | _ => None
         end;
-        Some (d, l)
+        Some (d, nil)
     | Uint d (Mvar _) (Some nb) =>
         d <- match d with
             | Hslice => Some DirH_
@@ -532,10 +600,10 @@ Fixpoint convert_type (typ : typ) (l : list nat) : option (dir * list nat) :=
             | Varslice _ => Some DirUnknow 
             | _ => None
         end;
-        Some (d, l ++ nb::nil)
+        Some (d, nb::nil)
     | Array typ' len =>
-        len' <- eval_arith_expr nil len;
-        convert_type typ' (len'::l)
+        (d, l) <- convert_type typ';
+        Some (d, len::l)
     end.
 
 Fixpoint undefined {A : Type} (n : nat) : list (option A) :=
@@ -604,14 +672,14 @@ Fixpoint bind_aux (ctxt : context) (type_ctxt : type_ctxt) (v : var) (acc : acce
     match v with
     | Var v =>
         typ <- find_val type_ctxt v;
-        (dir, form) <- convert_type typ nil;
+        (dir, form) <- convert_type typ;
         let val_init := match find_val ctxt v with
         | None => undefined (prod_list form)
         | Some (CoIL i) => Some i::nil
         | Some (CoIR _ iL _) => iL
         end in
         (val, e') <- update form val_init acc e dir b;
-        Some ((v, CoIR dir val (Some form))::ctxt, e')
+        Some ((v, CoIR dir val form)::ctxt, e')
     | Index v ae =>
         i <- eval_arith_expr ctxt ae;
         bind_aux ctxt type_ctxt v (ASlice [:: i] acc) e b
@@ -715,7 +783,7 @@ Fixpoint eval_node_inner (arch : architecture) (prog : prog_ctxt) (in_names out_
         extract_ctxt out_names ctxt'
     | Table l, None => match (in_names, input) with
         | (n1::nil, CoIR d iL _::nil) =>
-            match convert_type (VD_TYP n1) nil with
+            match convert_type (VD_TYP n1) with
             | Some (d', len::nil) =>
                 if dir_beq d d' && Nat.eqb len (length iL)
                 then 
@@ -724,7 +792,8 @@ Fixpoint eval_node_inner (arch : architecture) (prog : prog_ctxt) (in_names out_
                         | DirB => Some 1 | _ => None end;
                     let iL' := transpose_nat_list size iL in
                     iL2 <- remove_option_from_list (map (fun i => nth_error l (Z.to_nat i)) iL');
-                    Some (CoIR d' (transpose_nat_list2 iL2 len) None::nil)
+                    let output := transpose_nat_list2 iL2 len in
+                    Some (CoIR d' output (length output::nil)::nil)
                 else None
             | _ => None
             end
@@ -762,9 +831,9 @@ Fixpoint extract_n {A : Type} (n : nat) (l : list (@cst_or_int A)) : option (lis
         end
     | CoIR d iL form::tl =>
         match try_take_n n iL with
-        | (_, IoLR nil) => Some tl
-        | (_, IoLR iL') => Some (CoIR d iL' None::tl)
-        | (_, IoLL n') => extract_n n' tl
+        | (_, SumR nil) => Some tl
+        | (_, SumR iL') => Some (CoIR d iL' (n::nil)::tl)
+        | (_, SumL n') => extract_n n' tl
         end
     end.
 
@@ -811,7 +880,7 @@ Fixpoint infer_types (args : p) (input : list (@cst_or_int Z)) : option monomorp
     match args with
     | nil => Some {| DIR_MONO := None; SIZE_MONO := None |}
     | hd :: tl => 
-        (d, form) <- convert_type (VD_TYP hd) nil;
+        (d, form) <- convert_type (VD_TYP hd);
         let ed := extract_dir (prod_list form) input in
         let es := extract_size (prod_list form) input in
         input' <- extract_n (prod_list form) input;
@@ -958,7 +1027,7 @@ Fixpoint aexprl_freevars (e : list arith_expr) : Ensemble ident :=
 
 Fixpoint typ_freevars (typ : typ) : Ensemble ident :=
     match typ with
-    | Array typ' ae => Union ident (typ_freevars typ') (aexpr_freevars ae)
+    | Array typ' ae => typ_freevars typ'
     | _ => Empty_set ident
     end.
     

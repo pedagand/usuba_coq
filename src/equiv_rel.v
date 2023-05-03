@@ -1,4 +1,4 @@
-From Usuba Require Import ident utils usuba_AST usuba_sem usuba_semProp arch.
+From Usuba Require Import ident coq_missing_lemmas utils usuba_AST usuba_sem usuba_semProp arch.
 Require Import ZArith.
 Require Import RelationClasses.
 Require Import Coq.Lists.List.
@@ -535,8 +535,7 @@ Fixpoint val_of_type {A : Type} (val : @cst_or_int A) (typ : typ) (form : list n
     | Uint d (Mint n) None =>
         match val with
         | CoIL _ => False
-        | CoIR _ _ None => False
-        | CoIR d' iL (Some form') =>
+        | CoIR d' iL form' =>
             form' = form
             /\ length iL <> 0
             /\ length iL = prod_list form
@@ -550,8 +549,7 @@ Fixpoint val_of_type {A : Type} (val : @cst_or_int A) (typ : typ) (form : list n
     | Uint d (Mint n) (Some nb) =>
         match val with
         | CoIL _ => False
-        | CoIR _ _ None => False
-        | CoIR d' iL (Some form') =>
+        | CoIR d' iL form' =>
             form' = (form ++ nb::nil)
             /\ length iL <> 0
             /\ length iL = prod_list (form ++ nb::nil)
@@ -564,11 +562,7 @@ Fixpoint val_of_type {A : Type} (val : @cst_or_int A) (typ : typ) (form : list n
         end
     | Uint _ Mnat nb => False
     | Uint _ (Mvar _) nb => False
-    | Array typ len =>
-        match eval_arith_expr nil len with
-        | Some len => val_of_type val typ (len::form)
-        | None => False
-        end
+    | Array typ len => val_of_type val typ (form ++ len::nil)
     end.
 
 Definition well_typed_ctxt (type_ctxt : type_ctxt) (ctxt : context) : Prop :=
@@ -626,9 +620,9 @@ Qed.
 Lemma val_of_type_len {A : Type} :
     forall iL typ d d' form form' l,
         @val_of_type A (CoIR d iL form) typ l
-            -> convert_type typ l = Some (d', form') ->
-                match form with None => False | Some f => f = form' end
-                /\ prod_list form' = length iL.
+            -> convert_type typ = Some (d', form') ->
+                form = (l ++ form')
+                /\ prod_list (l ++ form') = length iL.
 Proof.
     move=> iL typ; induction typ as [|d m n|typ HRec aelen]; simpl.
     { move=> _ d _ form' _ []. }
@@ -636,18 +630,145 @@ Proof.
         move=> d0 d' form form' l.
         destruct m.
         2-3: by move=> [].
-        destruct n; destruct form.
-        2,4: by move=> [].
-        all: destruct d.
+        destruct n; destruct d.
         4-6,10-12: by move=> [_ [_ [_ []]]].
         all: move=> [-> [_ [-> ->]]] HEq_some; inversion HEq_some.
-        all: auto.
+        all: auto; rewrite cats0; auto.
     }
     {
-        move=> d0 d form form' l.
-        destruct (eval_arith_expr nil aelen) as [len|].
-        2: by move=> [].
-        apply HRec.
+        move=> d0 d form form' l H.
+        destruct convert_type as [[d' l']|].
+        2: by idtac.
+        apply (HRec _ d' _ l') in H; trivial.
+        destruct H as [-> <-].
+        move=> H; inversion H.
+        rewrite <-app_assoc; simpl; split; reflexivity.
+    }
+Qed.
+
+Lemma val_of_type_length_leq {A : Type} :
+    forall iL typ d l1 l2,
+        @val_of_type A (CoIR d iL l1) typ l2 -> 
+        length l2 <= length l1.
+Proof.
+    move=> iL typ; induction typ as [|d m n|typ HRec len]; simpl.
+    {
+        by idtac.
+    }
+    {
+        destruct m.
+        2,3: by idtac.
+        destruct n.
+        all: move=> d' l1 l2 [H _]; move: l1 H; clear.
+        all: move=> l1 ->.
+        by rewrite length_app; simpl; rewrite addn1; apply leqnSn.
+        by apply leqnn.
+    }
+    {
+        move=> d l1 l2 valof.
+        apply HRec in valof.
+        rewrite length_app in valof; simpl in valof; rewrite addn1 in valof.
+        apply (leq_trans (leqnSn _) valof).
+    }
+Qed.
+
+Lemma val_of_type_eq {A : Type} :
+    forall iL typ d form l1 l2,
+        @val_of_type A (CoIR d iL (l1 ++ form)) typ l2 -> 
+        length l1 = length l2 -> l1 = l2.
+Proof.
+    move=> iL typ; induction typ as [|d m n|typ HRec len]; simpl.
+    {
+        by idtac.
+    }
+    {
+        destruct m.
+        2,3: by idtac.
+        destruct n.
+        all: move=> d' form l1 l2 [H _]; move: l1 H; clear.
+        all: induction l2 as [|h2 t2 HRec]; move=> [|h1 t1]; simpl; auto.
+        1,2,4,5: discriminate.
+        all: move=> H EqLength; inversion H; f_equal.
+        2: rewrite H2.
+        all: apply HRec; inversion EqLength; trivial.
+    }
+    {
+        move=> d [|hd tl] l1 l2.
+        {
+            move=> val_of length_eq.
+            apply val_of_type_length_leq in val_of.
+            rewrite cats0 in val_of; rewrite length_app in val_of.
+            simpl in val_of; rewrite addn1 in val_of.
+            rewrite length_eq in val_of.
+            rewrite ltnn in val_of.
+            discriminate.
+        }
+        {
+            move=> val_of Length_eq.
+            specialize HRec with d tl (l1 ++ [:: hd]) (l2 ++ [:: len]); move: HRec.
+            impl_tac.
+            {
+                rewrite <- app_assoc; simpl; assumption.
+            }
+            impl_tac.
+            {
+                do 2 rewrite length_app; simpl; f_equal; assumption.
+            }
+            clear; move: l2.
+            induction l1 as [|h1 t1 HRec]; move=> [|h2 t2]; simpl; trivial.
+            {
+                destruct t2; simpl; discriminate.
+            }
+            {
+                destruct t1; simpl; discriminate.
+            }
+            {
+                move=> H; f_equal; inversion H; auto.
+            }
+        }
+    }
+Qed.
+
+Lemma val_of_type_convert {A : Type} :
+    forall iL typ d form l,
+        @val_of_type A (CoIR d iL (l ++ form)) typ l
+            -> convert_type typ = Some (d, form).
+Proof.
+    move=> iL typ; induction typ as [|d m n|typ HRec len]; simpl.
+    {
+        by idtac.
+    }
+    {
+        destruct m.
+        2,3: by idtac.
+        destruct n; destruct d.
+        4-6,10-12: move=> d form l [_ [_ [_ []]]].
+        1-6: move=> d form l [H [NotZero [H2 <-]]].
+        1-3: apply app_inj in H; rewrite H; reflexivity.
+        all: rewrite (app_inj l form nil); trivial; rewrite cats0; assumption.
+    }
+    {
+        move=> d form l val_of.
+        destruct form as [|hd tl].
+        {
+            apply val_of_type_length_leq in val_of.
+            rewrite cats0 in val_of; rewrite length_app in val_of.
+            simpl in val_of; rewrite addn1 in val_of.
+            rewrite ltnn in val_of.
+            discriminate.
+        }
+        {
+            move: (val_of_type_eq iL typ d tl (l ++ [:: hd]) (l ++ [:: len])).
+            rewrite <- app_assoc; simpl.
+            impl_tac; trivial.
+            impl_tac; [> do 2 rewrite length_app; simpl; reflexivity | idtac ].
+            move=> HEq.
+            apply app_inj in HEq; inversion HEq as [HEq']; destruct HEq'; clear HEq.
+            specialize HRec with d tl (l ++ [:: hd]).
+            rewrite <- app_assoc in HRec; simpl in HRec.
+            apply HRec in val_of; clear HRec; rewrite val_of.
+            reflexivity.
+        }
     }
 Qed.
 
@@ -762,7 +883,7 @@ Proof.
     all: move=> acc val ctxt type_ctxt b.
     {
         destruct (find_val type_ctxt v) as [typ|]; trivial.
-        destruct (convert_type typ nil) as [[dir form]|]; trivial.
+        destruct (convert_type typ) as [[dir form]|]; trivial.
         pose (iL := match find_val ctxt v with | Some c => match c with | CoIL i => Some i::nil | CoIR _ iL _ => iL end | None => undefined (prod_list form) end).
         fold iL.
         destruct (update form iL acc val dir) as [[val' e']|]; trivial; clear iL.
@@ -818,7 +939,7 @@ Proof.
     all: move=> acc type_ctxt ctxt1 ctxt2 val s b HRel.
     {
         destruct (find_val type_ctxt v) as [typ|]; simpl; trivial.
-        destruct (convert_type typ nil) as [[dir form]|]; simpl; trivial.
+        destruct (convert_type typ) as [[dir form]|]; simpl; trivial.
         rewrite (HRel v).
         2: by do 2 constructor.
         pose (iL := match find_val ctxt2 v with | Some c => match c with | CoIL i => Some i::nil | CoIR _ iL _ => iL end | None => undefined (prod_list form) end).

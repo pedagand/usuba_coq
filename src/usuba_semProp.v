@@ -85,21 +85,21 @@ Theorem eval_var_linearize_fixpoint:
 Proof.
     move=> ctxt; induction v as [v|v HRec ae|v HRec ae1 ae2|v HRec aeL]; simpl; move=> acc l.
     {
-        destruct (find_val ctxt v) as [[cst|dir iL [dim|]]|].
-        3-4: discriminate.
+        destruct (find_val ctxt v) as [[cst|dir iL dim]|].
+        3: discriminate.
         {
             case (get_access [:: Some cst] acc nil); case acc.
-            + move=> l' HEq; inversion HEq; simpl.
+            + move=> [l' _] HEq; inversion HEq; simpl.
                 clear; induction l' as [|hd tl HRec]; simpl; trivial.
                 f_equal; assumption.
-            + move=> _ _ l' HEq; inversion HEq; apply map_CoIL_is_lin.
+            + move=> _ _ [l' _] HEq; inversion HEq; apply map_CoIL_is_lin.
             + discriminate.
             + discriminate.
         }
         {
             case (get_access iL acc dim); case acc.
-            + move=> l' HEq; inversion HEq; simpl; reflexivity.
-            + move=> _ _ l' HEq; inversion HEq; simpl; reflexivity.
+            + move=> [l' form] HEq; inversion HEq; simpl; reflexivity.
+            + move=> _ _ [l' form] HEq; inversion HEq; simpl; reflexivity.
             + discriminate.
             + discriminate.
         }
@@ -224,7 +224,7 @@ Qed.
 Lemma try_take_n_all { A : Type} :
     forall i l,
         i = length l ->
-        @try_take_n A i l = (l, IoLR A nil).
+        @try_take_n A i l = (l, SumR nil).
 Proof.
     move=> i; induction i as [|i HRec]; simpl.
     {
@@ -245,7 +245,7 @@ Qed.
 Lemma try_take_n_soundness { A : Type} :
     forall i l1 l2,
         i = length l1 ->
-        @try_take_n A i (l1 ++ l2) = (l1, IoLR A l2).
+        @try_take_n A i (l1 ++ l2) = (l1, SumR l2).
 Proof.
     move=> i l1 l2; move: l1; induction i as [|i HRec]; simpl.
     {
@@ -270,12 +270,12 @@ Theorem build_ctxt_aux_take_n_soundness:
     forall d iL_tl n iL,
         length iL = n ->
         iL_tl <> nil ->
-        build_ctxt_aux_take_n n (CoIR d (iL ++ iL_tl) None::nil) d
-            = Some (iL, CoIR d iL_tl None::nil).
+        build_ctxt_aux_take_n n (CoIR d (iL ++ iL_tl) (length iL + length iL_tl::nil)::nil) d
+            = Some (iL, CoIR d iL_tl (length iL_tl::nil)::nil).
 Proof.
     intros d iL_tl n; induction n as [|n HRec]; simpl.
-    all: intro iL; destruct iL as [|hd iL]; simpl; trivial.
-    1-2: discriminate.
+    all: intros iL; destruct iL as [|hd iL]; simpl; trivial.
+    1,2: discriminate.
     rewrite internal_dir_dec_lb0; trivial.
     intro H; inversion H as [HEq]; clear H.
     rewrite try_take_n_soundness; trivial.
@@ -284,13 +284,13 @@ Proof.
 Qed.
 
 Theorem build_ctxt_aux_take_n_soundness2:
-    forall d n iL,
+    forall d n iL form,
         length iL = n ->
         n <> 0 ->
-        build_ctxt_aux_take_n n (CoIR d iL None::nil) d
+        build_ctxt_aux_take_n n (CoIR d iL form::nil) d
             = Some (iL, nil).
 Proof.
-    intros d n iL LengthEq; simpl.
+    intros d n iL form LengthEq; simpl.
     unfold build_ctxt_aux_take_n.
     rewrite internal_dir_dec_lb0; trivial.
     rewrite try_take_n_all; auto.
@@ -462,10 +462,10 @@ Proof.
 Qed.
 
 Theorem get_access_AAll:
-    forall n l, length l = n -> n <> 0 -> get_access (map Some l) AAll (n::nil) = Some l.
+    forall n l, length l = n -> n <> 0 -> get_access (map Some l) AAll (n::nil) = Some (l, (n::nil)).
 Proof.
     intros n l lengthEq NotZero; simpl.
-    apply remove_option_from_list_map_Some.
+    rewrite remove_option_from_list_map_Some; trivial.
 Qed.
 
 Theorem list_map2_soundness {A B C : Type}:

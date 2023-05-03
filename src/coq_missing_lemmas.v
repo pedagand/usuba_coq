@@ -85,3 +85,12 @@ Theorem list_map_seq_map {A B : Type} (f : A -> B):
 Proof.
     move=> l; induction l as [|hd tl HRec]; simpl; trivial.
 Qed.
+
+Lemma app_inj {A : Type}:
+    forall l1 l2 l3 : list A,
+        l1 ++ l2 = l1 ++ l3 -> l2 = l3.
+Proof.
+    move=> l1 l2 l3; induction l1 as [|hd tl HRec]; simpl; trivial.
+    move=> H; apply HRec.
+    inversion H; reflexivity.
+Qed.
