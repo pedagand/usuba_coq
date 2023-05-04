@@ -26,9 +26,18 @@ Class Logic (A : Type) := {
     Andn: A -> A -> A;
 }.
 
+#[global]
+Program Instance logic_array {A : Type} {T : Type -> Type} {AT : Array T} (LA : Logic A) : Logic (T A) := {
+    Not := MAP _ _ Not;
+    Xor  a b := functor _ _ (MAP _ _ Xor  a) b;
+    Or   a b := functor _ _ (MAP _ _ Or   a) b;
+    And  a b := functor _ _ (MAP _ _ And  a) b;
+    Andn a b := functor _ _ (MAP _ _ Andn a) b;
+}.
+
 Variables (Atom : Type) (LAtom : Logic Atom).
 Variables (T4 : Type -> Type) (IT4 : Indexable T4).
-Variables (Build4 : forall A, A * A * A * A -> T4 A).
+Variables (Build4 : forall A, A -> A -> A -> A -> T4 A).
 Variables (I4a I4b I4c I4d : @IndType T4 _).
 Variables (T8 : Type -> Type) (AT8 : Array T8).
 Variables (T11 : Type -> Type) (IT11 : Indexable T11).
@@ -67,32 +76,32 @@ Definition times3 : T8 Atom -> T8 Atom :=
     fun i => functor _ _ (MAP _ _ Xor (times2 i)) i.
 
 Definition MixColumn_single : T4 (T8 Atom) -> T4 (T8 Atom) :=
-    fun inp => Build4 _ (
-        functor _ _ (MAP _ _ Xor
-            (functor _ _ (MAP _ _ Xor (times2 (lookup _ inp I4a))) (times3 (lookup _ inp I4b))))
-            (functor _ _ (MAP _ _ Xor (lookup _ inp I4c)) (lookup _ inp I4d))
-        ,
-        functor _ _ (MAP _ _ Xor
-            (functor _ _ (MAP _ _ Xor (lookup _ inp I4a)) (times2 (lookup _ inp I4b))))
-            (functor _ _ (MAP _ _ Xor (times3 (lookup _ inp I4c))) (lookup _ inp I4d))
-        ,
-        functor _ _ (MAP _ _ Xor
-            (functor _ _ (MAP _ _ Xor (lookup _ inp I4a)) (lookup _ inp I4b)))
-            (functor _ _ (MAP _ _ Xor (times2 (lookup _ inp I4c))) (times3 (lookup _ inp I4d)))
-        ,
-        functor _ _ (MAP _ _ Xor
-            (functor _ _ (MAP _ _ Xor (times3 (lookup _ inp I4a))) (lookup _ inp I4b)))
-            (functor _ _ (MAP _ _ Xor (lookup _ inp I4c)) (times2 (lookup _ inp I4d)))
-    ).
+    fun inp => Build4 _
+        (Xor
+            (Xor (times2 (lookup _ inp I4a)) (times3 (lookup _ inp I4b)))
+            (Xor (lookup _ inp I4c) (lookup _ inp I4d))
+        )
+        (Xor
+            (Xor (lookup _ inp I4a) (times2 (lookup _ inp I4b)))
+            (Xor (times3 (lookup _ inp I4c)) (lookup _ inp I4d))
+        )
+        (Xor
+            (Xor (lookup _ inp I4a) (lookup _ inp I4b))
+            (Xor (times2 (lookup _ inp I4c)) (times3 (lookup _ inp I4d)))
+        )
+        (Xor
+            (Xor (times3 (lookup _ inp I4a)) (lookup _ inp I4b))
+            (Xor (lookup _ inp I4c) (times2 (lookup _ inp I4d)))
+        ).
 
 Definition MixColumn : T4 (T32 Atom) -> T4 (T32 Atom) :=
     fun inp =>
-        Build4 _ (
-            T32_merge _ (MixColumn_single (T32_split _ (lookup _ inp I4a))),
-            T32_merge _ (MixColumn_single (T32_split _ (lookup _ inp I4b))),
-            T32_merge _ (MixColumn_single (T32_split _ (lookup _ inp I4c))),
-            T32_merge _ (MixColumn_single (T32_split _ (lookup _ inp I4d)))
-        ).
+        Build4 _
+            (T32_merge _ (MixColumn_single (T32_split _ (lookup _ inp I4a))))
+            (T32_merge _ (MixColumn_single (T32_split _ (lookup _ inp I4b))))
+            (T32_merge _ (MixColumn_single (T32_split _ (lookup _ inp I4c))))
+            (T32_merge _ (MixColumn_single (T32_split _ (lookup _ inp I4d))))
+        .
 
 Definition AddRoundKey : T128 Atom -> T128 Atom -> T128 Atom :=
     fun i key => functor _ _ (MAP _ _ Xor i) key.
