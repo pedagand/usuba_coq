@@ -493,7 +493,7 @@ End Rel.
 Fixpoint unfold_access (acc : access) (v : var) : var :=
     match acc with
     | AAll => v
-    | ASlice (i::nil) acc_tl => unfold_access acc_tl (Index v (Const_e (Z.of_nat i)))
+    | AInd i acc_tl => unfold_access acc_tl (Index v (Const_e (Z.of_nat i)))
     | ASlice l acc_tl => unfold_access acc_tl (Slice v (map (fun i => Const_e (Z.of_nat i)) l))
     end.
 
@@ -501,11 +501,8 @@ Lemma unfold_access_var_equiv:
     forall acc v1 v2,
         var_equiv v1 v2 -> var_equiv (unfold_access acc v1) (unfold_access acc v2).
 Proof.
-    move=> acc; induction acc as [|iL acc HRec]; simpl; trivial.
-    move=> v1 v2 v_equiv.
-    destruct iL as [|hd iL]; simpl.
-    + apply HRec; constructor; assumption.
-    + destruct iL; apply HRec; constructor; assumption.
+    move=> acc; induction acc as [|i acc HRec|iL acc HRec]; simpl; trivial.
+    all: move=> v1 v2 v_equiv; apply HRec; constructor; assumption.
 Qed.
 
 #[global]
@@ -518,8 +515,7 @@ Qed.
 (* Well type context *)
 
 Inductive valid_type : typ -> Prop :=
-    | VTUintNone : forall d m, valid_type (Uint d m None)
-    | VTUintSome : forall d m nb, nb <> 0 -> valid_type (Uint d m (Some nb))
+    | VTUint : forall d m, valid_type (Uint d m)
     | VTArray : forall t l, valid_type t -> valid_type (Array t l)
     | VTNat : valid_type Nat.
 
@@ -532,7 +528,7 @@ Fixpoint val_of_type {A : Type} (val : @cst_or_int A) (typ : typ) (form : list n
         | CoIL _ => form = nil
         | CoIR _ _ _ => False
         end
-    | Uint d (Mint n) None =>
+    | Uint d (Mint n) =>
         match val with
         | CoIL _ => False
         | CoIR d' iL form' =>
@@ -546,22 +542,8 @@ Fixpoint val_of_type {A : Type} (val : @cst_or_int A) (typ : typ) (form : list n
                 | _ => False
                 end
         end
-    | Uint d (Mint n) (Some nb) =>
-        match val with
-        | CoIL _ => False
-        | CoIR d' iL form' =>
-            form' = (form ++ nb::nil)
-            /\ length iL <> 0
-            /\ length iL = prod_list (form ++ nb::nil)
-            /\ match d with
-                | Hslice => DirH n = d'
-                | Vslice => DirV n = d'
-                | Bslice => DirB = d'
-                | _ => False
-                end
-        end
-    | Uint _ Mnat nb => False
-    | Uint _ (Mvar _) nb => False
+    | Uint _ Mnat => False
+    | Uint _ (Mvar _) => False
     | Array typ len => val_of_type val typ (form ++ len::nil)
     end.
 
@@ -624,7 +606,7 @@ Lemma val_of_type_len {A : Type} :
                 form = (l ++ form')
                 /\ prod_list (l ++ form') = length iL.
 Proof.
-    move=> iL typ; induction typ as [|d m n|typ HRec aelen]; simpl.
+    move=> iL typ; induction typ as [|d m|typ HRec aelen]; simpl.
     { move=> _ d _ form' _ []. }
     {
         move=> d0 d' form form' l.
@@ -651,17 +633,15 @@ Lemma val_of_type_length_leq {A : Type} :
         @val_of_type A (CoIR d iL l1) typ l2 -> 
         length l2 <= length l1.
 Proof.
-    move=> iL typ; induction typ as [|d m n|typ HRec len]; simpl.
+    move=> iL typ; induction typ as [|d m|typ HRec len]; simpl.
     {
         by idtac.
     }
     {
         destruct m.
         2,3: by idtac.
-        destruct n.
-        all: move=> d' l1 l2 [H _]; move: l1 H; clear.
-        all: move=> l1 ->.
-        by rewrite length_app; simpl; rewrite addn1; apply leqnSn.
+        move=> d' l1 l2 [H _]; move: l1 H; clear.
+        move=> l1 ->.
         by apply leqnn.
     }
     {
@@ -677,20 +657,19 @@ Lemma val_of_type_eq {A : Type} :
         @val_of_type A (CoIR d iL (l1 ++ form)) typ l2 -> 
         length l1 = length l2 -> l1 = l2.
 Proof.
-    move=> iL typ; induction typ as [|d m n|typ HRec len]; simpl.
+    move=> iL typ; induction typ as [|d m|typ HRec len]; simpl.
     {
         by idtac.
     }
     {
         destruct m.
         2,3: by idtac.
-        destruct n.
-        all: move=> d' form l1 l2 [H _]; move: l1 H; clear.
-        all: induction l2 as [|h2 t2 HRec]; move=> [|h1 t1]; simpl; auto.
-        1,2,4,5: discriminate.
-        all: move=> H EqLength; inversion H; f_equal.
-        2: rewrite H2.
-        all: apply HRec; inversion EqLength; trivial.
+        move=> d' form l1 l2 [H _]; move: l1 H; clear.
+        induction l2 as [|h2 t2 HRec]; move=> [|h1 t1]; simpl; auto.
+        1,2: discriminate.
+        move=> H EqLength; inversion H; f_equal.
+        rewrite H2.
+        apply HRec; inversion EqLength; trivial.
     }
     {
         move=> d [|hd tl] l1 l2.
@@ -734,17 +713,16 @@ Lemma val_of_type_convert {A : Type} :
         @val_of_type A (CoIR d iL (l ++ form)) typ l
             -> convert_type typ = Some (d, form).
 Proof.
-    move=> iL typ; induction typ as [|d m n|typ HRec len]; simpl.
+    move=> iL typ; induction typ as [|d m|typ HRec len]; simpl.
     {
         by idtac.
     }
     {
         destruct m.
         2,3: by idtac.
-        destruct n; destruct d.
-        4-6,10-12: move=> d form l [_ [_ [_ []]]].
-        1-6: move=> d form l [H [NotZero [H2 <-]]].
-        1-3: apply app_inj in H; rewrite H; reflexivity.
+        destruct d.
+        4-6: move=> d form l [_ [_ [_ []]]].
+        1-3: move=> d form l [H [NotZero [H2 <-]]].
         all: rewrite (app_inj l form nil); trivial; rewrite cats0; assumption.
     }
     {

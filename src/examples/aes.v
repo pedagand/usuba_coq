@@ -39,31 +39,31 @@ Definition node_subBytes_single := table SubBytes_single args input:v8 returns o
     140; 161; 137; 13; 191; 230; 66; 104; 65; 153; 45; 15; 176; 84; 187; 22
 tel.
 
-Definition node_subbytes := node SubBytes args inputSB:b8[16] returns out:b8[16] vars nil
+Definition node_subbytes := node SubBytes args inputSB:b[16][8] returns out:b[16][8] vars nil
 let
-    (* XXX: lifting of SubBytes from b8 to b8[16] *)
+    (* XXX: lifting of SubBytes from b8 to b[16][8] *)
     for i in 0 to 15 do
       out[i] :: nil <|- SubBytes_single @ [inputSB[i]]
     done
 tel.
 
-Definition node_shift_rows := node ShiftRows args inputSR:b8[16] returns output:b1[128] vars nil
+Definition node_shift_rows := node ShiftRows args inputSR:b[16][8] returns output:b[128] vars nil
 let
     Var output :: nil <|- inputSR $ [0,5,10,15,4,9,14,3,8,13,2,7,12,1,6,11 ]
 tel.
 
-Definition node_times2 := node times2 args i:b1[8] returns o:b1[8] vars nil
+Definition node_times2 := node times2 args i:b[8] returns o:b[8] vars nil
 let
     Var o :: nil <|- (i << 1) xor [0,0,0,i[0],i[0],0,i[0],i[0] ]
 tel.
 
-Definition node_times3 := node times3 args i:b1[8] returns o:b1[8] vars nil
+Definition node_times3 := node times3 args i:b[8] returns o:b[8] vars nil
 let
     Var o :: nil <|- times2 @ [i] xor i
 tel.
 
 (* XXX: this could be automatically produced by a matrix multiplication by a constant matrix *)
-Definition node_MixColumn_single := node MixColumn_single args inp:b8[4] returns out:b8[4] vars nil
+Definition node_MixColumn_single := node MixColumn_single args inp:b[4][8] returns out:b[4][8] vars nil
 let
     out[0] :: nil <|- times2 @ [inp[0]] xor times3 @ [inp[1]] xor inp[2] xor inp[3];
     out[1] :: nil <|- inp[0] xor times2 @ [inp[1]] xor times3 @ [inp[2]] xor inp[3];
@@ -71,21 +71,21 @@ let
     out[3] :: nil <|- times3 @ [inp[0]] xor inp[1] xor inp[2] xor times2 @ [inp[3]]
 tel.
 
-Definition node_MixColumn := node MixColumn args inp:b32[4] returns out:b32[4] vars nil
+Definition node_MixColumn := node MixColumn args inp:b[4][32] returns out:b[4][32] vars nil
 let
     for i in 0 to 3 do
        out[i] :: nil <|- MixColumn_single @ [inp[i]]
     done
 tel.
 
-Definition node_AddRoundKey := node AddRoundKey args  i:b128, key:b128 returns r:b128 vars nil
+Definition node_AddRoundKey := node AddRoundKey args  i:b[128], key:b[128] returns r:b[128] vars nil
 let
     Var r :: nil <|- i xor key
 tel.
 
-Definition node_AES := node AES args plain:b128, key:b128[11] returns cipher:b1[128]
+Definition node_AES := node AES args plain:b[128], key:b[11][128] returns cipher:b[128]
 vars
-    (tmp : b128[10])%ua_var_decl :: nil
+    (tmp : b[10][128])%ua_var_decl :: nil
 let
     (* Initial AddRoundKey *)
     tmp[0] :: nil <|- AddRoundKey @ [plain, key[0]];

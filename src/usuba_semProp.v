@@ -93,6 +93,8 @@ Proof.
                 clear; induction l' as [|hd tl HRec]; simpl; trivial.
                 f_equal; assumption.
             + move=> _ _ [l' _] HEq; inversion HEq; apply map_CoIL_is_lin.
+            + move=> _ _ [l' _] HEq; inversion HEq; apply map_CoIL_is_lin.
+            + discriminate.
             + discriminate.
             + discriminate.
         }
@@ -100,6 +102,8 @@ Proof.
             case (get_access iL acc dim); case acc.
             + move=> [l' form] HEq; inversion HEq; simpl; reflexivity.
             + move=> _ _ [l' form] HEq; inversion HEq; simpl; reflexivity.
+            + move=> _ _ [l' form] HEq; inversion HEq; simpl; reflexivity.
+            + discriminate.
             + discriminate.
             + discriminate.
         }

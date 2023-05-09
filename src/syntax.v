@@ -98,26 +98,18 @@ Notation "'table' name 'args' var_decl1 , .. , var_decl1b 'returns' var_decl2 , 
         NODE := Table (cons x .. (cons y nil) ..)
     |} (at level 90).
 
-Definition v8 : typ := Uint (Varslice (Id_s "D")) (Mvar (Id_s "m")) (Some 8).
+Definition v8 : typ := Array (Uint (Varslice (Id_s "D")) (Mvar (Id_s "m"))) 8.
 
-Definition b1   : typ := Uint Bslice (Mint 1) (Some 1).
-Definition b8   : typ := Uint Bslice (Mint 1) (Some 8).
-Definition b16  : typ := Uint Bslice (Mint 1) (Some 16).
-Definition b32  : typ := Uint Bslice (Mint 1) (Some 32).
-Definition b64  : typ := Uint Bslice (Mint 1) (Some 64).
-Definition b128 : typ := Uint Bslice (Mint 1) (Some 128).
-Definition b256 : typ := Uint Bslice (Mint 1) (Some 256).
-Definition b512 : typ := Uint Bslice (Mint 1) (Some 512).
+Definition b   : typ := Uint Bslice (Mint 1).
 
-Definition u1   : typ := Uint (Varslice (Id_s "d")) (Mint 1) None.
-Definition u8   : typ := Uint (Varslice (Id_s "d")) (Mint 8) None.
-Definition u16  : typ := Uint (Varslice (Id_s "d")) (Mint 16) None.
-Definition u32  : typ := Uint (Varslice (Id_s "d")) (Mint 32) None.
-Definition u32x2  : typ := Uint (Varslice (Id_s "d")) (Mint 32) (Some 2).
-Definition u64  : typ := Uint (Varslice (Id_s "d")) (Mint  64) None.
-Definition u128 : typ := Uint (Varslice (Id_s "d")) (Mint 128) None.
-Definition u256 : typ := Uint (Varslice (Id_s "d")) (Mint 256) None.
-Definition u512 : typ := Uint (Varslice (Id_s "d")) (Mint 512) None.
+Definition u1   : typ := Uint (Varslice (Id_s "d")) (Mint 1).
+Definition u8   : typ := Uint (Varslice (Id_s "d")) (Mint 8).
+Definition u16  : typ := Uint (Varslice (Id_s "d")) (Mint 16).
+Definition u32  : typ := Uint (Varslice (Id_s "d")) (Mint 32).
+Definition u64  : typ := Uint (Varslice (Id_s "d")) (Mint  64).
+Definition u128 : typ := Uint (Varslice (Id_s "d")) (Mint 128).
+Definition u256 : typ := Uint (Varslice (Id_s "d")) (Mint 256).
+Definition u512 : typ := Uint (Varslice (Id_s "d")) (Mint 512).
 
 
 Definition input : string := "input".
@@ -134,13 +126,13 @@ Definition round : string := "round".
 
 Definition test : string := "test".
 Definition a : string := "a".
-Definition b : string := "b".
+Definition b' : string := "b".
 
 Open Scope Z_scope.
 
-Definition node1 := node test args a : Nat returns b : Nat vars nil 
+Definition node1 := node test args a : Nat returns b' : Nat vars nil 
     let 
-        ( b [ 1 ])%ua_var :: nil <:- ExpVar (Var a)
+        ( b' [ 1 ])%ua_var :: nil <:- ExpVar (Var a)
     tel.
 
 Definition x : ident := "x"%string.
@@ -148,7 +140,7 @@ Definition y : ident := "y"%string.
 
 Definition refresh : ident := "refresh"%string.
 
-Definition f_node := node f args (x : Uint Vslice (Mint 32) None) returns (y: Uint Vslice (Mint 32) None) vars nil
+Definition f_node := node f args (x : Uint Vslice (Mint 32)) returns (y: Uint Vslice (Mint 32)) vars nil
     let
         Var y :: nil <:- ((x <<< 5) & Fun refresh (ECons x Enil)) xor (x <<< 1)
     tel.

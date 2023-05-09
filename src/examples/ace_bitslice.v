@@ -23,9 +23,9 @@ let
     Var y :: nil <|- ((x <<< 5) & x) xor (x <<< 1)
 tel.
 
-Definition node_simeck_box := node simeck_box args input:u32x2, rc:u32 returns (output:u32x2)
+Definition node_simeck_box := node simeck_box args input:u32[2], rc:u32 returns (output:u32[2])
 vars
-    (round:u32x2[9]) :: nil
+    (round:u32[9][2]) :: nil
 let
     round[0] :: nil <|- input;
 
@@ -36,8 +36,8 @@ let
     Var output :: nil <|- round[8]
 tel.
 
-Definition node_ACE_step := node ACE_step args A:u32x2,B:u32x2,C:u32x2,D:u32x2,E:u32x2,RC:u32[3],SC:u32[3]
-returns Ar:u32x2,Br:u32x2,Cr:u32x2,Dr:u32x2,Er:u32x2
+Definition node_ACE_step := node ACE_step args A:u32[2],B:u32[2],C:u32[2],D:u32[2],E:u32[2],RC:u32[3],SC:u32[3]
+returns Ar:u32[2],Br:u32[2],Cr:u32[2],Dr:u32[2],Er:u32[2]
 vars nil
 let
     Var A :: nil <:- simeck_box @ [A,RC[0]];
@@ -50,11 +50,11 @@ let
 tel.
 
 
-Definition node_ACE := node ACE args (input:u32x2[5]) returns (output:u32x2[5])
+Definition node_ACE := node ACE args (input:u32[5][2]) returns (output:u32[5][2])
 vars
     (SC:u32[3][16]) ::
     (RC:u32[3][16]) ::
-    (tmp:u32x2[17][5]) :: nil
+    (tmp:u32[17][5][2]) :: nil
 let
     Var SC :: nil <|- [0x50,0x5c,0x91,0x8d,0x53,0x60,0x68,0xe1,0xf6,0x9d,0x40,0x4f,0xbe,0x5b,0xe9,0x7f,
           0x28,0xae,0x48,0xc6,0xa9,0x30,0x34,0x70,0x7b,0xce,0x20,0x27,0x5f,0xad,0x74,0x3f,
