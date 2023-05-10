@@ -9,7 +9,7 @@ Goal
         convert_type typ = Some (dir, 1::nil) ->
         find_val ctxt var = None ->
         eval_deq arch prog type_ctxt ctxt
-            (Eqn (Index (Var var) (Const_e 0%Z) :: (Index (Var var) (Const_e 0%Z)) :: nil) (Tuple (ECons (Const 1 None)
+            (Eqn (Index (Var var) [:: IInd (Const_e 0%Z)] :: (Index (Var var) [:: IInd (Const_e 0%Z)]) :: nil) (Tuple (ECons (Const 1 None)
                             (ECons (Const 2 None) Enil)))
                 false) = opt_ctxt'
         -> (ctxt' <- opt_ctxt'; find_val ctxt' var) = None.
@@ -34,9 +34,9 @@ Goal
         find_val type_ctxt var = Some typ ->
         well_typed_ctxt type_ctxt ctxt ->
         convert_type typ = Some (dir, 1::nil) ->
-        (exists v, eval_var (Index (Var var) (Const_e 0)) ctxt AAll = Some v) ->
+        (exists v, eval_var (Index (Var var) [:: IInd (Const_e 0)]) ctxt = Some v) ->
         eval_deq arch prog type_ctxt ctxt
-            (Eqn (Index (Var var) (Const_e 0%Z) :: (Index (Var var) (Const_e 0%Z)) :: nil) (Tuple (ECons (Const 1 None)
+            (Eqn (Index (Var var) [:: IInd (Const_e 0%Z)] :: (Index (Var var) [:: IInd (Const_e 0%Z)]) :: nil) (Tuple (ECons (Const 1 None)
                             (ECons (Const 2 None) Enil)))
                 true) = opt_ctxt'
         -> (ctxt' <- opt_ctxt'; find_val ctxt' var) = Some (CoIR dir (Some 2%Z::nil) (1::nil)).
@@ -47,6 +47,7 @@ Proof.
     simpl.
     move=> _ _ type_ctxt ctxt opt_ctxt var typ dir HEqType well_typed.
     rewrite HEqType; move=> Convert; rewrite Convert; simpl.
+    unfold eval_var; simpl.
     case_eq (find_val ctxt var).
     {
         move=> c HEq.
@@ -99,7 +100,7 @@ Goal
         convert_type typ = Some (dir, 2::nil) ->
         find_val ctxt var = None ->
         eval_deq arch prog type_ctxt ctxt
-             (Eqn (Range (Var var) (Const_e 1) (Const_e 0)::nil) (Tuple (ECons (Const 1 None)
+             (Eqn (Index (Var var) [:: IRange (Const_e 1) (Const_e 0)]::nil) (Tuple (ECons (Const 1 None)
                             (ECons (Const 2 None) Enil)))
                 false) = opt_ctxt'
         -> (ctxt' <- opt_ctxt'; find_val ctxt' var) = Some (CoIR dir (Some 2::Some 1::nil)%Z (2::nil)).
@@ -153,10 +154,10 @@ Goal
         find_val type_ctxt var = Some typ ->
         well_typed_ctxt type_ctxt ctxt ->
         convert_type typ = Some (dir, 2::nil) ->
-        (exists v, eval_var (Index (Var var) (Const_e 0)) ctxt AAll = Some v) ->
-        (exists v, eval_var (Index (Var var) (Const_e 1)) ctxt AAll = Some v) ->
+        (exists v, eval_var (Index (Var var) [:: IInd (Const_e 0)]) ctxt = Some v) ->
+        (exists v, eval_var (Index (Var var) [:: IInd (Const_e 1)]) ctxt = Some v) ->
         eval_deq arch prog type_ctxt ctxt
-             (Eqn (Range (Var var) (Const_e 1) (Const_e 0)::nil) (Tuple (ECons (Const 1 None)
+             (Eqn (Index (Var var) [:: IRange (Const_e 1) (Const_e 0)]::nil) (Tuple (ECons (Const 1 None)
                             (ECons (Const 2 None) Enil)))
                 true) = opt_ctxt'
         -> (ctxt' <- opt_ctxt'; find_val ctxt' var) = Some (CoIR dir (Some 2::Some 1::nil)%Z (2::nil)).
@@ -166,6 +167,7 @@ Proof.
     unfold bind_aux.
     simpl.
     move=> _ _ type_ctxt ctxt opt_ctxt var typ dir HEqType well_typed.
+    unfold eval_var; simpl.
     rewrite HEqType; move=> Convert; rewrite Convert; simpl.
     case_eq (find_val ctxt var).
     {
@@ -174,14 +176,14 @@ Proof.
         destruct p as [typ' [find_typ valoType]].
         rewrite find_typ in HEqType; inversion HEqType as [HEq'].
         destruct HEq'; clear HEqType.
-        destruct typ' as [|d m n|typ ilen]; simpl in *.
+        destruct typ' as [|d m|typ ilen]; simpl in *.
         by discriminate.
         all: swap 1 2.
         {
-            destruct typ as [|d m n|typ len2]; simpl in *.
+            destruct typ as [|d m|typ len2]; simpl in *.
             by discriminate.
             {
-                destruct m; destruct n; destruct d; inversion Convert as [[Hdir Hilen]].
+                destruct m; destruct d; inversion Convert as [[Hdir Hilen]].
                 all: destruct Hdir; symmetry in Hilen; destruct Hilen.
                 all: destruct c.
                 1,3,5,7,9-14: destruct valoType.
@@ -202,15 +204,15 @@ Proof.
             assert (length p > 1) as NotEmpty
              by (unfold p; simpl; constructor).
             move: p NotEmpty; clear.
-            induction typ as [|d m n|typ HRec len']; simpl.
+            induction typ as [|d m|typ HRec len']; simpl.
             by discriminate.
             {
                 destruct m.
-                + move=> []; destruct n; destruct d; auto.
-                    1-12: move=> a l HDiff HEq; inversion HEq as [[H H1 H2]].
+                + move=> []; destruct d; auto.
+                    1-6: move=> a l HDiff HEq; inversion HEq as [[H H1 H2]].
                 + discriminate.
-                + move=> []; destruct n; destruct d; auto.
-                    1-12: move=> a l HDiff HEq; inversion HEq as [[H H1 H2]].
+                + move=> []; destruct d; auto.
+                    1-6: move=> a l HDiff HEq; inversion HEq as [[H H1 H2]].
             }
             {
                 move=> p NotEmpty.
@@ -224,33 +226,9 @@ Proof.
         by move=> [v H]; inversion H.
         destruct form.
         by move=> [v H]; inversion H.
-        destruct n as [n|].
-        2: by destruct valoType.
-        rewrite muln1 in valoType.
         destruct valoType as [H1 [NotEmpty [length_eq dir_eq]]].
         move: HEq.
         inversion H1; clear H0 H2 H1 n1 form.
-        move=> HEq.
-        destruct d.
-        4,6: by discriminate.
-        all: inversion Convert as [[HEq2 HEq3]]; clear Convert; simpl.
-        all: destruct HEq2.
-        all: symmetry in HEq3; destruct HEq3.
-        all: destruct l as [|h1 l].
-        1,3,5,7: by discriminate.
-        all: destruct l as [|h2 l].
-        1,3,5,7: by discriminate.
-        all: destruct l as [|].
-        2,4,6,8: by discriminate.
-        all: simpl.
-        all: destruct h1.
-        2,4,6,8: by move=> []; discriminate.
-        all: destruct h2.
-        2,4,6,8: by move=> _ []; discriminate.
-        all: simpl.
-        all: move=> _ _ <-; simpl.
-        all: rewrite ident_beq_refl.
-        all: reflexivity.
     }
     {
         simpl.

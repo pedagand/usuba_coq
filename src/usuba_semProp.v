@@ -80,8 +80,8 @@ Proof.
     rewrite HRec; reflexivity.
 Qed.
 
-Theorem eval_var_linearize_fixpoint:
-    forall ctxt v acc l, eval_var v ctxt acc = Some l -> linearize_list_value l nil = l.
+(* Theorem eval_var_linearize_fixpoint:
+    forall ctxt v l, eval_var v ctxt = Some l -> linearize_list_value l nil = l.
 Proof.
     move=> ctxt; induction v as [v|v HRec ae|v HRec ae1 ae2|v HRec aeL]; simpl; move=> acc l.
     {
@@ -127,7 +127,7 @@ Proof.
         2: by discriminate.
         intros n H; exact (HRec _ _ H).
     }
-Qed.
+Qed. *)
 
 (* take n property *)
 
@@ -465,12 +465,12 @@ Proof.
     rewrite HRec; reflexivity.
 Qed.
 
-Theorem get_access_AAll:
+(* Theorem get_access_AAll:
     forall n l, length l = n -> n <> 0 -> get_access (map Some l) AAll (n::nil) = Some (l, (n::nil)).
 Proof.
     intros n l lengthEq NotZero; simpl.
     rewrite remove_option_from_list_map_Some; trivial.
-Qed.
+Qed. *)
 
 Theorem list_map2_soundness {A B C : Type}:
     forall (f : A -> B -> C) l1 l2, length l1 = length l2 ->

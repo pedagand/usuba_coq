@@ -88,18 +88,19 @@ Fixpoint typ_size (t : typ) :=
 
 (** VARIABLES *)
 
+Inductive indexing :=
+    | IInd : arith_expr -> indexing
+    | IRange : arith_expr -> arith_expr -> indexing
+    | ISlice : seq arith_expr -> indexing.
+
 Inductive var :=
     | Var : ident -> var
-    | Index : var -> arith_expr -> var
-    | Range : var -> arith_expr -> arith_expr -> var
-    | Slice : var -> seq arith_expr -> var.
+    | Index : var -> seq indexing -> var.
 
 Fixpoint var_size (v : var) :=
     match v with
     | Var _ => 1
-    | Index v e => 1 + var_size v + arith_expr_size e
-    | Range v e1 e2 => 1 + var_size v + arith_expr_size e1 + arith_expr_size e2
-    | Slice v el => 1 + var_size v + arith_expr_list_size el
+    | Index v e => 1 + var_size v
     end.
 
 Fixpoint list_var_size (v : seq var) :=
@@ -121,6 +122,7 @@ Inductive expr :=
   | Const : Z -> option typ -> expr
   | ExpVar : var -> expr
   | Tuple : expr_list -> expr
+  | BuildArray : expr_list -> expr
   | Not : expr -> expr
   | Log : log_op -> expr -> expr -> expr
   | Arith : arith_op -> expr -> expr -> expr
@@ -143,6 +145,7 @@ Fixpoint expr_size (e : expr) : nat :=
     | Const n (Some t) => 1 + typ_size t
     | ExpVar v => 1 + var_size v
     | Tuple el => 1 + expr_list_size el
+    | BuildArray el => 1 + expr_list_size el
     | Not e => 1 + expr_size e
     | Log op e1 e2 => 1 + log_op_size op + expr_size e1 + expr_size e2
     | Arith op e1 e2 => 1 + expr_size e1 + expr_size e2

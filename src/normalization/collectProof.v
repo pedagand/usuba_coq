@@ -53,11 +53,45 @@ Proof.
     }
 Qed.
 
+Lemma collect_indexing_soundness:
+    forall index elt,
+        iset.In elt (collect_indexing index) <-> In ident (indexing_freevars index) elt.
+Proof.
+    move=> [ae|ae1 ae2|aeL] elt; simpl.
+    {
+        exact (collect_aexpr_soundness _ _).
+    }
+    {
+        rewrite iset.union_spec.
+        do 2 rewrite collect_aexpr_soundness.
+        split; move=> []; auto; move=> HIn; constructor; assumption.
+    }
+    {
+        exact (collect_aexprl_soundness _ _).
+    }
+Qed.
+
+
+Lemma collect_indexingl_soundness:
+    forall index elt,
+        iset.In elt (collect_indexingl index) <-> In ident (indexingl_freevars index) elt.
+Proof.
+    move=> index elt; induction index as [|hd tl HRec]; simpl.
+    {
+        exact (iset_empty_soudness _).
+    }
+    {
+        rewrite iset.union_spec.
+        rewrite collect_indexing_soundness; rewrite HRec.
+        split; move=> []; auto; move=> HIn; constructor; assumption.
+    }
+Qed.
+
 Lemma collect_var_soundness:
     forall var elt,
         iset.In elt (collect_var var) <-> In ident (var_freevars var) elt.
 Proof.
-    move=> var; induction var as [|v HRec ae|v HRec ae1 ae2|v HRec aeL].
+    move=> var; induction var as [|v HRec il].
     all: simpl; move=> elt.
     {
         rewrite iset.singleton_spec; split.
@@ -65,20 +99,7 @@ Proof.
         + move=> []; reflexivity.
     }
     {
-        rewrite iset.union_spec; rewrite HRec; rewrite collect_aexpr_soundness; split.
-        + move=> []; constructor; assumption.
-        + move=> []; auto.
-    }
-    {
-        do 2 rewrite iset.union_spec; rewrite HRec; do 2 rewrite collect_aexpr_soundness; split.
-        + move => [|[]].
-            - constructor; assumption.
-            - do 2 constructor; assumption.
-            - do 2 constructor; assumption.
-        + move => [|x []]; auto.
-    }
-    {
-        rewrite iset.union_spec; rewrite HRec; rewrite collect_aexprl_soundness; split.
+        rewrite iset.union_spec; rewrite HRec; rewrite collect_indexingl_soundness; split.
         + move=> []; constructor; assumption.
         + move=> []; auto.
     }
@@ -110,12 +131,15 @@ Lemma collect_expr_soundness:
         iset.In elt (collect_expr e) <-> In ident (expr_freevars e) elt.
 Proof.
     move=> e.
-    refine (expr_find (fun e => _) (fun exprL => _) _ _ _ _ _ _ _ _ _ _ _ _ _ _ e); simpl; auto; clear e.
+    refine (expr_find (fun e => _) (fun exprL => _) _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ e); simpl; auto; clear e.
     {
         intros; exact (iset_empty_soudness _).
     }
     {
         intros; exact (collect_var_soundness _ _).
+    }
+    {
+        move=> e0 HRec elt; exact (HRec elt).
     }
     {
         move=> e0 HRec elt; exact (HRec elt).

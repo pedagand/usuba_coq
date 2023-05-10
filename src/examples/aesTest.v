@@ -26,19 +26,51 @@ Ltac gen_notation_inner a :=
 Ltac gen_notation :=
     lazymatch goal with
     | |- ?g = _ => gen_notation_inner g
+    | |- ?g <> _ => gen_notation_inner g
     end.
 
 (* Theorem
     eval_expr prog_tl4 [:: (Id_s "v", CoIR DirB (list_d4 ++ list_bf ++ list_5d ++ list_30) (Some [:: 4; 8]))]
     = Some (CoIR DirB ) *)
 
+Goal
+    prog_sem default_arch prog_tl7 None [:: CoIR DirB (
+        list_d4 ++ list_d4 ++ list_d4 ++ list_d4 ++
+        list_d4 ++ list_d4 ++ list_d4 ++ list_d4 ++
+        list_d4 ++ list_d4 ++ list_d4 ++ list_d4 ++
+        list_d4 ++ list_d4 ++ list_d4 ++ list_d4) (16%nat::8%nat::nil)]
+    <> None.
+Proof.
+    cbn - [build_ctxt_aux].
+    unfold build_ctxt_aux.
+    gen_notation.
+    unfold loop_rec.
+    cbn.
+    unfold Pos.to_nat.
+    cbn - [eval_var].
+    gen_notation.
+    unfold eval_var.
+    cbn - [eval_var_inner].
+    gen_notation.
+    unfold eval_var; cbn - [remove_option_from_list].
+    unfold remove_option_from_list.
+    unfold eval_node.
+    cbn - [eval_node_inner].
+    gen_notation.
+    unfold try_take_n.
+    unfold SIZE_MONO, DIR_MONO.
+    gen_notation.
+    gen_notation.
+    cbn - [bind].
+
 Theorem node_MixColumn_single_test:
-    prog_sem default_arch prog_tl3 None [:: CoIR DirB (list_d4 ++ list_bf ++ list_5d ++ list_30) None]
-    = Some [:: CoIR DirB (list_04 ++ list_cb ++ list_19 ++ list_9a) (Some [:: 4; 8])].
+    prog_sem default_arch prog_tl3 None [:: CoIR DirB (list_d4 ++ list_bf ++ list_5d ++ list_30) (4%nat::8%nat::nil)]
+    = Some [:: CoIR DirB (list_04 ++ list_cb ++ list_19 ++ list_9a) [:: 4%nat; 8%nat]].
 Proof.
     cbn - [prog_tl4].
     unfold eval_node; cbn - [prog_tl4].
     unfold Pos.to_nat; cbn - [prog_tl4].
+    cbn - [times2].
     cbn; unfold eval_node; cbn.
     unfold Pos.to_nat; cbn.
     unfold bind; cbn.

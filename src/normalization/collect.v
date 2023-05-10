@@ -15,12 +15,23 @@ Fixpoint collect_aexprl (e : list arith_expr) : iset.t :=
     | h :: tl => iset.union (collect_aexpr h) (collect_aexprl tl)
     end.
 
+Definition collect_indexing (v : indexing) : iset.t :=
+    match v with
+    | IInd i => (collect_aexpr i)
+    | IRange s e => iset.union (collect_aexpr s) (collect_aexpr e)
+    | ISlice el => (collect_aexprl el)
+    end.
+
+Fixpoint collect_indexingl (v : list indexing) : iset.t :=
+    match v with
+    | nil => iset.empty
+    | h::tl => iset.union (collect_indexing h) (collect_indexingl tl)
+    end.
+
 Function collect_var (v : var) : iset.t :=
     match v with
     | Var var => iset.singleton var
-    | Index v i => iset.union (collect_var v) (collect_aexpr i)
-    | Range v s e => iset.union (collect_var v) (iset.union (collect_aexpr s) (collect_aexpr e))
-    | Slice v el => iset.union (collect_var v) (collect_aexprl el)
+    | Index v i => iset.union (collect_var v) (collect_indexingl i)
     end.
 
 Fixpoint collect_varl (vl : list var) : iset.t :=
@@ -33,7 +44,7 @@ Function collect_expr (e : expr) : iset.t :=
     match e with
     | Const _ _ => iset.empty
     | ExpVar v => collect_var v
-    | Tuple el => collect_exprl el
+    | Tuple el | BuildArray el => collect_exprl el
     | Not e => collect_expr e
     | Log _ e1 e2 | Arith _ e1 e2 => iset.union (collect_expr e1) (collect_expr e2)
     | Shift _ expr aexpr => iset.union (collect_expr expr) (collect_aexpr aexpr)

@@ -5,8 +5,8 @@ Require Import Lia.
 
 Lemma node_f_soundness:
     forall x,
-        exists v, eval_node default_arch node_f nil None (CoIR (DirV 32) (x::nil) None::nil)
-            = Some (CoIR (DirV 32) (v::nil) (Some (1::nil))::nil).
+        exists v, eval_node default_arch node_f nil None (CoIR (DirV (32%nat)) (x::nil) nil::nil)
+            = Some (CoIR (DirV 32%nat) (v::nil) nil::nil).
 Proof.
     intro x.
     unfold prog_sem.
@@ -52,10 +52,10 @@ Ltac simpl_util :=
     end.
 
 Lemma node_simeck_box_soundness:
-    forall iL, length iL = 3 ->
+    forall iL, length iL = 3%nat ->
         exists v1 v2,
-            eval_node default_arch node_simeck_box ((Id_s syntax.f, eval_node default_arch node_f nil)::nil) None (CoIR (DirV 32) iL None::nil)
-            = Some (CoIR (DirV 32) (v1::v2::nil) (Some (2::nil))::nil).
+            eval_node default_arch node_simeck_box ((ident.Id_s syntax.f, eval_node default_arch node_f nil)::nil) None (CoIR (DirV 32%nat) iL (3%nat::nil)::nil)
+            = Some (CoIR (DirV 32%nat) (v1::v2::nil) (2%nat::nil)::nil).
 Proof.
     intros iL Hlength.
     do 3 simpl_1 iL Hlength.
@@ -71,6 +71,21 @@ Proof.
     cbn - [eval_node].
     unfold Pos.to_nat.
     cbn - [eval_node].
+    unfold eval_var; cbn - [remove_option_from_list ].
+    unfold Pos.to_nat.
+    cbn - [arith_wrapper].
+    cbn - [list_map2].
+    simpl_util.
+    unfold list_map2.
+    unfold arith_wrapper.
+    unfold eval_binop, get_dir, coerce_to.
+    unfold arch.dir_beq, ident.internal_nat_beq.
+
+    simpl_util.
+    cbn - [arith_wrapper].
+    simpl_util.
+    unfold seq.cat.
+    unfold eval_var; cbn - [eval_node].
     simpl_util; cbn - [eval_node].
     simpl_util; cbn - [eval_node].
     simpl_util; cbn - [eval_node].
@@ -79,6 +94,7 @@ Proof.
     simpl_util; cbn - [eval_node].
     simpl_util; cbn - [eval_node].
     eexists; eexists.
+    gen_notation.
     reflexivity.
 Qed.
 

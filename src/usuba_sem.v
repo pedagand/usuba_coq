@@ -218,11 +218,9 @@ Fixpoint remove_option_from_list {A : Type} (l : list (option A)) : option (list
     end.
 
 (** We assert that `length values = prod_list dim` *)
-Fixpoint get_access (values : list (option Z)) (acc : access) (dim : list nat) : option (list Z * list nat) :=
+Fixpoint get_access (values : list (option Z)) (acc : access) (dim : list nat) : option (list (option Z) * list nat) :=
     match acc with
-    | AAll => 
-        vL <- remove_option_from_list values;
-        Some (vL, dim)
+    | AAll => Some (values, dim)
     | ASlice nil _ => None
     | AInd i acc_tl =>
         match dim with
@@ -274,29 +272,47 @@ Definition gen_range (i1 i2 : nat) : list nat :=
     then gen_range_incr i1 i2
     else gen_range_decr i1 i2.
 
-Fixpoint eval_var (v : var) (ctxt : context) (acc : access) : option (list (@cst_or_int Z)) :=
-    match v with
-    | Var v => 
-        val <- find_val ctxt v;
-        match val, acc with
-        | CoIL cst, _ =>
-            (iL', form) <- get_access (Some cst::nil) acc nil;
-            Some (map CoIL iL')
-        | CoIR dir iL dim, _ =>
-            (iL', form) <- get_access iL acc dim;
-            Some ((CoIR dir iL' form)::nil)
-        end
-    | Index v ae =>
+Fixpoint access_of_ind (ctxt : context) (l : list indexing) : option access :=
+    match l with
+    | nil => Some AAll
+    | IInd ae::tl =>
         i <- eval_arith_expr ctxt ae;
-        eval_var v ctxt (AInd i acc)
-    | Range v ae1 ae2 =>
+        acc <- access_of_ind ctxt tl;
+        Some (AInd i acc)
+    | ISlice il::tl =>
+        il' <- fold_right (fun ae tl =>
+            tl' <- tl;
+            i <- eval_arith_expr ctxt ae;
+            Some (i::tl')) (Some nil) il;
+        acc <- access_of_ind ctxt tl;
+        Some (ASlice il' acc)
+    | IRange ae1 ae2::tl =>
         i1 <- eval_arith_expr ctxt ae1;
         i2 <- eval_arith_expr ctxt ae2;
-        eval_var v ctxt (ASlice (gen_range i1 i2) acc)
-    | Slice v ael =>
-        il <- fold_right (fun ae l =>
-            l' <- l; i <- eval_arith_expr ctxt ae; Some (i::l')) (Some nil) ael;
-        eval_var v ctxt (ASlice il acc)
+        acc <- access_of_ind ctxt tl;
+        Some (ASlice (gen_range i1 i2) acc)
+    end.
+
+Fixpoint eval_var_inner (v : var) (ctxt : context) : option (@cst_or_int (option Z)) :=
+    match v with
+    | Var v => find_val ctxt v
+    | Index v ind =>
+        acc <- access_of_ind ctxt ind;
+        match eval_var_inner v ctxt with
+        | Some (CoIR d values form) => 
+            (values, form') <- get_access values acc form;
+            Some (CoIR d values form')
+        | _ => None
+        end
+    end.
+
+Definition eval_var (v : var) (ctxt : context) : option (@cst_or_int Z) :=
+    match eval_var_inner v ctxt with
+    | Some (CoIL l) => Some (CoIL l)
+    | Some (CoIR d values form) =>
+        values' <- remove_option_from_list values;
+        Some (CoIR d values' form)
+    | None => None
     end.
 
 Fixpoint loop_rec (ctxt : context) (iter : context -> option context) i (s_i e_i : nat) : option context :=
@@ -433,7 +449,13 @@ Fixpoint eval_expr (arch : architecture) (prog : prog_ctxt) (ctxt : context) (e 
     match e with
         | Const n None => Some (CoIL n::nil)
         | Const n (Some typ) => build_integer typ n
-        | ExpVar var => eval_var var ctxt AAll
+        | ExpVar var =>
+            v <- eval_var var ctxt;
+            Some [:: v]
+        | BuildArray el => 
+            o <- eval_expr_list' arch prog ctxt el;
+            (len, values, form, d) <- o;
+            Some [:: CoIR d values (len::form)]
         | Tuple el => eval_expr_list arch prog ctxt el
         | Not e =>
             v <- eval_expr arch prog ctxt e;
@@ -487,6 +509,25 @@ with eval_expr_list (arch : architecture) (prog : prog_ctxt) (ctxt : context) (e
         v <- eval_expr arch prog ctxt e;
         tl <- eval_expr_list arch prog ctxt tl;
         Some (linearize_list_value v tl)
+    end
+with eval_expr_list' (arch : architecture) (prog : prog_ctxt) (ctxt : context) (el : expr_list) : option (option (nat * list Z * list nat * dir)) :=
+    match el with
+    | Enil => Some None
+    | ECons e tl =>
+        v <- eval_expr arch prog ctxt e;
+        tl <- eval_expr_list' arch prog ctxt tl;
+        match v with
+        | CoIR d v form::nil =>
+            match tl with
+            | None => Some (Some (1, v, form, d))
+            | Some (l, v', form', d') =>
+                if dir_beq d d' && list_beq nat Nat.eqb form form'
+                then
+                    Some (Some (l + 1, v ++ v', form', d'))
+                else None
+            end
+        | _ => None
+        end
     end.
 
 Fixpoint try_take_n {A : Type} (nb : nat) (l : list A) : ((list A) * Sum nat (list A)) :=
@@ -542,7 +583,7 @@ Fixpoint build_ctxt_aux (typ : typ) (input : list (@cst_or_int Z)) (l : list nat
     | Uint _ Mnat => None
     | Uint _ (Mvar _) => None
     | Array typ len =>
-        build_ctxt_aux typ input (len::l)
+        build_ctxt_aux typ input (l ++ [:: len])
     end.
 
 Fixpoint build_ctxt (args : p) (input : list (@cst_or_int Z)) : option context :=
@@ -651,7 +692,7 @@ Fixpoint update (form : list nat) (val : list (option Z)) (acc : access) (e : li
         else None
     end.
 
-Fixpoint bind_aux (ctxt : context) (type_ctxt : type_ctxt) (v : var) (acc : access) (e : list (@cst_or_int Z)) (b : bool) : option (context * list (@cst_or_int Z)) :=
+Definition bind_aux (ctxt : context) (type_ctxt : type_ctxt) (v : var) (e : list (@cst_or_int Z)) (b : bool) : option (context * list (@cst_or_int Z)) :=
     match v with
     | Var v =>
         typ <- find_val type_ctxt v;
@@ -661,19 +702,20 @@ Fixpoint bind_aux (ctxt : context) (type_ctxt : type_ctxt) (v : var) (acc : acce
         | Some (CoIL i) => Some i::nil
         | Some (CoIR _ iL _) => iL
         end in
+        (val, e') <- update form val_init AAll e dir b;
+        Some ((v, CoIR dir val form)::ctxt, e')
+    | Index (Var v) ind =>
+        typ <- find_val type_ctxt v;
+        (dir, form) <- convert_type typ;
+        let val_init := match find_val ctxt v with
+        | None => undefined (prod_list form)
+        | Some (CoIL i) => Some i::nil
+        | Some (CoIR _ iL _) => iL
+        end in
+        acc <- access_of_ind ctxt ind;
         (val, e') <- update form val_init acc e dir b;
         Some ((v, CoIR dir val form)::ctxt, e')
-    | Index v ae =>
-        i <- eval_arith_expr ctxt ae;
-        bind_aux ctxt type_ctxt v (ASlice [:: i] acc) e b
-    | Range v ae1 ae2 =>
-        i1 <- eval_arith_expr ctxt ae1;
-        i2 <- eval_arith_expr ctxt ae2;
-        bind_aux ctxt type_ctxt v (ASlice (gen_range i1 i2) acc) e b
-    | Slice v ael =>
-        il <- fold_right (fun ae l =>
-        l' <- l; i <- eval_arith_expr ctxt ae; Some (i::l')) (Some nil) ael;
-        bind_aux ctxt type_ctxt v (ASlice il acc) e b
+    | _ => None
     end.
 
 Fixpoint bind_aux_list ctxt type_ctxt (vl : list var) (el : list (@cst_or_int Z)) (b : bool) : option (context * list (@cst_or_int Z)) :=
@@ -683,7 +725,7 @@ Fixpoint bind_aux_list ctxt type_ctxt (vl : list var) (el : list (@cst_or_int Z)
         | _ => None
         end
     | v :: vl' =>
-        (ctxt', el') <- bind_aux ctxt type_ctxt v AAll el b;
+        (ctxt', el') <- bind_aux ctxt type_ctxt v el b;
         bind_aux_list ctxt' type_ctxt vl' el' b
     end.
 
@@ -927,6 +969,7 @@ Fixpoint subst_infer_expr (infered : monomorph_info) (e : expr) : expr :=
     | Const _ None | ExpVar _ | Shuffle _ _ => e
     | Const i (Some t) => Const i (Some (subst_infer_typ infered t))
     | Tuple el => Tuple (subst_infer_list_expr infered el)
+    | BuildArray el => BuildArray (subst_infer_list_expr infered el)
     | Not e => Not (subst_infer_expr infered e)
     | Log op e1 e2 => Log op (subst_infer_expr infered e1) (subst_infer_expr infered e2)
     | Arith op e1 e2 => Arith op (subst_infer_expr infered e1) (subst_infer_expr infered e2)
@@ -1013,13 +1056,24 @@ Fixpoint typ_freevars (typ : typ) : Ensemble ident :=
     | Array typ' ae => typ_freevars typ'
     | _ => Empty_set ident
     end.
-    
+
+Definition indexing_freevars  (v : indexing) : Ensemble ident :=
+    match v with
+    | IInd ae => aexpr_freevars ae
+    | IRange ae1 ae2 => Union ident (aexpr_freevars ae1) (aexpr_freevars ae2)
+    | ISlice aeL => aexprl_freevars aeL
+    end.
+
+Fixpoint indexingl_freevars (v : seq indexing) : Ensemble ident :=
+    match v with
+    | nil => Empty_set ident
+    | hd::tl => Union _ (indexing_freevars hd) (indexingl_freevars tl)
+    end.
+
 Fixpoint var_freevars (v : var) : Ensemble ident :=
     match v with
     | Var var => Singleton ident var
-    | Index v i => Union ident (var_freevars v) (aexpr_freevars i)
-    | Range v s e => Union ident (var_freevars v) (Union ident (aexpr_freevars s) (aexpr_freevars e))
-    | Slice v el => Union ident (var_freevars v) (aexprl_freevars el)
+    | Index v i => Union ident (var_freevars v) (indexingl_freevars i)
     end.
 
 Fixpoint varl_freevars vl :=
@@ -1032,7 +1086,7 @@ Fixpoint expr_freevars (e : expr) : Ensemble ident :=
     match e with
     | Const _ _ => Empty_set ident
     | ExpVar v => var_freevars v
-    | Tuple el => exprl_freevars el
+    | Tuple el | BuildArray el => exprl_freevars el
     | Not e => expr_freevars e
     | Log _ e1 e2 | Arith _ e1 e2 => Union ident (expr_freevars e1) (expr_freevars e2)
     | Shift _ expr aexpr => Union ident (expr_freevars expr) (aexpr_freevars aexpr)

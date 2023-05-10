@@ -41,16 +41,16 @@ Notation "x '/' y"   := (Arith Div (x)%ua_expr (y)%ua_expr) (at level 40, left a
 Notation "f '@' '[' x , .. , y ']'" := (Fun (f)%string (ECons ((x)%ua_expr : expr) .. (ECons ((y)%ua_expr : expr) Enil) ..)) (at level 75, no associativity) : Usuba_expr.
 Notation "'[' x , .. , y ']'" := (Tuple (ECons ((x)%ua_expr : expr) .. (ECons ((y)%ua_expr : expr) Enil) ..)) (at level 87, no associativity) : Usuba_expr.
 
-Notation "f '$' '[' x , .. , y ']'" := (Slice (f)%ua_var (cons ((x)%ua_aexpr : arith_expr) .. (cons ((y)%ua_aexpr : arith_expr) nil) ..)) (at level 75, no associativity) : Usuba_var.
-Notation "f '$' '[' x , .. , y ']'" := (Slice (f)%ua_var (cons ((x)%ua_aexpr : arith_expr) .. (cons ((y)%ua_aexpr : arith_expr) nil) ..)) (at level 75, no associativity) : Usuba_expr.
+Notation "f '$' '[' x , .. , y ']'" := (Index (f)%ua_var (ISlice (cons ((x)%ua_aexpr : arith_expr) .. (cons ((y)%ua_aexpr : arith_expr) nil) ..)::nil)) (at level 75, no associativity) : Usuba_var.
+Notation "f '$' '[' x , .. , y ']'" := (Index (f)%ua_var (ISlice (cons ((x)%ua_aexpr : arith_expr) .. (cons ((y)%ua_aexpr : arith_expr) nil) ..)::nil)) (at level 75, no associativity) : Usuba_expr.
 
 Notation "x '+' y"   := (Op_e Add (x)%ua_aexpr (y)%ua_aexpr) (at level 50, left associativity) : Usuba_arith_expr.
 Notation "x '-' y"   := (Op_e Sub (x)%ua_aexpr (y)%ua_aexpr) (at level 50, left associativity) : Usuba_arith_expr.
 Notation "x '*' y"   := (Op_e Mul (x)%ua_aexpr (y)%ua_aexpr) (at level 40, left associativity) : Usuba_arith_expr.
 Notation "x '/' y"   := (Op_e Div (x)%ua_aexpr (y)%ua_aexpr) (at level 40, left associativity) : Usuba_arith_expr.
 
-Notation "v '[' e ']'" := (Index (v)%ua_var  (e)%ua_aexpr) (at level 61, left associativity) : Usuba_var.
-Notation "v '[' e ']'" := (Index (v)%ua_var  (e)%ua_aexpr) (at level 61, left associativity) : Usuba_expr.
+Notation "v '[' e ']'" := (Index (v)%ua_var  (IInd (e)%ua_aexpr::nil)) (at level 61, left associativity) : Usuba_var.
+Notation "v '[' e ']'" := (Index (v)%ua_var  (IInd (e)%ua_aexpr::nil)) (at level 61, left associativity) : Usuba_expr.
 
 Fixpoint push_array (t : typ) (l : nat) : typ :=
     match t with

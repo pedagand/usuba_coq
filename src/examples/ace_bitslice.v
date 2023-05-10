@@ -30,8 +30,8 @@ let
     round[0] :: nil <|- input;
 
     for i in 0 to 7 do
-      (round[i + 1] $ [0,1])%ua_var :: nil <|- [f @ [round[i][0]] xor round[i][1] xor 0xfffffffe xor ((rc >> i) & 1), round[i][0]]
-    done;
+      (Index round (IInd (Var_e i + 1)%ua_aexpr :: ISlice (Const_e 0 :: Const_e 1 :: nil) :: nil))%ua_var :: nil <|- [f @ [round[i][0]] xor round[i][1] xor 0xfffffffe xor ((rc >> i) & 1), round[i][0]]
+      done;
 
     Var output :: nil <|- round[8]
 tel.
@@ -66,7 +66,9 @@ let
     tmp[0] :: nil <|- input;
 
     for i in 0 to 15 do
-        tmp[i+1] :: nil <|- ACE_step @ [tmp[i], RC $ [0,1,2][i],SC $ [0,1,2][i]]
+        tmp[i+1] :: nil <|- ACE_step @ [tmp[i],
+                            Index (Var RC) (ISlice (Const_e 0::Const_e 1::Const_e 2::nil) :: IInd i :: nil),
+                            Index (Var SC) (ISlice (Const_e 0::Const_e 1::Const_e 2::nil) :: IInd i :: nil)]
     done;
 
     Var output :: nil <|- tmp[16]
