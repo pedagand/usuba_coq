@@ -34,27 +34,28 @@ Definition gen_list_0_int (n : nat) : list nat :=
         | S n' => aux n' (n' :: acc) 
     end in aux n nil.
 
-Fixpoint expand_var_inner (typ : typ) (env_it : context) (partial : bool) (ind : list indexing) : list (list indexing) :=
+Fixpoint expand_var_inner (typ : typ) (partial : bool) (ind : list indexing) : list indexing :=
     match typ with
-    | Nat => ind::nil
-    | Uint _ _ => ind::nil
+    | Nat => ind
+    | Uint _ _ => ind
     | Array typ len =>
         if partial then
-            List.map (fun i => ind ++ [:: IInd (Const_e (Z.of_nat i))]) (gen_list_0_int len)
+            ind ++ [:: ISlice (map (fun i => Const_e (Z.of_nat i)) (gen_list_0_int len))]
         else
-            flat_map
-            (fun i => expand_var_inner typ env_it partial (ind ++ [:: IInd (Const_e (Z.of_nat i))]))
-            (gen_list_0_int len)
+            expand_var_inner typ partial (ind ++ [:: ISlice (map (fun i => Const_e (Z.of_nat i)) (gen_list_0_int len))])
     end.
 
-Definition expand_var (env_var : imap.t typ) (env_it : context) (partial : bool) (v : var) : list var :=
+Definition expand_var (env_var : imap.t typ) (partial : bool) (v : var) : var :=
     match get_var_type env_var v with
-    | None => (v::nil)
+    | None => v
     | Some typ =>
         match v with
-        | Var var => [seq Index (Var var) ind | ind <- expand_var_inner typ env_it partial nil]
-        | Index (Var var) ind => [seq Index (Var var) ind' | ind' <- expand_var_inner typ env_it partial ind]
-        | _ => (v::nil)
+        | Var var => match expand_var_inner typ partial nil with
+            | nil => Var var
+            | l => Index (Var var) l
+            end
+        | Index (Var var) ind => Index (Var var) (expand_var_inner typ partial ind)
+        | _ => v
         end
     end.
 
@@ -1465,7 +1466,7 @@ Proof.
     {
         admit.
     }
-Admitted.
+Admitted.*)
 
 Lemma get_var_imp_valid:
     forall v type_ctxt,
@@ -1474,38 +1475,55 @@ Lemma get_var_imp_valid:
         get_var_type type_ctxt v = Some typ ->
         valid_type typ.
 Proof.
-    move=> v type_ctxt valid; induction v as [i|v HRec i|v HRec ae1 ae2|v HRec aeL]; simpl.
+    move=> v type_ctxt valid; induction v as [i|v HRec ind]; simpl.
     {
         move=> typ Hfind.
         rewrite find_val_is_imap_find in Hfind.
         apply valid_typed_ctxt_imp_find_val in Hfind; trivial.
     }
+    destruct v.
+    2: by idtac.
+    simpl in *.
+    destruct imap.find as [t|].
+    2: by rewrite get_var_type_inner_None.
+    specialize HRec with t; move: HRec.
+    impl_tac; trivial.
+    clear; move: t.
+    induction ind as [|hd tl HRec]; simpl.
     {
-        move=> typ.
-        destruct (get_var_type) as [[|dir m|t len]|].
-        1,2,4: by discriminate.
-        destruct len.
-        + discriminate.
-        + specialize HRec with (Array t len.+1); move=> HEq; move: HRec; impl_tac; trivial.
-            inversion HEq; move=> HRec; inversion HRec; assumption.
+        move=> t vt t' H; move: vt; inversion H; trivial.
     }
     {
-        move=> typ.
-        destruct (get_var_type) as [[|dir m|t len]|].
-        1,2,4: by discriminate.
-        destruct len.
-        + discriminate.
-        + specialize HRec with (Array t len.+1); move=> HEq; move: HRec; impl_tac; trivial.
-            inversion HEq; move=> HRec; inversion HRec; assumption.
+        move=> [| |typ [| len]] vtyp.
+        1-3: by rewrite get_var_type_inner_None.
+        inversion vtyp.
+        apply HRec; assumption.
+    }
+Qed.
+
+Lemma get_var_type_inner_app:
+    forall ind1 ind2 typ,
+        get_var_type_inner typ (ind1 ++ ind2) = get_var_type_inner (get_var_type_inner typ ind1) ind2.
+Proof.
+    move=> ind1; induction ind1 as [|hd tl HRec]; simpl; trivial.
+Qed.
+
+Lemma expand_var_extend:
+    forall typ partial ind,
+        length ind <= length (expand_var_inner typ partial ind).
+Proof.
+    move=> typ; induction typ as [| |typ HRec len]; simpl.
+    1,2: by idtac.
+    move=> [] ind.
+    {
+        rewrite length_app; simpl.
+        rewrite addn1.
+        apply leqnSn.
     }
     {
-        move=> typ.
-        destruct (get_var_type) as [[|dir m|t len]|].
-        1,2,4: by discriminate.
-        destruct len.
-        + discriminate.
-        + specialize HRec with (Array t len.+1); move=> HEq; move: HRec; impl_tac; trivial.
-            inversion HEq; move=> HRec; inversion HRec; assumption.
+        refine (leq_trans _ (HRec _ _)).
+        rewrite length_app; simpl.
+        rewrite addn1; apply leqnSn.
     }
 Qed.
 
@@ -1514,32 +1532,68 @@ Theorem expand_var_inner_soundness:
         valid_type_ctxt (imap.elements type_ctxt) ->
         well_typed_ctxt (imap.elements type_ctxt) env_it ->
         get_var_type type_ctxt v = Some typ ->
-        (forall n, Ensembles.In ident (typ_freevars typ) n -> exists c, find_const env_it n = Some c) ->
-            eval_var v env_it AAll
-            = fold_right
-                (fun v l=> l' <- l; v' <- eval_var v env_it AAll; Some (linearize_list_value v' l'))
-                (Some nil) (expand_var_inner typ env_it partial v).
+            eval_var v env_it = eval_var (expand_var type_ctxt partial v) env_it.
 Proof.
     move=> type_ctxt typ env_it partial.
-    induction typ as [|d m|]; simpl.
+    unfold expand_var.
+    induction typ as [|d m|typ HRec len]; simpl.
     {
-        move=> v _ _ _ _.
-        pose (p := eval_var_linearize_fixpoint env_it v AAll); move: p.
-        destruct (eval_var v env_it AAll) as [l|]; trivial.
-        move=> HEq; specialize HEq with l; move: HEq.
-        impl_tac; trivial.
-        move=> ->; reflexivity.
+        move=> v _ _ ->.
+        destruct v as [v|[] len]; simpl; trivial.
     }
     {
+        move=> v _ _ ->.
+        destruct v as [|[] len]; simpl; reflexivity.
+    }
+    {
+        move=> v valid_type well_typed get_type.
+        rewrite get_type; simpl.
+        assert (len <> 0) as NotZero.
         {
-            move=> v valid _ get_type _.
-            move: (eval_var_linearize_fixpoint env_it v AAll).
-            destruct eval_var as [l|]; trivial.
-            move=> H; specialize H with l.
-            f_equal; symmetry; apply H; reflexivity.
+            apply get_var_imp_valid in get_type; trivial.
+            inversion get_type; trivial.
+        }
+        destruct v as [v|[v|] ind]; simpl.
+        3: by reflexivity.
+        {
+            transitivity (eval_var (Index (Var v) [:: ISlice [seq Const_e (Z.of_nat i) | i <- gen_list_0_int len]]) env_it).
+            {
+                move: (add_all_var_lemma v nil type_ctxt env_it typ len); simpl.
+                move=> <-; trivial.
+                unfold eval_var; simpl.
+                case_eq (find_val env_it v); trivial.
+                move=> c Eq.
+                destruct (well_typed_ctxt_imp_find_val _ _ _ _ well_typed Eq) as [typ' [find val_of_type]].
+                unfold get_var_type in get_type.
+                rewrite find_val_is_imap_find in get_type.
+                rewrite get_type in find.
+                move: val_of_type; inversion find as [H'].
+                clear H' find typ'.
+                destruct c; trivial.
+                simpl.
+                move=> Abs; apply val_of_CoIL in Abs.
+                inversion Abs.
+            }
+            {
+                destruct partial; trivial.
+                rewrite HRec; trivial.
+                all: unfold get_var_type; unfold get_var_type in get_type; simpl.
+                all: rewrite get_type; destruct len; auto.
+                1,3: by idtac.
+                move: (expand_var_extend typ false [:: ISlice
+                        [seq Const_e (Z.of_nat i) | i <- gen_list_0_int len.+1]]).
+                destruct expand_var_inner; trivial.
+                simpl.
+                by idtac.
+            }
+        }
+        {
+            rewrite (add_all_var_lemma _ _ type_ctxt _ typ len); trivial.
+            destruct partial; trivial.
+            rewrite HRec; trivial.
+            all: unfold get_var_type; rewrite get_var_type_inner_app.
+            all: unfold get_var_type in get_type; rewrite get_type; simpl.
+            all: by destruct len.
         }
     }
-    {
-        admit.
-    }
-Admitted.*)
+Qed.

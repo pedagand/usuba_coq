@@ -516,7 +516,7 @@ Qed. *)
 
 Inductive valid_type : typ -> Prop :=
     | VTUint : forall d m, valid_type (Uint d m)
-    | VTArray : forall t l, valid_type t -> valid_type (Array t l)
+    | VTArray : forall t l, valid_type t -> l <> 0 -> valid_type (Array t l)
     | VTNat : valid_type Nat.
 
 Definition valid_type_ctxt (type_ctxt : type_ctxt) : Prop :=

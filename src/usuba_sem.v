@@ -1051,12 +1051,6 @@ Fixpoint aexprl_freevars (e : list arith_expr) : Ensemble ident :=
     | h :: tl => Union ident (aexpr_freevars h) (aexprl_freevars tl)
     end.
 
-Fixpoint typ_freevars (typ : typ) : Ensemble ident :=
-    match typ with
-    | Array typ' ae => typ_freevars typ'
-    | _ => Empty_set ident
-    end.
-
 Definition indexing_freevars  (v : indexing) : Ensemble ident :=
     match v with
     | IInd ae => aexpr_freevars ae
