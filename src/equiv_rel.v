@@ -1,4 +1,4 @@
-From Usuba Require Import ident coq_missing_lemmas utils usuba_AST usuba_sem usuba_semProp arch.
+From Usuba Require Import ident coq_missing_lemmas utils usuba_AST semantic_base semantic_base_proofs usuba_sem arch.
 Require Import ZArith.
 Require Import RelationClasses.
 Require Import Coq.Lists.List.
@@ -707,6 +707,32 @@ Proof.
         }
     }
 Qed.
+Theorem val_of_type_CoIL {A : Type} :
+    forall typ cst l,
+        @val_of_type A (CoIL cst) typ l ->
+            l = nil /\ typ = Nat.
+Proof.
+    move=> typ cst; induction typ as [|d []|typ HRec ae]; simpl; auto.
+    1-3: by move=> l [].
+    move=> l H; apply HRec in H; destruct H.
+    destruct l; simpl in H; by idtac.
+Qed.
+
+Theorem val_of_type_CoIR {A : Type}:
+    forall typ dir iL form l,
+        @val_of_type A (CoIR dir iL form) typ l ->
+        length iL = prod_list form /\ prod_list form <> 0.
+Proof.
+    move=> typ; induction typ as [|d [m| |]| typ HRec ae]; simpl.
+    1,3,4: by move=> _ iL form _ [].
+    all: move=> dir iL form l.
+    {
+        move=> [-> [H [<- _]]]; auto.
+    }
+    {
+        apply HRec.
+    }
+Qed.
 
 Lemma val_of_type_convert {A : Type} :
     forall iL typ d form l,
@@ -748,6 +774,57 @@ Proof.
             reflexivity.
         }
     }
+Qed.
+
+Lemma val_of_type_CoIR_full {A : Type}:
+    forall iL typ d form,
+        @val_of_type A (CoIR d iL form) typ nil
+            -> convert_type typ = Some (d, form).
+Proof.
+    move=> iL typ d form val_of.
+    apply (val_of_type_convert iL _ _ _ nil); simpl; trivial.
+Qed.
+
+Lemma val_of_type_CoIR_inv_lemma {A : Type}:
+    forall typ iL d form l,
+        convert_type typ = Some (d, form) ->
+        (exists iL', @val_of_type A (CoIR d iL' (l ++ form)) typ l) ->
+                length iL = prod_list (l ++ form) ->
+                @val_of_type A (CoIR d iL (l ++ form)) typ l.
+Proof.
+    move=> typ iL; induction typ as [|d m|typ HRec len]; simpl.
+    by idtac.
+    {
+        destruct m.
+        2: by idtac.
+        all: destruct d.
+        all: move=> d form l H; inversion H; clear.
+        1-3: by rewrite cats0; move=> [iL' [_ [H [<- _]]]] ->.
+        by move=> [_ [_ [_ [_ []]]]].
+        1-3: by move=> [_ []].
+    }
+    {
+        destruct convert_type as [[d form]|].
+        2: by idtac.
+        move=> d' form' l H; move: HRec; inversion H.
+        move=> HRec.
+        move: (HRec d' form (l ++ [:: len])); clear.
+        impl_tac; trivial.
+        rewrite <-app_assoc; simpl.
+        auto.
+    }
+Qed.
+
+Lemma val_of_type_CoIR_inv {A : Type}:
+    forall typ iL d form,
+        convert_type typ = Some (d, form) ->
+        (exists iL', @val_of_type A (CoIR d iL' form) typ nil) ->
+                length iL = prod_list form ->
+                @val_of_type A (CoIR d iL form) typ nil.
+Proof.
+    move=> typ iL d form.
+    move: (val_of_type_CoIR_inv_lemma typ iL d form nil); simpl.
+    auto.
 Qed.
 
 (* Properties on context_srel and opt_rel *)

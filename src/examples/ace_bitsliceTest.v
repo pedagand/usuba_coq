@@ -1,6 +1,6 @@
 
 Require Import ZArith String List.
-From Usuba Require Import arch utils usuba_AST usuba_ASTProp usuba_sem usuba_semProp ace_bitslice.
+From Usuba Require Import arch utils usuba_AST usuba_ASTProp usuba_sem semantic_base semantic_base_proofs ace_bitslice.
 Require Import Lia.
 
 Lemma node_f_soundness:

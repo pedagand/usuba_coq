@@ -8,13 +8,23 @@ src/usuba_AST.v
 src/usuba_ASTProp.v
 src/coq_missing_lemmas.v
 src/arch.v
+src/list_relations.v
+src/semantic_base.v
+src/semantic_base_proofs.v
 src/usuba_sem.v
+
+src/new_sem/topological_sort.v
+src/new_sem/termination_funs.v
+src/new_sem/termination_properties.v
+src/new_sem/def_tree_proofs.v
+src/new_sem/use_tree_proofs.v
+src/new_sem/build_rel_fun_proofs.v
+src/new_sem/new_sem.v
 
 src/syntax.v
 src/examples/aes.v
 src/examples/ace_bitslice.v
 
-src/usuba_semProp.v
 src/equiv_rel.v
 src/normalization/collect.v
 src/normalization/collectProof.v
