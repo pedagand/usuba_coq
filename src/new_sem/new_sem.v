@@ -1230,7 +1230,7 @@ Proof.
         clear valid_vars.
         refine (expr_find _ (fun exprl =>
             Forall (fun e => is_subexpr e expr) (list_of_expr_list exprl) ->
-            (forall v, In var (exprl_freevars exprl) v -> valid_var tctxt v) ->
+            (forall v, In var (exprl_freefullvars exprl) v -> valid_var tctxt v) ->
             acc_pred_l tctxt (eqns_hd ++ (vars, expr) :: eqns_tl) exprl) _ _ _ _ _ _ _ _ _ _ _ _ _ _ _).
         (* Const *)
         {

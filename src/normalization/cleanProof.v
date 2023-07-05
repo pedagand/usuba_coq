@@ -1,5 +1,5 @@
 Require Import Bool.
-From Usuba Require Import ident usuba_AST arch semantic_base usuba_sem usuba_ASTProp equiv_rel collect collectProof clean utils.
+From Usuba Require Import ident usuba_AST arch semantic_base semantic_base_proofs usuba_sem usuba_ASTProp equiv_rel collect collectProof clean utils.
 
 From mathcomp Require Import all_ssreflect.
 Require Import Coq.Sets.Ensembles.

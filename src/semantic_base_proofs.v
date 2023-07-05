@@ -27,16 +27,16 @@ Fixpoint expr_freefullvars (e : expr) : Ensemble var :=
     match e with
     | Const _ _ => Empty_set _
     | ExpVar v | Shuffle v _ => Singleton _ v
-    | Tuple el | BuildArray el => exprl_freevars el
+    | Tuple el | BuildArray el => exprl_freefullvars el
     | Not e | Shift _ e _ | Bitmask e _ => expr_freefullvars e
     | Log _ e1 e2 | Arith _ e1 e2 => Union _ (expr_freefullvars e1) (expr_freefullvars e2)
     | Pack e1 e2 _ => Union _ (expr_freefullvars e1) (expr_freefullvars e2)
-    | Fun _ exprl | Fun_v _ _ exprl => exprl_freevars exprl
+    | Fun _ exprl | Fun_v _ _ exprl => exprl_freefullvars exprl
     end
-with exprl_freevars el :=
+with exprl_freefullvars el :=
     match el with
     | Enil => Empty_set _
-    | ECons e el => Union _ (expr_freefullvars e) (exprl_freevars el)
+    | ECons e el => Union _ (expr_freefullvars e) (exprl_freefullvars el)
     end.
     
 Fixpoint aexpr_freevars (e : arith_expr) : Ensemble ident :=
@@ -756,7 +756,7 @@ Lemma is_subexpr_freefullvars:
 Proof.
     move=> e1 e2 is_sub v HIn; move: e2 is_sub.
     refine (expr_find _ (fun exprl =>
-        is_subexpr_l e1 exprl -> In _ (exprl_freevars exprl) v) _ _ _ _ _ _ _ _ _ _ _ _ _ _ _); simpl.
+        is_subexpr_l e1 exprl -> In _ (exprl_freefullvars exprl) v) _ _ _ _ _ _ _ _ _ _ _ _ _ _ _); simpl.
     {
         move=> z o [H|[]].
         rewrite H in HIn; simpl in HIn.

@@ -1,4 +1,4 @@
-From Usuba Require Import ident usuba_AST collect usuba_sem equiv_rel.
+From Usuba Require Import ident usuba_AST collect semantic_base_proofs usuba_sem equiv_rel.
 (* From Coq Require Import MSets MSets.MSetToFiniteSet MSets.MSetFacts. *)
 (* Require Import Coq.Structures.OrdersEx. *)
 From mathcomp Require Import all_ssreflect.
