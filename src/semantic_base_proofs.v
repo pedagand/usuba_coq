@@ -11,16 +11,6 @@ Fixpoint get_ident (v : var) :=
     | Index v _ => get_ident v
     end.
 
-Lemma leq_Cases:
-    forall l1 l2,
-        l1 <= l2 -> l1 = l2 \/ l1 < l2.
-Proof.
-    move=> l1; induction l1 as [|l1 HRec].
-    all: move=> [|l2]; simpl; auto.
-    rewrite ltnS.
-    move=> H; destruct (HRec _ H) as [->| H']; auto.
-Qed.
-
 (* Vars of expressions *)
 
 Fixpoint expr_freefullvars (e : expr) : Ensemble var :=

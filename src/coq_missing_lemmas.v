@@ -70,6 +70,16 @@ Proof.
     induction n; simpl; auto.
 Qed.
 
+Lemma leq_Cases:
+    forall l1 l2,
+        l1 <= l2 -> l1 = l2 \/ l1 < l2.
+Proof.
+    move=> l1; induction l1 as [|l1 HRec].
+    all: move=> [|l2]; simpl; auto.
+    rewrite ltnS.
+    move=> H; destruct (HRec _ H) as [->| H']; auto.
+Qed.
+
 Lemma String_append_length:
     forall (s1 s2 : string),
         String.length (s1 ++ s2)%string = String.length s1 + String.length s2.

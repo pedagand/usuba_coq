@@ -5,7 +5,7 @@ From mathcomp Require Import all_ssreflect.
 
 From Usuba Require Import utils ident usuba_AST usuba_ASTProp arch
     list_relations termination_funs termination_properties
-    semantic_base semantic_base_proofs.
+    semantic_base semantic_base_proofs coq_missing_lemmas.
 
 Lemma list_def_tree_of_type_length:
     forall typ trees len,
