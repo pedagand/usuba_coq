@@ -1,5 +1,5 @@
 From Usuba Require Import
-    ident usuba_AST usuba_ASTProp arch collect usuba_sem usuba_semProp equiv_rel utils
+    ident usuba_AST usuba_ASTProp semantic_base semantic_base_proofs arch collect usuba_sem equiv_rel utils
     coq_missing_lemmas.
 Require Import Lia.
 Require Import OrderedType.
@@ -938,55 +938,6 @@ Proof.
     move=> acc; induction acc as [|i acc HRec|iL acc HRec]; simpl; trivial.
 Qed.
 
-Theorem val_of_type_CoIL {A : Type} :
-    forall typ cst l,
-        @val_of_type A (CoIL cst) typ l ->
-            l = nil /\ typ = Nat.
-Proof.
-    move=> typ cst; induction typ as [|d []|typ HRec ae]; simpl; auto.
-    1-3: by move=> l [].
-    move=> l H; apply HRec in H; destruct H.
-    destruct l; simpl in H; by idtac.
-Qed.
-
-Theorem val_of_type_CoIR {A : Type}:
-    forall typ dir iL form l,
-        @val_of_type A (CoIR dir iL form) typ l ->
-        length iL = prod_list form /\ prod_list form <> 0.
-Proof.
-    move=> typ; induction typ as [|d [m| |]| typ HRec ae]; simpl.
-    1,3,4: by move=> _ iL form _ [].
-    all: move=> dir iL form l.
-    {
-        move=> [-> [H [<- _]]]; auto.
-    }
-    {
-        apply HRec.
-    }
-Qed.
-
-Theorem val_of_CoIL_abs {A : Type}:
-    forall index typ z l d m,
-        @val_of_type A (CoIL z) typ l ->
-        Some (Uint d m) = get_var_type_inner (Some typ) index -> False.
-Proof.
-    move=> index; induction index as [|hd tl HRec]; simpl.
-    {
-        move=> [|d' m'|typ a]; simpl.
-        + do 4 intro; discriminate.
-        + destruct m'; do 4 intro; move=> [].
-        + do 4 intro; discriminate.
-    }
-    {
-        move=> [|d' m' |typ len]; simpl.
-        by do 5 intro; rewrite get_var_type_inner_None; discriminate.
-        by destruct m'; do 4 intro; move=> [].
-        destruct len.
-        by rewrite get_var_type_inner_None; idtac.
-        do 4 intro; apply HRec.
-    }
-Qed.
-
 Theorem get_var_type'_wb {A : Type}:
     forall acc typ form iL d' typ' n l,
         n <> 0 ->
@@ -1074,15 +1025,6 @@ Proof.
             by exact get_var_type'.
         }
     }
-Qed.
-
-Lemma val_of_CoIL {A : Type}:
-    forall z typ l,
-        @val_of_type A (CoIL z) typ l -> l = nil.
-Proof.
-    move=> z typ; induction typ as [|d m|typ HRec len]; simpl; trivial.
-    + by move=> l; destruct m.
-    + move=> l val_of; apply HRec in val_of; destruct l; discriminate.
 Qed.
 
 Lemma access_of_ind_app_slice_None:
@@ -1571,7 +1513,8 @@ Proof.
                 clear H' find typ'.
                 destruct c; trivial.
                 simpl.
-                move=> Abs; apply val_of_CoIL in Abs.
+                move=> Abs; apply val_of_type_CoIL in Abs.
+                destruct Abs as [Abs _].
                 inversion Abs.
             }
             {

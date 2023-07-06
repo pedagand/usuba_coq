@@ -1,6 +1,6 @@
 From mathcomp Require Import all_ssreflect.
 Require Import ZArith.
-From Usuba Require Import usuba_AST usuba_ASTProp arch usuba_sem equiv_rel.
+From Usuba Require Import usuba_AST usuba_ASTProp arch semantic_base usuba_sem equiv_rel.
 
 Goal
     forall arch prog type_ctxt ctxt opt_ctxt' var typ dir,
