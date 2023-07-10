@@ -3,7 +3,7 @@ Require Import ZArith.
 Require Import Coq.Sets.Ensembles.
 From mathcomp Require Import seq ssrnat.
 
-From Usuba Require Import ident usuba_AST arch semantic_base usuba_sem.
+From Usuba Require Import ident usuba_AST arch semantic_base list_relations.
 
 Definition lift_value (v : @cst_or_int Z) : @cst_or_int (option Z) :=
     match v with
@@ -66,6 +66,46 @@ Inductive eval_binop (d : dir) (f : Z -> Z -> Z) : @cst_or_int Z -> @cst_or_int 
         eval_binop d f (CoIR d val1 form1) (CoIR d val2 form2) (CoIR d val3 (scm form1 form2))
 .
 
+Inductive is_of_form {A} : nat -> nat -> list (list A) -> Prop :=
+    | IoFnil : forall len, is_of_form 0 len nil
+    | IoFcons : forall len1 len2 hd tl,
+        length hd = len2 ->
+        is_of_form len1 len2 tl ->
+        is_of_form len1.+1 len2 (hd :: tl)
+.
+
+Inductive index_val (ctxt : list (ident * @cst_or_int Z))
+    : list nat -> list Z -> list indexing -> list nat -> list Z -> Prop :=
+    | IVnil : forall form v, index_val ctxt form v nil form v
+    | IVcons_Ind : forall ae i ind dim_hd form1 vL v1 form2 v2,
+        eval_arith_expr ctxt ae i ->
+        nth_error vL i = Some v1 ->
+        is_of_form dim_hd (prod_list form1) vL ->
+        index_val ctxt form1 v1 ind form2 v2 ->
+        index_val ctxt (dim_hd :: form1) (flatten vL) (IInd ae :: ind) form2 v2
+    | IVcons_Slice : forall aeL iL ind dim_hd form1 vL_in vL_split form2 vL_out,
+        list_rel (eval_arith_expr ctxt) aeL iL ->
+        list_rel (fun i v => nth_error vL_in i = Some v) iL vL_split ->
+        is_of_form dim_hd (prod_list form1) vL_in ->
+        list_rel (fun v1 v2 => index_val ctxt form1 v1 ind form2 v2) vL_split vL_out ->
+        index_val ctxt (dim_hd :: form1) (flatten vL_in) (ISlice aeL :: ind) form2 (flatten vL_out)
+    | IVcons_Range : forall ae1 ae2 i1 i2 ind dim_hd form1 vL_in vL_split form2 vL_out,
+        eval_arith_expr ctxt ae1 i1 -> eval_arith_expr ctxt ae2 i2 ->
+        list_rel (fun i v => nth_error vL_in i = Some v) (gen_range i1 i2) vL_split ->
+        is_of_form dim_hd (prod_list form1) vL_in ->
+        list_rel (fun v1 v2 => index_val ctxt form1 v1 ind form2 v2) vL_split vL_out ->
+        index_val ctxt (dim_hd :: form1) (flatten vL_in) (IRange ae1 ae2 :: ind) form2 (flatten vL_out)
+.
+
+Inductive eval_var (ctxt : list (ident * @cst_or_int Z)) : var -> @cst_or_int Z -> Prop :=
+    | EVVar : forall v val,
+        find_val v ctxt val -> eval_var ctxt (Var v) val
+    | EVIndex : forall v d form1 form2 val1 val2 ind,
+        eval_var ctxt v (CoIR d val1 form1) ->
+        index_val ctxt form1 val1 ind form2 val2 ->
+        eval_var ctxt (Index v ind) (CoIR d val2 form2)
+.
+
 Inductive eval_expr_to (arch : architecture)
     : prog -> list (ident * @cst_or_int Z) -> expr -> list (@cst_or_int Z) -> Prop :=
     | EETConstN1 : forall fprog ctxt n,
@@ -77,7 +117,7 @@ Inductive eval_expr_to (arch : architecture)
         build_integer typ n = Some v ->
         eval_expr_to arch fprog ctxt (Const n (Some typ)) v
     | EETVar : forall fprog ctxt var v,
-        eval_var var (map_ctxt lift_value ctxt) = Some v ->
+        eval_var ctxt var v ->
         eval_expr_to arch fprog ctxt (ExpVar var) [:: v]
     | EETBuildA : forall fprog ctxt el len values form d,
         eval_expr_list_to' arch fprog ctxt el len values form d ->

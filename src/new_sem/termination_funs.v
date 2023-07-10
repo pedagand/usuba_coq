@@ -126,7 +126,10 @@ Fixpoint build_def_tree_from_type (path : list indexing) (t : typ) (eq_num : nat
                 | IInd ae => i <- eval_arith_expr nil ae; Some [:: i]
                 | ISlice aeL =>
                     fold_right (fun ae l => l' <- l; i <- eval_arith_expr nil ae; Some (i::l')) (Some nil) aeL
-                | _ => None
+                | IRange ae1 ae2 =>
+                    i1 <- eval_arith_expr nil ae1;
+                    i2 <- eval_arith_expr nil ae2;
+                    Some (gen_range i1 i2)
                 end;
             if List.forallb (fun i => i <? len) indices && List.existsb (fun _ => true) indices
             then
@@ -149,7 +152,10 @@ Fixpoint update_def_tree (path : list indexing) (eq_num : nat) (t : def_tree int
                 | IInd ae => i <- eval_arith_expr nil ae; Some [:: i]
                 | ISlice aeL =>
                     fold_right (fun ae l => l' <- l; i <- eval_arith_expr nil ae; Some (i::l')) (Some nil) aeL
-                | _ => None
+                | IRange ae1 ae2 =>
+                    i1 <- eval_arith_expr nil ae1;
+                    i2 <- eval_arith_expr nil ae2;
+                    Some (gen_range i1 i2)
                 end;
             trees' <- update_def_trees 0 path_tl eq_num trees indices;
             Some (DTRec _ trees')
@@ -215,7 +221,10 @@ Fixpoint build_use_tree_from_type (path : list indexing) (l : list nat) (t : typ
                 | IInd ae => i <- eval_arith_expr nil ae; Some [:: i]
                 | ISlice aeL =>
                     fold_right (fun ae l => l' <- l; i <- eval_arith_expr nil ae; Some (i::l')) (Some nil) aeL
-                | _ => None
+                | IRange ae1 ae2 =>
+                    i1 <- eval_arith_expr nil ae1;
+                    i2 <- eval_arith_expr nil ae2;
+                    Some (gen_range i1 i2)
                 end;
             if List.forallb (fun i => i <? len) indices && List.existsb xpredT indices
             then
@@ -239,7 +248,10 @@ Fixpoint update_use_tree (path : list indexing) (eq_num : nat) (t : use_tree) : 
                 | IInd ae => i <- eval_arith_expr nil ae; Some [:: i]
                 | ISlice aeL =>
                     fold_right (fun ae l => l' <- l; i <- eval_arith_expr nil ae; Some (i::l')) (Some nil) aeL
-                | _ => None
+                | IRange ae1 ae2 =>
+                    i1 <- eval_arith_expr nil ae1;
+                    i2 <- eval_arith_expr nil ae2;
+                    Some (gen_range i1 i2)
                 end;
             trees' <- update_use_trees 0 path_tl eq_num trees indices;
             Some (UTRec posL trees')
@@ -268,7 +280,7 @@ Fixpoint update_expr (e : expr) (pos : nat) (dependancies : list (ident * use_tr
         update_ctxt dependancies v (update_use_tree nil pos)
     | ExpVar (Index (Var v) ind) | Shuffle (Index (Var v) ind) _ =>
         update_ctxt dependancies v (update_use_tree ind pos)
-    | ExpVar _ | Shuffle _ _ => None
+    | ExpVar (Index (Index _ _) _) | Shuffle (Index (Index _ _) _) _ => None
     | Tuple el | BuildArray el | Fun _ el | Fun_v _ _ el =>
         update_list_expr el pos dependancies
     | Not e | Shift _ e _ | Bitmask e _ =>

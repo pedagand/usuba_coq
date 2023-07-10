@@ -194,7 +194,40 @@ Proof.
             }
         }
         {
-            by idtac.
+            case_eq (eval_arith_expr nil ae1); [> move=> i1 HEq1; simpl | discriminate ].
+            case_eq (eval_arith_expr nil ae2); [> move=> i2 HEq2; simpl | discriminate ].
+            case_eq (forallb (Nat.ltb^~ len) (gen_range i1 i2)); [> move=> HInf; simpl | discriminate ].
+            assert (List.existsb xpredT (gen_range i1 i2) = true) as ->.
+            {
+                rewrite List.existsb_exists; eexists.
+                split; [> exact (gen_range_in_r _ _) | reflexivity].
+            }
+            move=> tree' H.
+            inversion H as [H']; clear H H' tree'; simpl.
+            specialize HRec with next_tree.
+            rewrite List.forallb_forall in HInf.
+            rewrite HEq1; rewrite HEq2; split; [> idtac | split ].
+            {
+                clear; move=> Abs.
+                move: (gen_range_in_l i1 i2); rewrite Abs; simpl.
+                trivial.
+            }
+            {
+                rewrite Forall_forall.
+                move=> x LIn; apply HInf in LIn.
+                rewrite Nat.ltb_lt in LIn.
+                rewrite dtrees_length_build; apply/ltP; assumption.
+            }
+            {
+                move: HRec; clear.
+                impl_tac; trivial.
+                move=> valid_access.
+                pose (p := 0); fold p; move: p.
+                induction len as [|len HRec]; simpl; trivial.
+                move=> pos; case_eq (List.existsb (Nat.eqb pos) (gen_range i1 i2)); simpl.
+                all: move=> H; rewrite H; simpl.
+                all: split; trivial.
+            }
         }
         {
             case_eq (fold_right
@@ -266,7 +299,21 @@ Proof.
             move=> p; destruct (_ || _); simpl; auto.
         }
         {
-            by idtac.
+            case_eq (eval_arith_expr nil ae1); [> move=> i1 HEq1; simpl | discriminate ].
+            case_eq (eval_arith_expr nil ae2); [> move=> i2 HEq2; simpl | discriminate ].
+            case_eq (forallb (Nat.ltb^~ len) (gen_range i1 i2)); [> move=> HInf; simpl | discriminate ].
+            assert (List.existsb xpredT (gen_range i1 i2) = true) as ->.
+            {
+                rewrite List.existsb_exists; eexists.
+                split; [> exact (gen_range_in_r _ _) | reflexivity].
+            }
+            move=> tree' H.
+            inversion H as [H']; clear H H' tree'; simpl.
+            specialize HRec with next_tree; simpl.
+            move: HRec; impl_tac; trivial; clear.
+            pose (p:= 0); fold p; move: p.
+            induction len; simpl; trivial.
+            move=> p; destruct List.existsb; simpl; auto.            
         }
         {
             case_eq (fold_right
@@ -555,7 +602,144 @@ Proof.
             }
         }
         {
-            by idtac.
+            case_eq (eval_arith_expr nil ae1); [> move=> i1 HEq1; simpl | discriminate ].
+            case_eq (eval_arith_expr nil ae2); [> move=> i2 HEq2; simpl | discriminate ].
+            case_eq (forallb (Nat.ltb^~ len) (gen_range i1 i2)); [> move=> HInf; simpl | discriminate ].
+            assert (List.existsb xpredT (gen_range i1 i2) = true) as ->.
+            {
+                rewrite List.existsb_exists; eexists.
+                split; [> exact (gen_range_in_r _ _) | reflexivity].
+            }
+            move=> tree' H.
+            inversion H as [H']; clear H H' tree'; simpl.
+            move=> vars_hd vars_tl eqns_tl expr v path_in path_nat is_spec.
+            move: (HRec _ (Logic.eq_refl _) vars_hd vars_tl eqns_tl expr v (path_in ++ [:: IRange ae1 ae2])); clear HRec.
+            rewrite <- app_assoc; simpl.
+            move=> H not_partial_defined not_defined.
+            clear HInf; split.
+            {
+                move: (not_partial_defined path_nat) is_spec; clear.
+                impl_tac.
+                by induction path_nat; constructor; trivial.
+                unfold partial_defined_in.
+                rewrite nth_error_app2; auto.
+                rewrite Nat.sub_diag; simpl.
+                move=> not_partial_defined is_spec_raw [vL [e' [ind [HEq [is_spec [i [HInf HEq']]]]]]].
+                apply not_partial_defined; clear not_partial_defined.
+                do 3 eexists; repeat split.
+                by exact is_spec.
+                move: HInf HEq' is_spec is_spec_raw; inversion HEq; clear.
+                move=> HInf.
+                destruct (leq_Cases _ _ HInf) as [HEq|HInf'].
+                {
+                    destruct HEq.
+                    rewrite nth_error_app2; trivial; rewrite Nat.sub_diag; simpl.
+                    move=> H lrel1 lrel2.
+                    apply list_rel_length in lrel1.
+                    apply list_rel_length in lrel2.
+                    rewrite lrel2 in lrel1; exfalso; move: lrel1.
+                    destruct H as [H'|[H' _]]; inversion H'.
+                    rewrite app_length; simpl.
+                    clear.
+                    induction (length path_in) as [|l HRec]; simpl.
+                    by idtac.
+                    move=> H; apply HRec; inversion H as [H'].
+                    do 2 rewrite <- H'; reflexivity.
+                }
+                rewrite addn1.
+                move=> H _ _; exists i; split; trivial.
+            }
+            {
+                split.
+                {
+                    move=> pos; specialize not_defined with pos path_nat.
+                    apply not_defined; clear.
+                    induction path_nat; constructor; trivial.
+                }
+                pose (pos := 0); fold pos; move: pos.
+                induction len as [|len HRec]; simpl; trivial.
+                move=> pos; specialize HRec with pos.+1.
+                case_eq (List.existsb (Nat.eqb pos) (gen_range i1 i2)).
+                {
+                    move=> Hmem; simpl; split; trivial.
+                    apply H.
+                    all: swap 1 2.
+                    {
+                        move=> l' top_eq; apply not_partial_defined.
+                        exact (list_rel_top_eq _ _ _ top_eq).
+                    }
+                    all: swap 1 2.
+                    {
+                        move=> pos' l' top_eq; apply not_defined.
+                        exact (list_rel_top_eq _ _ _ top_eq).
+                    }
+                    rewrite list_rel_last; split; auto.
+                    apply (SpecRange _ _ i1 i2); trivial.
+                    rewrite List.existsb_exists in Hmem; destruct Hmem as [x [LIn HEq]].
+                    rewrite Nat.eqb_eq in HEq; destruct HEq.
+                    rewrite gen_range_completeness in LIn; assumption.
+                }
+                {
+                    move=> exists_false; simpl; repeat split; trivial.
+                    {
+                        move=> l' top_eq.
+                        specialize not_partial_defined with l'.
+                        move: top_eq exists_false (not_partial_defined (list_rel_top_eq _ _ _ top_eq)) is_spec HEq1 HEq2; clear.
+                        rewrite <-not_true_iff_false; rewrite existsb_exists.
+                        unfold partial_defined_in.
+                        rewrite nth_error_app2; trivial.
+                        rewrite Nat.sub_diag; simpl.
+                        move=> top_eq HNeq not_partial is_spec' eval_eq1 eval_eq2 [vL [e' [ind [HEq [is_spec [i' [HInf HEq']]]]]]].
+                        apply not_partial.
+                        do 3 eexists; repeat split.
+                        by exact is_spec.
+                        move: HEq'; inversion HEq; clear HEq.
+                        destruct (leq_Cases _ _ HInf) as [<-|HInf'].
+                        {
+                            rewrite nth_error_app2; trivial.
+                            rewrite Nat.sub_diag; simpl.
+                            apply list_rel_length in is_spec'.
+                            move=> H.
+                            move: is_spec.
+                            destruct H as [H'|[H' _]]; inversion H' as [H2].
+                            clear H' H2 ind.
+                            move=> is_spec.
+                            exfalso; apply HNeq.
+                            move: top_eq is_spec' is_spec eval_eq1 eval_eq2; clear.
+                            move: path_nat path_in.
+                            induction l' as [|l_hd l_tl HRec].
+                            {
+                                move=> path_nat [|pin_hd pin_tl] _ _ H; simpl in *; inversion H.
+                            }
+                            {
+                                move=> [|pnat_hd pnat_tl] [|pin_hd pin_tl] top_eq length_eq; simpl in *.
+                                all: inversion length_eq as [length_eq'].
+                                all: move=> H; inversion H as [|h1 h2 t1 t2 rel_hd rel_tl]; clear H.
+                                {
+                                    move=> HEq1 HEq2.
+                                    inversion rel_hd as [| |ae1' ae2' i1' i2' i HEq1' HEq2' HIn].
+                                    rewrite HEq1 in HEq1'; inversion HEq1' as [H']; clear HEq1'; destruct H'.
+                                    rewrite HEq2 in HEq2'; inversion HEq2' as [H']; clear HEq2'; destruct H'.
+                                    inversion top_eq as [| |h3 h4 t3 t4 HEq]; destruct HEq.
+                                    eexists; split; [> rewrite gen_range_completeness; exact HIn | exact (Nat.eqb_refl _)].
+                                }
+                                {
+                                    inversion top_eq.
+                                    apply (HRec pnat_tl pin_tl); trivial.
+                                }
+                            }
+                        }
+                        {
+                            intro; exists i'.
+                            rewrite addn1; auto.
+                        }
+                    }
+                    {
+                        move=> pos' l' top_eq; apply not_defined.
+                        exact (list_rel_top_eq _ _ _ top_eq).
+                    }
+                }
+            }
         }
         {
             case_eq (fold_right
@@ -906,7 +1090,15 @@ Proof.
             move=> [H1 [not_empty H2]]; split; [> assumption | split; assumption].
         }
         {
-            by idtac.
+            case_eq (eval_arith_expr nil ae1); [> move=> i1 HEq1 | by idtac].
+            case_eq (eval_arith_expr nil ae2); [> move=> i2 HEq2 | by idtac].
+            move: (HRec (gen_range i1 i2)); clear HRec; move=> HRec.
+            destruct update_def_trees as [trees'|].
+            2: by idtac.
+            move=> H; inversion H as [H']; clear H H' tree'; simpl.
+            move: (HRec trees'); clear HRec; impl_tac; trivial.
+            rewrite HEq1; rewrite HEq2; rewrite add0n.
+            move=> [H1 [not_empty H2]]; split; [> assumption | split; assumption].
         }
         {
             case_eq (fold_right
@@ -986,7 +1178,13 @@ Proof.
             constructor; apply HRec; reflexivity.
         }
         {
-            by idtac.
+            case_eq (eval_arith_expr nil ae1); [> move=> i1 HEq1 | discriminate ].
+            case_eq (eval_arith_expr nil ae2); [> move=> i2 HEq2 | discriminate ].
+            move: (HRec (gen_range i1 i2)); clear HRec; move=> HRec.
+            destruct update_def_trees as [trees'|].
+            2: by idtac.
+            move=> H; inversion H as [H']; clear H H' tree'; simpl.
+            constructor; apply HRec; reflexivity.
         }
         {
             case_eq (fold_right
@@ -1065,7 +1263,21 @@ Proof.
             move=> [-> H]; assumption.
         }
         {
-            by idtac.
+            case_eq (eval_arith_expr nil ae1); [> move=> i1 HEq1; simpl | discriminate ].
+            case_eq (eval_arith_expr nil ae2); [> move=> i2 HEq2; simpl | discriminate ].
+            move: (HRec (gen_range i1 i2)); clear HRec; move=> HRec.
+            destruct update_def_trees as [trees'|].
+            2: by idtac.
+            move=> H; inversion H as [H']; clear H H' tree'; simpl.
+            destruct typ as [| |typ len].
+            1,2: by move=> [].
+            move=> type_of_trees.
+            specialize HRec with trees' typ; move: HRec.
+            impl_tac; trivial.
+            impl_tac.
+            by rewrite (list_def_tree_of_type_length _ _ _ type_of_trees); assumption.
+            rewrite (list_def_tree_of_type_length _ _ _ type_of_trees).
+            move=> [-> H]; assumption.
         }
         {
             case_eq (fold_right
@@ -1204,7 +1416,69 @@ Proof.
             }
         }
         {
-            by idtac.
+            case_eq (eval_arith_expr nil ae1); [> move=> i1 HEq1; simpl | discriminate ].
+            case_eq (eval_arith_expr nil ae2); [> move=> i2 HEq2; simpl | discriminate ].
+            move: (HRec (gen_range i1 i2)); clear HRec; move=> HRec.
+            destruct update_def_trees as [trees'|].
+            2: by idtac.
+            move=> H; inversion H as [H']; clear H H' tree'; simpl.
+            move: (HRec trees'); clear HRec; impl_tac; trivial; move=> HRec.
+            move=> eqns_tl vars_hd vars_tl expr v path_nat path_in.
+            move=> [never_partial_defined [never_defined partial_valid]] is_spec.
+            apply HRec in partial_valid; simpl; auto.
+            {
+                repeat split; trivial.
+                move: is_spec never_partial_defined; clear.
+                unfold partial_defined_in.
+                rewrite nth_error_app2; auto.
+                rewrite Nat.sub_diag; simpl.
+                move=> is_spec_raw not_partial_defined [vL [e' [ind [HEq [is_spec [i [HInf HEq']]]]]]].
+                apply not_partial_defined; clear not_partial_defined.
+                do 3 eexists; repeat split.
+                by exact is_spec.
+                move: HInf HEq' is_spec is_spec_raw; inversion HEq; clear.
+                move=> HInf.
+                destruct (leq_Cases _ _ HInf) as [HEq|HInf'].
+                {
+                    destruct HEq.
+                    rewrite nth_error_app2; trivial; rewrite Nat.sub_diag; simpl.
+                    move=> H lrel1 lrel2.
+                    apply list_rel_length in lrel1.
+                    apply list_rel_length in lrel2.
+                    rewrite lrel2 in lrel1; exfalso; move: lrel1.
+                    destruct H as [H'|[H' _]]; inversion H'.
+                    rewrite app_length; simpl.
+                    clear.
+                    induction (length path_in) as [|l HRec]; simpl.
+                    by idtac.
+                    move=> H; apply HRec; inversion H as [H'].
+                    do 2 rewrite <- H'; reflexivity.
+                }
+                rewrite addn1.
+                move=> H _ _; exists i; split; trivial.
+            }
+            {
+                apply list_rel_length in is_spec; assumption.
+            }
+            {
+                move=> pos; split; move=> Hmem.
+                {
+                    apply (SpecRange _ _ _ _ _ HEq1 HEq2).
+                    unfold is_true in Hmem.
+                    rewrite List.existsb_exists in Hmem.
+                    destruct Hmem as [x [LIn HEq]].
+                    rewrite Nat.eqb_eq in HEq; destruct HEq.
+                    rewrite gen_range_completeness in LIn; assumption.
+                }
+                {
+                    inversion Hmem as [| |ae1' ae2' i1' i2' i HEq1' HEq2' HIn].
+                    rewrite HEq1 in HEq1'; inversion HEq1' as [H']; clear HEq1'; destruct H'.
+                    rewrite HEq2 in HEq2'; inversion HEq2' as [H']; clear HEq2'; destruct H'.
+                    unfold is_true; rewrite List.existsb_exists.
+                    eexists; split; [> idtac | exact (Nat.eqb_refl _) ].
+                    rewrite gen_range_completeness; assumption.
+                }
+            }
         }
         {
             case_eq (fold_right

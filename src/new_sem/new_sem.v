@@ -3302,7 +3302,7 @@ Definition prog_sem (arch : architecture) (fprog : prog) : node_sem_type :=
     | nil => fun _ _ => None
     | (_, hd)::_ => hd
     end.
-        
+
 
 (* Require Extraction.
 
