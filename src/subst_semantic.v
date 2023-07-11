@@ -143,23 +143,34 @@ Fixpoint val_of_value_tree (path : seq indexing) (tree : value_tree) : option (S
         | VTBase (SumR _) => Some (SumR tt)
         | VTBase (SumL v) => None
         | VTRec trees =>
-            iL <- match ind with
-                | IInd ae => option_map (fun i => [:: i]) (eval_arith_expr nil ae)
-                | IRange ae1 ae2 =>
-                    i1 <- eval_arith_expr nil ae1;
-                    i2 <- eval_arith_expr nil ae2;
-                    Some (gen_range i1 i2)
-                | ISlice aeL =>
-                    remove_option_from_list (map (eval_arith_expr nil) aeL)
-            end;
-            let trees' := map (fun i =>
+            match ind with
+            | IInd ae =>
+                i <- eval_arith_expr nil ae;
                 tree <- get_pos trees i;
-                val_of_value_tree path_tl tree) iL in
-            match combine_values trees' with
-            | None => None
-            | Some (SumR tt) | Some (SumL None) => Some (SumR tt)
-            | Some (SumL (Some (values, form, len))) =>
-                Some (SumL (values, len :: form))
+                val_of_value_tree path_tl tree
+            | IRange ae1 ae2 =>
+                i1 <- eval_arith_expr nil ae1;
+                i2 <- eval_arith_expr nil ae2;
+                let trees' := map (fun i =>
+                    tree <- get_pos trees i;
+                    val_of_value_tree path_tl tree) (gen_range i1 i2) in
+                match combine_values trees' with
+                | None => None
+                | Some (SumR tt) | Some (SumL None) => Some (SumR tt)
+                | Some (SumL (Some (values, form, len))) =>
+                    Some (SumL (values, len :: form))
+                end
+            | ISlice aeL =>
+                iL <- remove_option_from_list (map (eval_arith_expr nil) aeL);
+                let trees' := map (fun i =>
+                    tree <- get_pos trees i;
+                    val_of_value_tree path_tl tree) iL in
+                match combine_values trees' with
+                | None => None
+                | Some (SumR tt) | Some (SumL None) => Some (SumR tt)
+                | Some (SumL (Some (values, form, len))) =>
+                    Some (SumL (values, len :: form))
+                end     
             end
         end
     end
@@ -427,6 +438,130 @@ Fixpoint build_ctxt (args : p) (input : list (@cst_or_int Z)) : option (list (li
         Some (([:: Var (VD_ID var)], expr)::ctxt)
     end.
 
+Fixpoint update_context {A} (f : value_tree -> A -> option (value_tree * A))
+    (v : ident) (ctxt : context) (a : A) : option (context * A) :=
+    match ctxt with
+    | nil => None
+    | (v', (dir, tree)) :: tl =>
+        if ident_beq v v'
+        then
+            (tree', a') <- f tree a;
+            Some ((v', (dir, tree')) :: tl, a')
+        else
+            (tl', a') <- update_context f v tl a;
+            Some ((v', (dir, tree)) :: tl', a')
+    end
+.
+
+Fixpoint build_trees {A} (f : A -> option (value_tree * A)) (len : nat) (a : A) : option (list_value_tree * A) :=
+    match len with
+    | 0 => Some (LVTnil, a)
+    | S len =>
+        (hd, a') <- f a;
+        (tl, a'') <- build_trees f len a';
+        Some (LVTcons hd tl, a'')
+    end
+.
+
+Fixpoint fill_tree (t : typ) (values : seq (@cst_or_int Z)) : option (value_tree * seq (@cst_or_int Z)) :=
+    match t with
+    | Nat => None
+    | Uint d (Mint n) =>
+        annot <- IntSize_of_nat n;
+        d' <- match d with
+            | Hslice => Some (DirH annot)
+            | Vslice => Some (DirV annot)
+            | Bslice => Some DirB
+            | _ => None
+        end;
+        match build_ctxt_aux_take_n 1 values d' with
+        | Some ([:: v], values') =>
+            Some (VTBase (SumL v), values')
+        | _ => None
+        end
+    | Uint _ Mnat => None
+    | Uint _ (Mvar _) => None
+    | Array typ len =>
+        (trees, values') <- build_trees (fill_tree typ) len values;
+        Some (VTRec trees, values')
+    end
+.
+
+Fixpoint update_trees {A} (f : value_tree -> A -> option (value_tree * A)) (l : list_value_tree) (pos : nat) (a : A) : option (list_value_tree * A) :=
+    match l with
+    | LVTnil => None
+    | LVTcons hd tl =>
+        match pos with
+        | 0 =>
+            (hd', a') <- f hd a;
+            Some (LVTcons hd' tl, a')
+        | S pos =>
+            (tl', a') <- update_trees f tl pos a;
+            Some (LVTcons hd tl', a')
+        end
+    end.
+
+Fixpoint gen_trees (t : value_tree) (len : nat) : list_value_tree :=
+    match len with
+    | 0 => LVTnil
+    | S len => LVTcons t (gen_trees t len)
+    end
+.
+
+Fixpoint update_value_tree (path : seq indexing) (tree : value_tree)
+    (values : seq (@cst_or_int Z)) : option (value_tree * seq (@cst_or_int Z)) :=
+    match path with
+    | nil =>
+        match tree with
+        | VTRec _ => None
+        | VTBase (SumL _) => None
+        | VTBase (SumR typ) =>
+            fill_tree typ values
+        end
+    | ind :: path_tl =>
+        trees <- match tree with
+        | VTBase (SumL _) => None
+        | VTBase (SumR (Array typ len)) =>
+            Some (gen_trees (VTBase (SumR typ)) len)
+        | VTBase (SumR typ) => None
+        | VTRec trees => Some trees
+        end;
+        iL <- match ind with
+            | IInd ae => option_map (fun i => [:: i]) (eval_arith_expr nil ae)
+            | IRange ae1 ae2 =>
+                i1 <- eval_arith_expr nil ae1;
+                i2 <- eval_arith_expr nil ae2;
+                Some (gen_range i1 i2)
+            | ISlice aeL =>
+                remove_option_from_list (map (eval_arith_expr nil) aeL)
+        end;
+        (trees', values') <- fold_left
+            (fun opair i =>
+                (trees, values) <- opair;
+                update_trees (update_value_tree path_tl) trees i values)
+            iL (Some (trees, values));
+        Some (VTRec trees', values')
+    end
+.
+
+Fixpoint bind_equation (vars : seq var) (values : seq (@cst_or_int Z)) (ctxt : context) : option context :=
+    match vars with
+    | nil =>
+        match values with
+        | nil => Some ctxt
+        | _ :: _ => None
+        end
+    | var :: tl =>
+        (ctxt', values') <- match var with
+            | Var v => update_context (update_value_tree nil) v ctxt values
+            | Index (Var v) ind =>
+                update_context (update_value_tree ind) v ctxt values
+            | Index (Index _ _ ) _ => None
+        end;
+        bind_equation tl values' ctxt'
+    end
+.
+
 Fixpoint simplify_equations (arch : architecture) (prog : prog_ctxt) (ctxt : context) (eqns : list (list var * expr)) : option (context * list (list var * expr)) :=
     match eqns with
     | nil => Some (ctxt, eqns)
@@ -437,20 +572,11 @@ Fixpoint simplify_equations (arch : architecture) (prog : prog_ctxt) (ctxt : con
             (ctxt', tl') <- simplify_equations arch prog ctxt tl;
             Some (ctxt', (vars, expr') :: tl')
         | SumL val =>
-            match vars with
-            | [:: Var var_name] =>
-                (vals, form) <- match val with
-                | [:: CoIR _ vals form] => Some (vals, form)
-                | [:: CoIL v] => Some ([:: v], nil)
-                | _ => None
-                end;
-                None (* TODO *)
-            | _ => None
-            end
+            ctxt' <- bind_equation vars val ctxt;
+            simplify_equations arch prog ctxt' tl
         end
     end
 .
-
 
 Fixpoint simplify_equations_iters (arch : architecture) (prog : prog_ctxt) (fuel : nat) (ctxt : context) (eqns : list (list var * expr)) : option context :=
     match fuel with
