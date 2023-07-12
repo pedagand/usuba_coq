@@ -106,38 +106,27 @@ Fixpoint get_pos (trees : list_value_tree) (pos : nat) : option value_tree :=
     end
 .
 
-Fixpoint combine_values (args : seq (option (Sum (list Z * list nat) unit))) :  option (Sum (option (list Z * list nat * nat)) unit) :=
+Fixpoint combine_values (args : seq (option (Sum value_tree unit))) :  option (Sum list_value_tree unit) :=
     match args with 
-    | nil => Some (SumL None)
+    | nil => Some (SumL LVTnil)
     | res :: tl =>
         match combine_values tl with
         | None => None
         | Some (SumR tt) => Some (SumR tt) 
-        | Some (SumL None) =>
+        | Some (SumL trees) =>
             match res with
             | None => None
             | Some (SumR tt) => Some (SumR tt)
-            | Some (SumL (values, form)) =>
-                Some (SumL (Some (values, form, 1)))
-            end
-        | Some (SumL (Some (values_tl, form_tl, len))) =>
-            match res with
-            | None => None
-            | Some (SumR tt) => Some (SumR tt)
-            | Some (SumL (values, form)) =>
-                if list_beq _ (Nat.eqb) form form_tl
-                then
-                    Some (SumL (Some (values ++ values_tl, form, len.+1)))
-                else None (* Should not happen *)
+            | Some (SumL tree) =>
+                Some (SumL (LVTcons tree trees))
             end
         end
     end
 .
 
-
-Fixpoint val_of_value_tree (path : seq indexing) (tree : value_tree) : option (Sum (list Z * list nat) unit) :=
+Fixpoint val_of_value_tree (path : seq indexing) (tree : value_tree) : option (Sum value_tree unit) :=
     match path with
-    | nil => Some (collect_all_value_tree tree)
+    | nil => Some (SumL tree)
     | ind :: path_tl =>
         match tree with
         | VTBase (SumR _) => Some (SumR tt)
@@ -156,9 +145,8 @@ Fixpoint val_of_value_tree (path : seq indexing) (tree : value_tree) : option (S
                     val_of_value_tree path_tl tree) (gen_range i1 i2) in
                 match combine_values trees' with
                 | None => None
-                | Some (SumR tt) | Some (SumL None) => Some (SumR tt)
-                | Some (SumL (Some (values, form, len))) =>
-                    Some (SumL (values, len :: form))
+                | Some (SumR tt) => Some (SumR tt)
+                | Some (SumL trees'') => Some (SumL (VTRec trees''))
                 end
             | ISlice aeL =>
                 iL <- remove_option_from_list (map (eval_arith_expr nil) aeL);
@@ -167,31 +155,43 @@ Fixpoint val_of_value_tree (path : seq indexing) (tree : value_tree) : option (S
                     val_of_value_tree path_tl tree) iL in
                 match combine_values trees' with
                 | None => None
-                | Some (SumR tt) | Some (SumL None) => Some (SumR tt)
-                | Some (SumL (Some (values, form, len))) =>
-                    Some (SumL (values, len :: form))
-                end     
+                | Some (SumR tt) => Some (SumR tt)
+                | Some (SumL trees'') => Some (SumL (VTRec trees''))
+                end
+            end
+        end
+    end
+.
+
+Fixpoint eval_var_inner (var : var) (c : context) : option (Sum (dir * value_tree) unit) :=
+    match var with
+    | Var ident =>
+        (dir, tree) <- find_val c ident;
+        Some (SumL (dir, tree))
+    | Index svar ind =>
+        match eval_var_inner svar c with
+        | None => None
+        | Some (SumR tt) => Some (SumR tt)
+        | Some (SumL (dir, tree)) =>
+            match val_of_value_tree ind tree with
+            | None => None
+            | Some (SumR tt) => Some (SumR tt)
+            | Some (SumL tree') => Some (SumL (dir, tree'))
             end
         end
     end
 .
 
 Definition eval_var (var : var) (c : context) : option (Sum (@cst_or_int Z) expr) :=
-    match var with
-    | Var ident =>
-        (dir, val) <- find_val c ident;
-        match collect_all_value_tree val with
-        | SumR True => Some (SumR (ExpVar var))
-        | SumL (val, form) => Some (SumL (CoIR dir val form))
+    match eval_var_inner var c with
+    | None => None
+    | Some (SumR tt) => Some (SumR (ExpVar var))
+    | Some (SumL (dir, tree)) =>
+        match collect_all_value_tree tree with
+        | SumR tt => Some (SumR (ExpVar var))
+        | SumL (val, form) =>
+            Some (SumL (CoIR dir val form))
         end
-    | Index (Var ident) ind =>
-        (dir, val) <- find_val c ident;
-        match val_of_value_tree ind val with
-        | None => None
-        | Some (SumR True) => Some (SumR (ExpVar var))
-        | Some (SumL (val, form)) => Some (SumL (CoIR dir val form))
-        end
-    | Index (Index _ _) _ => None
     end
 .
 

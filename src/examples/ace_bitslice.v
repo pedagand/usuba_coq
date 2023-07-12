@@ -36,7 +36,7 @@ let
     round[0] :: nil <|- input;
 
     for i in 0 to 7 do
-      (Index round (IInd (Var_e i + 1)%ua_aexpr :: ISlice (Const_e 0 :: Const_e 1 :: nil) :: nil))%ua_var :: nil <|- [f @ [(Index (Var round) (IInd i :: IInd 0 :: nil))] xor (Index (Var round) (IInd i :: IInd 1 :: nil)) xor 0xfffffffe xor ((rc >> i) & 1), (Index (Var round) (IInd i :: IInd 0 :: nil))]
+      (Index round (IInd (Var_e i + 1)%ua_aexpr :: ISlice (Const_e 0 :: Const_e 1 :: nil) :: nil))%ua_var :: nil <|- [f @ [round[i][0]] xor (round[i][1]) xor 0xfffffffe xor ((rc >> i) & 1), (round[i][0])]
       done;
 
     Var output :: nil <|- round[8]
