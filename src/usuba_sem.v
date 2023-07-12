@@ -245,33 +245,21 @@ Fixpoint update (form : list nat) (val : list (option Z)) (acc : access) (e : li
         else None
     end.
 
-Definition bind_aux (ctxt : context) (type_ctxt : type_ctxt) (v : var) (e : list (@cst_or_int Z)) (b : bool) : option (context * list (@cst_or_int Z)) :=
-    match v with
-    | Var v =>
-        typ <- find_val type_ctxt v;
-        (dir, form) <- convert_type typ;
-        let val_init := match find_val ctxt v with
-        | None => undefined (prod_list form)
-        | Some (CoIL i) => Some i::nil
-        | Some (CoIR _ iL _) => iL
-        end in
-        (val, e') <- update form val_init AAll e dir b;
-        Some ((v, CoIR dir val form)::ctxt, e')
-    | Index (Var v) ind =>
-        typ <- find_val type_ctxt v;
-        (dir, form) <- convert_type typ;
-        let val_init := match find_val ctxt v with
-        | None => undefined (prod_list form)
-        | Some (CoIL i) => Some i::nil
-        | Some (CoIR _ iL _) => iL
-        end in
-        acc <- access_of_ind ctxt ind;
-        (val, e') <- update form val_init acc e dir b;
-        Some ((v, CoIR dir val form)::ctxt, e')
-    | _ => None
-    end.
+Definition bind_aux (ctxt : context) (type_ctxt : type_ctxt) (v : bvar) (e : list (@cst_or_int Z)) (b : bool) : option (context * list (@cst_or_int Z)) :=
+    let (v, ind) := v in
+    typ <- find_val type_ctxt v;
+    (dir, form) <- convert_type typ;
+    let val_init := match find_val ctxt v with
+    | None => undefined (prod_list form)
+    | Some (CoIL i) => Some i::nil
+    | Some (CoIR _ iL _) => iL
+    end in
+    acc <- access_of_ind ctxt ind;
+    (val, e') <- update form val_init acc e dir b;
+    Some ((v, CoIR dir val form)::ctxt, e')
+.
 
-Fixpoint bind_aux_list ctxt type_ctxt (vl : list var) (el : list (@cst_or_int Z)) (b : bool) : option (context * list (@cst_or_int Z)) :=
+Fixpoint bind_aux_list ctxt type_ctxt (vl : list bvar) (el : list (@cst_or_int Z)) (b : bool) : option (context * list (@cst_or_int Z)) :=
     match vl with
     | nil => match el with
         | nil => Some (ctxt, el)
@@ -282,7 +270,7 @@ Fixpoint bind_aux_list ctxt type_ctxt (vl : list var) (el : list (@cst_or_int Z)
         bind_aux_list ctxt' type_ctxt vl' el' b
     end.
 
-Definition bind ctxt type_ctxt (vl : list var) (el : list (@cst_or_int Z)) (b : bool) : option context :=
+Definition bind ctxt type_ctxt (vl : list bvar) (el : list (@cst_or_int Z)) (b : bool) : option context :=
     match bind_aux_list ctxt type_ctxt vl el b with
     | Some (ctxt', nil) => Some ctxt'
     | _ => None

@@ -105,6 +105,17 @@ Proof.
     }
 Qed.
 
+Lemma collect_bvar_soundness:
+    forall var elt,
+        iset.In elt (collect_bvar var) <-> In ident (bvar_freevars var) elt.
+Proof.
+    move=> [var ind].
+    simpl; move=> elt.
+    rewrite iset.union_spec; rewrite iset.singleton_spec; rewrite collect_indexingl_soundness; split.
+    + move=> [->|H]; constructor; [> constructor | assumption ].
+    + move=> H; inversion H as [x H'|x H']; [> inversion H' | idtac]; auto.
+Qed.
+
 Lemma collect_varl_soundness:
     forall varl elt,
         iset.In elt (collect_varl varl) <-> In ident (varl_freevars varl) elt.
@@ -120,6 +131,27 @@ Proof.
     }
     {
         rewrite iset.union_spec; rewrite collect_var_soundness.
+        rewrite HRec; split.
+        + move=> []; constructor; assumption.
+        + move=> []; auto.
+    }
+Qed.
+
+Lemma collect_bvarl_soundness:
+    forall varl elt,
+        iset.In elt (collect_bvarl varl) <-> In ident (bvarl_freevars varl) elt.
+Proof.
+    move=> varl; induction varl as [|hd tl HRec]; simpl; move=> elt.
+    {
+        pose (Hempty := iset.empty_spec).
+        unfold iset.Empty in Hempty.
+        specialize Hempty with elt.
+        split.
+        + move=> H; exfalso; auto.
+        + move=> [].
+    }
+    {
+        rewrite iset.union_spec; rewrite collect_bvar_soundness.
         rewrite HRec; split.
         + move=> []; constructor; assumption.
         + move=> []; auto.
@@ -207,7 +239,7 @@ Proof.
     }
     {
         do 2 rewrite iset.union_spec; rewrite HRec.
-        rewrite collect_varl_soundness; rewrite collect_expr_soundness.
+        rewrite collect_bvarl_soundness; rewrite collect_expr_soundness.
         split; move=> []; auto.
         + move=> []; do 2 constructor; assumption.
         + intro; constructor; assumption.
@@ -238,7 +270,7 @@ Proof.
     }
     {
         rewrite iset.union_spec; rewrite HRec.
-        rewrite collect_varl_soundness.
+        rewrite collect_bvarl_soundness.
         split; move=> []; auto.
         all: intro; constructor; assumption.
     }

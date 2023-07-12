@@ -340,12 +340,12 @@ Lemma build_def_tree_from_type_soundness:
                 list_rel is_specialization path_nat path_in ->
                 (forall (l' : seq nat),
                     list_rel_top eq path_nat l' ->
-                    partial_defined_in (length vars_hd + 1) v l' (length eqns_hd) (eqns_hd ++ (vars_hd ++ Index (Var v) (path_in ++ path_tl) :: vars_tl, expr) :: eqns_tl) -> False) ->
+                    partial_defined_in (length vars_hd + 1) v l' (length eqns_hd) (eqns_hd ++ (vars_hd ++ (v, path_in ++ path_tl) :: vars_tl, expr) :: eqns_tl) -> False) ->
                 (forall (pos : nat) (l' : seq nat), list_rel_top eq path_nat l' -> length eqns_hd < pos ->
-                    defined_in v l' pos (eqns_hd ++ (vars_hd ++ Index (Var v) (path_in ++ path_tl) :: vars_tl, expr) :: eqns_tl) -> False) ->
+                    defined_in v l' pos (eqns_hd ++ (vars_hd ++ (v, path_in ++ path_tl) :: vars_tl, expr) :: eqns_tl) -> False) ->
                 partial_valid_def_tree' (length eqns_hd) (length vars_hd) v tree' path_nat
                 (eqns_hd ++
-                (vars_hd ++ Index (Var v) (path_in ++ path_tl) :: vars_tl, expr)
+                (vars_hd ++ (v, path_in ++ path_tl) :: vars_tl, expr)
                 :: eqns_tl).
 Proof.
     move=> path_tl eqns_hd.
@@ -367,7 +367,7 @@ Proof.
                 do 3 eexists; repeat split.
                 by exact is_spec.
                 exists (length vars_hd); split; trivial.
-                left; rewrite nth_error_app2; trivial.
+                rewrite nth_error_app2; trivial.
                 rewrite Nat.sub_diag; simpl.
                 rewrite cats0; reflexivity.
             }
@@ -389,7 +389,7 @@ Proof.
                     rewrite nth_error_app2 in HEq_var; trivial.
                     rewrite Nat.sub_diag in HEq_var; simpl in HEq_var.
                     move: is_spec.
-                    destruct HEq_var as [H|[H _]]; inversion H.
+                    inversion HEq_var.
                     move=> is_spec2.
                     apply list_rel_length in is_spec2; rewrite is_spec2.
                     apply list_rel_length in is_spec'; rewrite is_spec'.
@@ -433,7 +433,7 @@ Proof.
                 rewrite nth_error_app2 in HEq_var; trivial.
                 rewrite Nat.sub_diag in HEq_var; simpl in HEq_var.
                 move: is_spec.
-                destruct HEq_var as [H|[H _]]; inversion H.
+                inversion HEq_var.
                 move=> is_spec2.
                 apply list_rel_length in is_spec2; rewrite is_spec2.
                 apply list_rel_length in is_spec'; rewrite is_spec'.
@@ -514,7 +514,7 @@ Proof.
                     apply list_rel_length in lrel1.
                     apply list_rel_length in lrel2.
                     rewrite lrel2 in lrel1; exfalso; move: lrel1.
-                    destruct H as [H'|[H' _]]; inversion H'.
+                    inversion H.
                     rewrite app_length; simpl.
                     clear.
                     induction (length path_in) as [|l HRec]; simpl.
@@ -564,8 +564,8 @@ Proof.
                         apply list_rel_length in is_spec'.
                         move=> H.
                         move: is_spec.
-                        destruct H as [H'|[H' _]]; inversion H' as [H2].
-                        clear H' H2 ind.
+                        inversion H as [H2].
+                        clear H H2 ind.
                         move=> is_spec.
                         exfalso; apply HNeq.
                         move: top_eq is_spec' is_spec eval_eq; clear.
@@ -638,7 +638,7 @@ Proof.
                     apply list_rel_length in lrel1.
                     apply list_rel_length in lrel2.
                     rewrite lrel2 in lrel1; exfalso; move: lrel1.
-                    destruct H as [H'|[H' _]]; inversion H'.
+                    inversion H.
                     rewrite app_length; simpl.
                     clear.
                     induction (length path_in) as [|l HRec]; simpl.
@@ -701,8 +701,7 @@ Proof.
                             apply list_rel_length in is_spec'.
                             move=> H.
                             move: is_spec.
-                            destruct H as [H'|[H' _]]; inversion H' as [H2].
-                            clear H' H2 ind.
+                            inversion H as [H2]; clear H H2 ind.
                             move=> is_spec.
                             exfalso; apply HNeq.
                             move: top_eq is_spec' is_spec eval_eq1 eval_eq2; clear.
@@ -777,7 +776,7 @@ Proof.
                     apply list_rel_length in lrel1.
                     apply list_rel_length in lrel2.
                     rewrite lrel2 in lrel1; exfalso; move: lrel1.
-                    destruct H as [H'|[H' _]]; inversion H'.
+                    inversion H.
                     rewrite app_length; simpl.
                     clear.
                     induction (length path_in) as [|l HRec]; simpl.
@@ -865,8 +864,8 @@ Proof.
                             apply list_rel_length in is_spec'.
                             move=> H.
                             move: is_spec.
-                            destruct H as [H'|[H' _]]; inversion H' as [H2].
-                            clear H' H2 ind.
+                            inversion H as [H2].
+                            clear H H2 ind.
                             move=> is_spec.
                             exfalso; apply HNeq.
                             move: top_eq is_spec' is_spec eval_eq; clear.
@@ -924,17 +923,17 @@ Qed.
 
 Lemma partial_valid_def_tree'_decr:
     forall eqns_hd eqns_tl vars_hd vars_tl expr v tree pnat1 pnat2 pnat3 pin1 pin2 pin3 path_tl,
-        partial_valid_def_tree' (length eqns_hd) (length vars_hd + 1) v tree (pnat1 ++ pnat2 :: pnat3) (eqns_hd ++ (vars_hd ++ Index (Var v) (pin1 ++ pin2 :: pin3 ++ path_tl) :: vars_tl, expr) :: eqns_tl) ->
+        partial_valid_def_tree' (length eqns_hd) (length vars_hd + 1) v tree (pnat1 ++ pnat2 :: pnat3) (eqns_hd ++ (vars_hd ++ (v, pin1 ++ pin2 :: pin3 ++ path_tl) :: vars_tl, expr) :: eqns_tl) ->
         (list_rel is_specialization pnat1 pin1) ->
         (is_specialization pnat2 pin2 -> False) ->
-        partial_valid_def_tree' (length eqns_hd) (length vars_hd) v tree (pnat1 ++ pnat2 :: pnat3) (eqns_hd ++ (vars_hd ++ Index (Var v) (pin1 ++ pin2 :: pin3 ++ path_tl) :: vars_tl, expr) :: eqns_tl).
+        partial_valid_def_tree' (length eqns_hd) (length vars_hd) v tree (pnat1 ++ pnat2 :: pnat3) (eqns_hd ++ (vars_hd ++ (v, pin1 ++ pin2 :: pin3 ++ path_tl) :: vars_tl, expr) :: eqns_tl).
 Proof.
     move=> eqns_hd eqns_tl vars_hd vars_tl expr v tree pnat1 pnat2 pnat3 pin1 pin2 pin3 path_tl pval is_spec not_spec.
     move: tree pnat3 pin3 path_tl pval.
     refine (def_tree_find int_or_awaits _ (fun trees => (forall pos pnat3 pin3 path_tl,
         partial_valid_list_def_tree' (length eqns_hd) (length vars_hd + 1) v trees pos (pnat1 ++ pnat2 :: pnat3)
-          (eqns_hd ++ (vars_hd ++ Index (Var v) (pin1 ++ pin2 :: pin3 ++ path_tl) :: vars_tl, expr) :: eqns_tl) ->
-        partial_valid_list_def_tree' (length eqns_hd) (length vars_hd) v trees pos (pnat1 ++ pnat2 :: pnat3) (eqns_hd ++ (vars_hd ++ Index (Var v) (pin1 ++ pin2 :: pin3 ++ path_tl) :: vars_tl, expr) :: eqns_tl)
+          (eqns_hd ++ (vars_hd ++ (v, pin1 ++ pin2 :: pin3 ++ path_tl) :: vars_tl, expr) :: eqns_tl) ->
+        partial_valid_list_def_tree' (length eqns_hd) (length vars_hd) v trees pos (pnat1 ++ pnat2 :: pnat3) (eqns_hd ++ (vars_hd ++ (v, pin1 ++ pin2 :: pin3 ++ path_tl) :: vars_tl, expr) :: eqns_tl)
         ) : Prop) _ _ _ _); simpl.
     {
         move=> [eq_num|typ] pnat3 pin3 path_tl.
@@ -962,7 +961,7 @@ Proof.
                 exfalso; move: HIn.
                 inversion HEq.
                 rewrite nth_error_app2; trivial; rewrite Nat.sub_diag; simpl.
-                move=> H; destruct H as [H|[H _]]; move: is_spec'; inversion H.
+                move=> H; move: is_spec'; inversion H.
                 move=> is_spec'.
                 apply not_spec.
                 move: is_spec is_spec' top_eq; clear.
@@ -991,7 +990,7 @@ Proof.
             exfalso; apply not_spec; move: H is_spec is_spec' top_eq; inversion HEq.
             rewrite nth_error_app2; trivial.
             rewrite Nat.sub_diag; simpl.
-            move=> [H|[H _]]; inversion H; clear.
+            move=> H; inversion H; clear.
             move: pin1 pnat1; induction l' as [|hd tl HRec]; move=> [|pin_hd pin1].
             all: move=> pnat1 H; inversion H as [|h1 h2 t1 t2 rel_hd1 rel_tl1]; simpl.
             all: move=> H'; inversion H' as [|hd1 hd2 td1 td2 rel_hd2 rel_tl2].
@@ -1016,7 +1015,7 @@ Proof.
             {
                 rewrite nth_error_app2; trivial.
                 rewrite Nat.sub_diag; simpl.
-                move=> [H|[H _]]; inversion H.
+                move=> H; inversion H.
                 intro; exfalso; apply not_spec.
                 destruct (list_rel_append is_specialization pnat1 pin1 (pnat2 :: pnat3) (pin2 :: pin3 ++ path_tl)) as [[_ Abs] _].
                 by split; [> assumption | exact (list_rel_length _ _ _ is_spec) ].
@@ -1327,20 +1326,20 @@ Lemma update_def_tree_soundness:
     forall eqns_hd tree path_tl tree',
         update_def_tree path_tl (length eqns_hd) tree = Some tree' ->
             forall eqns_tl vars_hd vars_tl expr v path_nat path_in,
-            (partial_valid_def_tree' (length eqns_hd) (length vars_hd + 1) v tree path_nat (eqns_hd ++ (vars_hd ++ Index (Var v) (path_in ++ path_tl) :: vars_tl, expr) :: eqns_tl) ->
+            (partial_valid_def_tree' (length eqns_hd) (length vars_hd + 1) v tree path_nat (eqns_hd ++ (vars_hd ++ (v, path_in ++ path_tl) :: vars_tl, expr) :: eqns_tl) ->
             list_rel is_specialization path_nat path_in ->
-            partial_valid_def_tree' (length eqns_hd) (length vars_hd) v tree' path_nat (eqns_hd ++ (vars_hd ++ Index (Var v) (path_in ++ path_tl) :: vars_tl, expr) :: eqns_tl)).
+            partial_valid_def_tree' (length eqns_hd) (length vars_hd) v tree' path_nat (eqns_hd ++ (vars_hd ++ (v, path_in ++ path_tl) :: vars_tl, expr) :: eqns_tl)).
 Proof.
     move=> eqns_hd.
     refine (def_tree_find _ _ (fun trees => (forall ind pos path_tl indices trees',
         update_def_trees pos path_tl (length eqns_hd) (trees) indices = Some trees' ->
         forall eqns_tl vars_hd vars_tl expr v path_in path_nat,
             (partial_valid_list_def_tree' (length eqns_hd) (length vars_hd + 1) v trees pos path_nat
-            (eqns_hd ++ (vars_hd ++ Index (Var v) (path_in ++ ind:: path_tl) :: vars_tl, expr) :: eqns_tl) ->
+            (eqns_hd ++ (vars_hd ++ (v, path_in ++ ind:: path_tl) :: vars_tl, expr) :: eqns_tl) ->
             length path_nat = length path_in ->
             list_rel is_specialization path_nat path_in ->
             (forall i, List.existsb (Nat.eqb i) indices <-> is_specialization i ind) ->
-            partial_valid_list_def_tree' (length eqns_hd) (length vars_hd) v trees' pos path_nat (eqns_hd ++ (vars_hd ++ Index (Var v) (path_in ++ ind :: path_tl) :: vars_tl, expr) :: eqns_tl)
+            partial_valid_list_def_tree' (length eqns_hd) (length vars_hd) v trees' pos path_nat (eqns_hd ++ (vars_hd ++ (v, path_in ++ ind :: path_tl) :: vars_tl, expr) :: eqns_tl)
             )) : Prop) _ _ _ _); simpl.
     {
         move=> [eq_num|typ].
@@ -1386,7 +1385,7 @@ Proof.
                     apply list_rel_length in lrel1.
                     apply list_rel_length in lrel2.
                     rewrite lrel2 in lrel1; exfalso; move: lrel1.
-                    destruct H as [H'|[H' _]]; inversion H'.
+                    inversion H.
                     rewrite app_length; simpl.
                     clear.
                     induction (length path_in) as [|l HRec]; simpl.
@@ -1446,7 +1445,7 @@ Proof.
                     apply list_rel_length in lrel1.
                     apply list_rel_length in lrel2.
                     rewrite lrel2 in lrel1; exfalso; move: lrel1.
-                    destruct H as [H'|[H' _]]; inversion H'.
+                    inversion H.
                     rewrite app_length; simpl.
                     clear.
                     induction (length path_in) as [|l HRec]; simpl.
@@ -1514,7 +1513,7 @@ Proof.
                     apply list_rel_length in lrel1.
                     apply list_rel_length in lrel2.
                     rewrite lrel2 in lrel1; exfalso; move: lrel1.
-                    destruct H as [H'|[H' _]]; inversion H'.
+                    inversion H.
                     rewrite app_length; simpl.
                     clear.
                     induction (length path_in) as [|l HRec]; simpl.
@@ -1636,7 +1635,7 @@ Qed.
 
 Lemma partial_valid_dtree_change_name:
     forall eqns_hd eqns_tl var ident expr vars_hd vars_tl path_in tree,
-        get_ident var <> ident ->
+        fst var <> ident ->
         partial_valid_def_tree' (length eqns_hd) (length vars_hd).+1 ident tree path_in (eqns_hd ++ (vars_hd ++ var :: vars_tl, expr) :: eqns_tl) ->
         partial_valid_def_tree' (length eqns_hd) (length vars_hd) ident tree path_in (eqns_hd ++ (vars_hd ++ var :: vars_tl, expr) :: eqns_tl).
 Proof.
@@ -1676,7 +1675,7 @@ Proof.
                 rewrite nth_error_app2 in HEq'; trivial.
                 rewrite Nat.sub_diag in HEq'; simpl in HEq'.
                 exfalso; apply ident_diff.
-                destruct HEq' as [H|[H _]]; inversion H; simpl; reflexivity.
+                inversion HEq'; simpl; reflexivity.
             }
         }
         {
@@ -1694,8 +1693,8 @@ Proof.
             destruct Eq.
             rewrite nth_error_app2 in HEq'; trivial.
             rewrite Nat.sub_diag in HEq'; simpl in HEq'.
-            destruct HEq' as [H|[H _]]; exfalso; apply ident_diff.
-            all: inversion H; simpl; reflexivity.
+            exfalso; apply ident_diff.
+            inversion HEq'; simpl; reflexivity.
         }
     }
     {
@@ -1717,8 +1716,8 @@ Proof.
             destruct Eq.
             rewrite nth_error_app2 in HEq'; trivial.
             rewrite Nat.sub_diag in HEq'; simpl in HEq'.
-            destruct HEq' as [H|[H _]]; exfalso; apply ident_diff.
-            all: inversion H; simpl; reflexivity.
+            exfalso; apply ident_diff.
+            inversion HEq'; simpl; reflexivity.
         }
         {
             apply HRec; trivial.
@@ -1912,7 +1911,7 @@ Proof.
                     move: HInf HEq'; inversion HEq.
                     move=> HInf.
                     destruct (nth_error_None vL i) as [_ ->].
-                    by move=> [Abs|[Abs _]].
+                    by discriminate.
                     apply ltnW in HInf.
                     apply/leP; trivial.
                 }
@@ -1936,7 +1935,7 @@ Proof.
             move: HInf HEq'; inversion HEq.
             move=> HInf.
             destruct (nth_error_None vL i) as [_ ->].
-            by move=> [Abs|[Abs _]].
+            by discriminate.
             apply ltnW in HInf.
             apply/leP; trivial.
         }
@@ -1953,7 +1952,7 @@ Proof.
         move: HInf HEq'; inversion HEq.
         move=> HInf.
         destruct (nth_error_None vL i) as [_ ->].
-        by move=> [Abs|[Abs _]].
+        by discriminate.
         apply ltnW in HInf.
         apply/leP; trivial.
     }
@@ -1991,12 +1990,13 @@ Proof.
             split; move=> [vL [e [ind [HEq [is_spec HIn]]]]].
             all: exists vL; exists e; exists ind; repeat split; trivial.
             {
-                destruct HIn as [i [HIn [H|[H ->]]]]; [> left | right; split; trivial].
-                all: by apply nth_error_In in H.
+                destruct HIn as [i [HIn H]].
+                by apply nth_error_In in H.
             }
             {
-                destruct HIn as [H|[H ->]]; apply In_nth_error in H.
-                all: destruct H as [i HEq']; exists i; rewrite HEq'; split; auto.
+                apply In_nth_error in HIn.
+                destruct HIn as [i HEq'].
+                exists i; rewrite HEq'; split; auto.
             }
         }
         {
@@ -2011,8 +2011,8 @@ Proof.
             move=> [vL [e [ind [HEq [is_spec HIn]]]]].
             exists vL; exists e; exists ind.
             repeat split; trivial.
-            destruct HIn as [H|[H ->]]; apply In_nth_error in H.
-            all: destruct H as [i HEq']; exists i; rewrite HEq'; split; auto.
+            apply In_nth_error in HIn.
+            destruct HIn as [i HEq']; exists i; rewrite HEq'; split; auto.
         }
     }
     {
@@ -2029,8 +2029,8 @@ Proof.
         move=> [vL [e [ind [HEq [is_spec HIn]]]]].
         exists vL; exists e; exists ind.
         repeat split; trivial.
-        destruct HIn as [H|[H ->]]; apply In_nth_error in H.
-        all: destruct H as [i HEq']; exists i; rewrite HEq'; split; auto.
+        apply In_nth_error in HIn.
+        destruct HIn as [i HEq']; exists i; rewrite HEq'; split; auto.
     }
     {
         simpl; trivial.
@@ -2106,7 +2106,7 @@ Proof.
                     inversion HEq.
                     clear.
                     destruct (nth_error_None vL (length vL)) as [_ ->].
-                    by move=> [|[]].
+                    by discriminate.
                     by auto.
                 }
             }
@@ -2128,7 +2128,7 @@ Proof.
                     exfalso; move: HEq'.
                     inversion HEq.
                     destruct (nth_error_None vL (length vL)) as [_ ->].
-                    by move=> [|[]].
+                    by discriminate.
                     by idtac.
                 }
                 {
@@ -2155,7 +2155,7 @@ Proof.
                     exfalso; move: HEq'.
                     inversion HEq.
                     destruct (nth_error_None vL (length vL)) as [_ ->].
-                    by move=> [|[]].
+                    by discriminate.
                     by idtac.
                 }
                 {
@@ -2181,324 +2181,127 @@ Proof.
     {
         move=> vars_hd dependancies dependancies'.
         move: (HRec (vars_hd ++ [:: v])); clear HRec; move=> HRec.
-        destruct v as [v|[v|] ind].
-        3: by idtac.
+        destruct v as [v ind].
+        move: (HRec dependancies); clear HRec; move=> HRec.
+        destruct update_vars as [dependancies'0|].
+        2: by idtac.
+        move=> HEq is_map fst_eq type_soundness imp_partial_valid.
+        specialize HRec with dependancies'0; move: HRec; impl_tac; trivial.
+        impl_tac; trivial.
+        impl_tac; trivial.
+        impl_tac; trivial.
+        impl_tac.
         {
-            move: (HRec dependancies); clear HRec; move=> HRec.
-            destruct update_vars as [dependancies'0|].
-            2: by idtac.
-            move=> HEq is_map fst_eq type_soundness imp_partial_valid.
-            specialize HRec with dependancies'0; move: HRec; impl_tac; trivial.
-            impl_tac; trivial.
-            impl_tac; trivial.
-            impl_tac; trivial.
-            impl_tac.
+            rewrite app_length; simpl; rewrite Nat.add_1_r.
+            rewrite addn1; rewrite addSn.
+            rewrite addn1 in imp_partial_valid.
+            rewrite addnS in imp_partial_valid.
+            rewrite <-app_assoc; simpl; trivial.
+        }
+        move=> [Allvalid [Allsubs [HEq_map_fst [type_soundness' imp_partial_valid']]]].
+        move: (update_ctxt_soundness (update_def_tree ind (length eqns_hd)) dependancies'0 v).
+        impl_tac.
+        {
+            rewrite <-HEq_map_fst; trivial.
+        }
+        destruct update_ctxt as [ctxt'|].
+        2: by idtac.
+        move=> H; move: (H ctxt'); clear H.
+        impl_tac; trivial.
+        inversion HEq as [H']; destruct H'; clear HEq.
+        move=> [find_nNone [is_map' [fst_eq' update_ctxt_soundness]]].
+        repeat split.
+        {
+            constructor; simpl; auto.
             {
-                rewrite app_length; simpl; rewrite Nat.add_1_r.
-                rewrite addn1; rewrite addSn.
-                rewrite addn1 in imp_partial_valid.
-                rewrite addnS in imp_partial_valid.
-                rewrite <-app_assoc; simpl; trivial.
-            }
-            move=> [HEq_map_fst [AllVarValid [fst_eq' [type_soundness' imp_partial_valid']]]].
-            move: (update_ctxt_soundness (update_def_tree nil (length eqns_hd)) dependancies'0 v).
-            impl_tac.
-            {
-                rewrite <- fst_eq'; trivial.
-            }
-            destruct update_ctxt as [ctxt'|].
-            2: by idtac.
-            move=> H.
-            move: (H ctxt'); clear H.
-            impl_tac; trivial.
-            move=> [find_exists [distinct' [fst_eq'' update_ctxt_soundness]]].
-            inversion HEq as [HEq']; destruct HEq'; clear HEq.
-            split.
-            {
-                constructor; simpl.
-                {
-                    move: fst_eq'' find_exists; clear.
-                    move: ctxt'.
-                    induction dependancies'0 as [|[key val] tl HRec]; simpl.
-                    by move=> c _ H _; apply H; reflexivity.
-                    move=> [|[key' val'] tl']; simpl.
-                    by discriminate.
-                    move=> H; inversion H.
-                    by destruct ident_beq; auto.
-                }
-                {
-                    move: fst_eq'' update_ctxt_soundness HEq_map_fst; clear.
-                    do 2 rewrite List.Forall_forall.
-                    move=> fst_eq H Himp x LIn; apply Himp in LIn.
-                    destruct x as [v'|[v'|] ind]; simpl in *.
-                    3: by idtac.
-                    {
-                        move=> find; apply LIn; move: fst_eq find; clear.
-                        move: ctxt'.
-                        induction dependancies'0 as [|[key val] tl HRec]; simpl; trivial.
-                        move=> [|[key' val'] tl']; simpl; [> by idtac | idtac ].
-                        move=> H; inversion H.
-                        by destruct ident_beq; [> discriminate | apply HRec ].
-                    }
-                    {
-                        move: H LIn; clear.
-                        move=> LR; induction LR as [|[k1 v1] [k2 v2] t1 t2 rel_hd rel_tl].
-                        all: simpl; auto.
-                        simpl in *; destruct rel_hd as [[] H].
-                        destruct (ident_beq v'); trivial.
-                        destruct ident_beq; [> idtac | by destruct H].
-                        move: (update_def_tree_subtree _ _ _ _ H).
-                        move=> is_sub valid.
-                        exact (sub_dtree_keep_access _ _ _ valid is_sub).
-                    }
-                }
-            }
-            split.
-            {
-                refine (list_rel_trans sub_dtree_trans _ _ _ AllVarValid _).
-                move: update_ctxt_soundness; clear; move=> H.
-                induction H as [|[k1 v1] [k2 v2] t1 t2 H_hd H_tl]; simpl in *.
-                all: constructor; trivial.
-                destruct H_hd as [_ H_hd]; destruct ident_beq.
-                2: by destruct H_hd; exact (sub_dtree_refl _).
-                exact (update_def_tree_subtree _ _ _ _ H_hd).
-            }
-            split.
-            by rewrite fst_eq'; apply fst_eq''.
-            split.
-            {
-                move: update_ctxt_soundness type_soundness'; clear.
+                move: update_ctxt_soundness find_nNone type_soundness'; clear.
                 move=> H; move: tctxt.
                 induction H as [|[k1 v1] [k2 v2] t1 t2 H_hd H_tl HRec]; simpl; trivial.
+                by move=> tctxt H _; apply H; reflexivity.
                 move=> [|[k3 v3] t3]; simpl in *.
-                by move=> H; inversion H.
-                move=> H; inversion H; constructor; auto.
+                by move=> _ H; inversion H.
                 destruct H_hd as [[] H_hd].
-                destruct ident_beq; [> idtac | by destruct H_hd].
-                refine (update_def_tree_type_soundness _ _ _ _ _ H_hd _); assumption.
+                rewrite ident_beq_sym in H_hd; destruct ident_beq.
+                {
+                    move=> _ H; inversion H.
+                    exact (update_def_tree_valid _ _ _ _ H_hd).
+                }
+                {
+                    move=> find_nNone H; inversion H.
+                    apply (HRec t3); auto.
+                }
             }
             {
-                rewrite Forall_forall.
-                move=> [v' t'] HIn.
-                apply (list_rel_imp_In_r _ _ update_ctxt_soundness) in HIn.
-                destruct HIn as [[key tree] [HIn [el_fst_eq update_eq]]]; simpl in *.
-                destruct el_fst_eq.
-                case_eq (ident_beq key v).
-                all: move=> H; rewrite H in update_eq.
-                {
-                    rewrite ident_beq_eq in H; destruct H.
-                    rewrite Forall_forall in imp_partial_valid'.
-                    apply imp_partial_valid' in HIn.
-                    clear imp_partial_valid' update_ctxt_soundness imp_partial_valid.
-                    clear type_soundness is_map fst_eq HEq_map_fst AllVarValid fst_eq' type_soundness'.
-                    clear distinct' find_exists fst_eq'' dependancies dependancies'0 ctxt' tctxt.
-                    destruct tree as [[num|typ]|trees]; simpl in *.
-                    1,3: by idtac.
-                    inversion update_eq as [H']; destruct H'; clear update_eq; simpl.
-                    split; trivial.
-                    move=> pos l' HInf top_eq.
-                    destruct HIn as [not_pdef not_def].
-                    case_eq (pos =? length eqns_hd).
-                    2: rewrite <-not_true_iff_false.
-                    all: rewrite Nat.eqb_eq; move=> HEq; split; move=> H.
-                    {
-                        destruct H as [-> <-]; clear HEq.
-                        unfold partial_defined_in.
-                        rewrite nth_error_app2; auto.
-                        rewrite Nat.sub_diag; simpl.
-                        do 3 eexists; repeat split.
-                        by exact (LRnil _).
-                        exists (length vars_hd); split; trivial.
-                        rewrite nth_error_app2; trivial.
-                        rewrite Nat.sub_diag; simpl.
-                        right; auto.
-                    }
-                    {
-                        symmetry in HEq; destruct HEq.
-                        split; [> reflexivity | idtac ].
-                        move: (not_pdef _ top_eq); clear not_pdef not_def; move=> not_pdef.
-                        unfold partial_defined_in in H, not_pdef.
-                        rewrite <-app_assoc in not_pdef; simpl in not_pdef.
-                        rewrite nth_error_app2 in H, not_pdef.
-                        2: by apply/leP; assumption.
-                        rewrite Nat.sub_diag in H, not_pdef; simpl in H, not_pdef.
-                        destruct H as [vL [e [ind [HEq [is_spec [i [InfEq H]]]]]]].
-                        destruct (leq_Cases _ _ InfEq) as [<-|SInf].
-                        {
-                            inversion HEq as [[H1 H2]]; destruct H1.
-                            rewrite nth_error_app2 in H; trivial.
-                            rewrite Nat.sub_diag in H; simpl in H.
-                            destruct H as [Abs|[_ Eq]]; [> inversion Abs | rewrite Eq in is_spec ].
-                            inversion is_spec; reflexivity.
-                        }
-                        {
-                            exfalso; apply not_pdef.
-                            do 3 eexists; split; [> exact HEq | idtac ].
-                            split; [> exact is_spec | exists i ].
-                            rewrite app_length; simpl; rewrite Nat.add_1_r.
-                            split; assumption.
-                        }
-                    }
-                    {
-                        destruct H as [Abs _].
-                        exfalso; exact (HEq Abs).
-                    }
-                    {
-                        destruct (leq_Cases _ _ HInf) as [Abs|HInf'].
-                        {
-                            symmetry in Abs.
-                            exfalso; exact (HEq Abs).
-                        }
-                        rewrite <-app_assoc in not_def; simpl in not_def.
-                        by apply not_def in H.
-                    }
-                }
-                {
-                    destruct update_eq.
-                    rewrite Forall_forall in imp_partial_valid'.
-                    apply imp_partial_valid' in HIn.
-                    rewrite <- app_assoc in HIn; simpl in HIn.
-                    move: H HIn; clear.
-                    rewrite <- not_true_iff_false; rewrite ident_beq_eq.
-                    move=> HNeq.
-                    rewrite app_length; simpl; rewrite Nat.add_1_r.
-                    apply partial_valid_dtree_change_name; auto.
-                }
+                move: fst_eq' Allvalid update_ctxt_soundness; clear.
+                do 2 rewrite List.Forall_forall.
+                move=> fst_eq valid_in rel var LIn; apply valid_in in LIn; clear valid_in.
+                destruct var as [v' ind']; simpl in *.
+                move: rel LIn; clear.
+                move=> LR; induction LR as [|[k1 v1] [k2 v2] t1 t2 rel_hd rel_tl].
+                all: simpl; auto.
+                simpl in *; destruct rel_hd as [[] H].
+                destruct (ident_beq v'); trivial.
+                destruct ident_beq; [> idtac | by destruct H].
+                move: (update_def_tree_subtree _ _ _ _ H).
+                move=> is_sub valid.
+                exact (sub_dtree_keep_access _ _ _ valid is_sub).
             }
         }
         {
-            move: (HRec dependancies); clear HRec; move=> HRec.
-            destruct update_vars as [dependancies'0|].
-            2: by idtac.
-            move=> HEq is_map fst_eq type_soundness imp_partial_valid.
-            specialize HRec with dependancies'0; move: HRec; impl_tac; trivial.
-            impl_tac; trivial.
-            impl_tac; trivial.
-            impl_tac; trivial.
-            impl_tac.
+            refine (list_rel_trans sub_dtree_trans _ _ _ Allsubs _).
+            move: update_ctxt_soundness; clear.
+            move=> H; induction H as [|[k1 v1] [k2 v2] t1 t2 rel_hd rel_tl HRec]; simpl in *.
+            all: constructor; trivial.
+            destruct rel_hd as [[] HEq].
+            destruct ident_beq.
+            by refine (update_def_tree_subtree _ _ _ _ HEq).
+            by destruct HEq; refine (sub_dtree_refl _).
+        }
+        {
+            rewrite HEq_map_fst; auto.
+        }
+        {
+            move: update_ctxt_soundness type_soundness'; clear.
+            move=> H; move: tctxt.
+            induction H as [|[k1 v1] [k2 v2] t1 t2 rel_hd rel_tl HRec]; simpl in *; trivial.
+            move=> [|[k3 v3] t3] H; simpl in *; inversion H.
+            constructor; simpl; auto.
+            destruct rel_hd as [[] HEq].
+            destruct ident_beq.
+            by refine (update_def_tree_type_soundness _ _ _ _ _ HEq _); assumption.
+            by destruct HEq; assumption.
+        }
+        {
+            rewrite Forall_forall.
+            move=> [v' t'] HIn.
+            destruct (list_rel_imp_In_r _ _ update_ctxt_soundness _ HIn)
+                    as [[v'' t''] [LIn [HEq update_eq]]].
+            simpl in *.
+            destruct HEq; clear HIn.
+            case_eq (ident_beq v'' v).
+            all: move=> H; rewrite H in update_eq.
             {
-                rewrite app_length; simpl; rewrite Nat.add_1_r.
-                rewrite addn1; rewrite addSn.
-                rewrite addn1 in imp_partial_valid.
-                rewrite addnS in imp_partial_valid.
-                rewrite <-app_assoc; simpl; trivial.
-            }
-            move=> [Allvalid [Allsubs [HEq_map_fst [type_soundness' imp_partial_valid']]]].
-            move: (update_ctxt_soundness (update_def_tree ind (length eqns_hd)) dependancies'0 v).
-            impl_tac.
-            {
-                rewrite <-HEq_map_fst; trivial.
-            }
-            destruct update_ctxt as [ctxt'|].
-            2: by idtac.
-            move=> H; move: (H ctxt'); clear H.
-            impl_tac; trivial.
-            inversion HEq as [H']; destruct H'; clear HEq.
-            move=> [find_nNone [is_map' [fst_eq' update_ctxt_soundness]]].
-            repeat split.
-            {
-                constructor; simpl; auto.
-                {
-                    move: update_ctxt_soundness find_nNone type_soundness'; clear.
-                    move=> H; move: tctxt.
-                    induction H as [|[k1 v1] [k2 v2] t1 t2 H_hd H_tl HRec]; simpl; trivial.
-                    by move=> tctxt H _; apply H; reflexivity.
-                    move=> [|[k3 v3] t3]; simpl in *.
-                    by move=> _ H; inversion H.
-                    destruct H_hd as [[] H_hd].
-                    rewrite ident_beq_sym in H_hd; destruct ident_beq.
-                    {
-                        move=> _ H; inversion H.
-                        exact (update_def_tree_valid _ _ _ _ H_hd).
-                    }
-                    {
-                        move=> find_nNone H; inversion H.
-                        apply (HRec t3); auto.
-                    }
-                }
-                {
-                    move: fst_eq' Allvalid update_ctxt_soundness; clear.
-                    do 2 rewrite List.Forall_forall.
-                    move=> fst_eq valid_in rel var LIn; apply valid_in in LIn; clear valid_in.
-                    destruct var as [v'|[v'|] ind']; simpl in *.
-                    3: by idtac.
-                    {
-                        move=> find; apply LIn; move: fst_eq find; clear.
-                        move: ctxt'.
-                        induction dependancies'0 as [|[key val] tl HRec]; simpl; trivial.
-                        move=> [|[key' val'] tl']; simpl; [> by idtac | idtac ].
-                        move=> H; inversion H.
-                        by destruct ident_beq; [> discriminate | apply HRec ].
-                    }
-                    {
-                        move: rel LIn; clear.
-                        move=> LR; induction LR as [|[k1 v1] [k2 v2] t1 t2 rel_hd rel_tl].
-                        all: simpl; auto.
-                        simpl in *; destruct rel_hd as [[] H].
-                        destruct (ident_beq v'); trivial.
-                        destruct ident_beq; [> idtac | by destruct H].
-                        move: (update_def_tree_subtree _ _ _ _ H).
-                        move=> is_sub valid.
-                        exact (sub_dtree_keep_access _ _ _ valid is_sub).
-                    }
-                }
+                rewrite ident_beq_eq in H; destruct H.
+                rewrite Forall_forall in imp_partial_valid'.
+                apply imp_partial_valid' in LIn.
+                move :(update_def_tree_soundness _ _ _ _ update_eq eqns_tl vars_hd tl expr v'' nil nil).
+                simpl.
+                move=> H; apply H; clear H.
+                2: by constructor.
+                rewrite app_length in LIn; simpl in LIn; rewrite Nat.add_1_r in LIn.
+                rewrite addn1.
+                rewrite <-app_assoc in LIn; simpl in LIn; assumption.
             }
             {
-                refine (list_rel_trans sub_dtree_trans _ _ _ Allsubs _).
-                move: update_ctxt_soundness; clear.
-                move=> H; induction H as [|[k1 v1] [k2 v2] t1 t2 rel_hd rel_tl HRec]; simpl in *.
-                all: constructor; trivial.
-                destruct rel_hd as [[] HEq].
-                destruct ident_beq.
-                by refine (update_def_tree_subtree _ _ _ _ HEq).
-                by destruct HEq; refine (sub_dtree_refl _).
-            }
-            {
-                rewrite HEq_map_fst; auto.
-            }
-            {
-                move: update_ctxt_soundness type_soundness'; clear.
-                move=> H; move: tctxt.
-                induction H as [|[k1 v1] [k2 v2] t1 t2 rel_hd rel_tl HRec]; simpl in *; trivial.
-                move=> [|[k3 v3] t3] H; simpl in *; inversion H.
-                constructor; simpl; auto.
-                destruct rel_hd as [[] HEq].
-                destruct ident_beq.
-                by refine (update_def_tree_type_soundness _ _ _ _ _ HEq _); assumption.
-                by destruct HEq; assumption.
-            }
-            {
-                rewrite Forall_forall.
-                move=> [v' t'] HIn.
-                destruct (list_rel_imp_In_r _ _ update_ctxt_soundness _ HIn)
-                        as [[v'' t''] [LIn [HEq update_eq]]].
-                simpl in *.
-                destruct HEq; clear HIn.
-                case_eq (ident_beq v'' v).
-                all: move=> H; rewrite H in update_eq.
-                {
-                    rewrite ident_beq_eq in H; destruct H.
-                    rewrite Forall_forall in imp_partial_valid'.
-                    apply imp_partial_valid' in LIn.
-                    move :(update_def_tree_soundness _ _ _ _ update_eq eqns_tl vars_hd tl expr v'' nil nil).
-                    simpl.
-                    move=> H; apply H; clear H.
-                    2: by constructor.
-                    rewrite app_length in LIn; simpl in LIn; rewrite Nat.add_1_r in LIn.
-                    rewrite addn1.
-                    rewrite <-app_assoc in LIn; simpl in LIn; assumption.
-                }
-                {
-                    destruct update_eq.
-                    rewrite Forall_forall in imp_partial_valid'.
-                    apply imp_partial_valid' in LIn; auto.
-                    rewrite app_length in LIn; simpl in LIn.
-                    rewrite Nat.add_1_r in LIn.
-                    rewrite <- app_assoc in LIn; simpl in LIn.
-                    move: LIn; apply partial_valid_dtree_change_name.
-                    rewrite <-not_true_iff_false in H; rewrite ident_beq_eq in H.
-                    auto.
-                }
+                destruct update_eq.
+                rewrite Forall_forall in imp_partial_valid'.
+                apply imp_partial_valid' in LIn; auto.
+                rewrite app_length in LIn; simpl in LIn.
+                rewrite Nat.add_1_r in LIn.
+                rewrite <- app_assoc in LIn; simpl in LIn.
+                move: LIn; apply partial_valid_dtree_change_name.
+                rewrite <-not_true_iff_false in H; rewrite ident_beq_eq in H.
+                auto.
             }
         }
     }

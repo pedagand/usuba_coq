@@ -97,6 +97,8 @@ Inductive var :=
     | Var : ident -> var
     | Index : var -> seq indexing -> var.
 
+Definition bvar : Type := ident * seq indexing.
+
 Fixpoint var_size (v : var) :=
     match v with
     | Var _ => 1
@@ -167,7 +169,7 @@ Inductive stmt_opt :=
     Unroll | No_unrool | Pipelined | Safe_exit.
 
 Inductive deq :=
-    | Eqn : seq var -> expr -> bool -> deq
+    | Eqn : seq bvar -> expr -> bool -> deq
     | Loop : ident -> arith_expr -> arith_expr -> list_deq -> seq stmt_opt -> deq
 with list_deq :=
     | Dnil
@@ -176,9 +178,15 @@ with list_deq :=
 Scheme deq_find := Induction for deq Sort Prop
 with list_deq_find := Induction for list_deq Sort Prop.
 
+Fixpoint list_bvar_size (bvL : seq bvar) : nat :=
+    match bvL with
+    | nil => 0
+    | (v, ind) :: tl => 1 + length ind + list_bvar_size tl
+    end.
+
 Fixpoint deq_size deq : nat :=
     match deq with
-    | Eqn v e b => 1 + list_var_size v + expr_size e
+    | Eqn v e b => 1 + list_bvar_size v + expr_size e
     | Loop id ae1 ae2 dl stmt => 1 + arith_expr_size ae1 + arith_expr_size ae2 +
         deq_list_size dl + length stmt
     end

@@ -695,7 +695,14 @@ Fixpoint subst_var (ctxt : list (ident * nat)) (v : var) : var :=
 
 Definition subst_varl (ctxt : list (ident * nat)) (vL : list var) : list var :=
     [seq subst_var ctxt v | v <- vL ].
-    
+
+
+Definition subst_bvar (ctxt : list (ident * nat)) (bv : bvar) : bvar :=
+    (bv.1, subst_indexingl ctxt bv.2).
+
+Definition subst_bvarl (ctxt : list (ident * nat)) (vL : list bvar) : list bvar :=
+    [seq subst_bvar ctxt bv | bv <- vL ].
+        
 Fixpoint subst_expr (ctxt : list (ident * nat)) (e : expr) : expr :=
     match e with
     | Const _ _ => e
@@ -728,13 +735,13 @@ Fixpoint loop_build (s_i e_i : nat) : list nat :=
             e_i::loop_build s_i e_i'
     end.
     
-Fixpoint list_of_list_deq (ctxt : list (ident * nat)) (deqL : list_deq) : option (list (seq var * expr)) :=
+Fixpoint list_of_list_deq (ctxt : list (ident * nat)) (deqL : list_deq) : option (list (seq bvar * expr)) :=
     match deqL with
     | Dnil => Some nil
     | Dcons hd tl =>
         tl' <- list_of_list_deq ctxt tl;
         match hd with
-        | Eqn vL e _ => Some ((subst_varl ctxt vL, subst_expr ctxt e)::tl')
+        | Eqn vL e _ => Some ((subst_bvarl ctxt vL, subst_expr ctxt e)::tl')
         | Loop i start_e end_e eqns opt =>
             start_i <- eval_arith_expr nil (subst_aexpr ctxt start_e);
             end_i <- eval_arith_expr nil (subst_aexpr ctxt end_e);

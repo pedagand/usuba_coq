@@ -930,35 +930,22 @@ Proof. apply eval_aexpr_change_ctxt. Qed.
 Lemma context_s_rel_bind_aux_compl:
     forall var val ctxt type_ctxt b,
         match bind_aux ctxt type_ctxt var val b with
-            | Some (ctxt', l) => context_srel (Complement ident (var_freevars var)) ctxt ctxt'
+            | Some (ctxt', l) => context_srel (Complement ident (bvar_freevars var)) ctxt ctxt'
             | None => True
         end.
 Proof.
-    move=> var; destruct var as [v|[v|] indexing]; simpl; trivial.
-    all: move=> val ctxt type_ctxt b.
-    {
-        destruct (find_val type_ctxt v) as [typ|]; trivial.
-        destruct (convert_type typ) as [[dir form]|]; trivial.
-        pose (iL := match find_val ctxt v with | Some c => match c with | CoIL i => Some i::nil | CoIR _ iL _ => iL end | None => undefined (prod_list form) end).
-        fold iL.
-        destruct (update form iL AAll val dir) as [[val' e']|]; trivial; clear iL.
-        move=> elt HIn; simpl.
-        case_eq (ident_beq elt v); trivial.
-        move=> HEq; apply internal_ident_dec_bl in HEq; destruct HEq.
-        destruct HIn; constructor.
-    }
-    {
-        destruct (find_val type_ctxt v) as [typ|]; trivial.
-        destruct (convert_type typ) as [[dir form]|]; trivial.
-        pose (iL := match find_val ctxt v with | Some c => match c with | CoIL i => Some i::nil | CoIR _ iL _ => iL end | None => undefined (prod_list form) end).
-        fold iL.
-        destruct access_of_ind as [acc|]; trivial.
-        destruct (update form iL acc val dir) as [[val' e']|]; trivial; clear iL.
-        move=> elt HIn; simpl.
-        case_eq (ident_beq elt v); trivial.
-        move=> HEq; apply internal_ident_dec_bl in HEq; destruct HEq.
-        destruct HIn; do 2 constructor.
-    }
+    move=> var; destruct var as [v indexing]; simpl; trivial.
+    move=> val ctxt type_ctxt b.
+    destruct (find_val type_ctxt v) as [typ|]; trivial.
+    destruct (convert_type typ) as [[dir form]|]; trivial.
+    pose (iL := match find_val ctxt v with | Some c => match c with | CoIL i => Some i::nil | CoIR _ iL _ => iL end | None => undefined (prod_list form) end).
+    fold iL.
+    destruct access_of_ind as [acc|]; trivial.
+    destruct (update form iL acc val dir) as [[val' e']|]; trivial; clear iL.
+    move=> elt HIn; simpl.
+    case_eq (ident_beq elt v); trivial.
+    move=> HEq; apply internal_ident_dec_bl in HEq; destruct HEq.
+    destruct HIn; do 2 constructor.
 Qed.
 
 Theorem fold_right_equal {A B : Type} :
@@ -1010,47 +997,32 @@ Qed.
 
 Lemma context_s_rel_bind_aux:
     forall var type_ctxt ctxt1 ctxt2 val s b,
-    context_srel (Union ident (var_freevars var) s) ctxt1 ctxt2 ->
-        opt_rel (fun p1 p2 => context_srel (Union ident (var_freevars var) s) p1.1 p2.1 /\ p1.2 = p2.2) (bind_aux ctxt1 type_ctxt var val b) (bind_aux ctxt2 type_ctxt var val b).
+    context_srel (Union ident (bvar_freevars var) s) ctxt1 ctxt2 ->
+        opt_rel (fun p1 p2 => context_srel (Union ident (bvar_freevars var) s) p1.1 p2.1 /\ p1.2 = p2.2) (bind_aux ctxt1 type_ctxt var val b) (bind_aux ctxt2 type_ctxt var val b).
 Proof.
-    move=> var; destruct var as [v|[v|] index]; simpl; trivial.
-    all: move=> type_ctxt ctxt1 ctxt2 val s b HRel.
-    {
-        destruct (find_val type_ctxt v) as [typ|]; simpl; trivial.
-        destruct (convert_type typ) as [[dir form]|]; simpl; trivial.
-        rewrite (HRel v).
-        2: by do 2 constructor.
-        pose (iL := match find_val ctxt2 v with | Some c => match c with | CoIL i => Some i::nil | CoIR _ iL _ => iL end | None => undefined (prod_list form) end).
-        fold iL.
-        destruct (update form iL AAll val dir) as [[val' e']|]; simpl; trivial; clear iL.
-        split; trivial.
-        move=> elt HIn; simpl.
-        case_eq (ident_beq elt v); trivial.
-        move=> HEq; apply HRel; assumption.
-    }
-    {
-        destruct (find_val type_ctxt v) as [typ|]; simpl; trivial.
-        destruct (convert_type typ) as [[dir form]|]; simpl; trivial.
-        rewrite (HRel v).
-        2: by do 2 constructor.
-        pose (iL := match find_val ctxt2 v with | Some c => match c with | CoIL i => Some i::nil | CoIR _ iL _ => iL end | None => undefined (prod_list form) end).
-        fold iL.
-        rewrite (context_s_rel_access_of_ind _ ctxt1 ctxt2).
-        2: by do 2 rewrite context_srel_Union in HRel; destruct HRel as [[] _].
-        destruct access_of_ind as [acc|].
-        destruct (update form iL acc val dir) as [[val' e']|]; simpl; clear iL.
-        2,3: by reflexivity.
-        split; trivial.
-        move=> elt HIn; simpl.
-        case_eq (ident_beq elt v); trivial.
-        move=> HEq; apply HRel; assumption.
-    }
+    move=> var; destruct var as [v index]; simpl; trivial.
+    move=> type_ctxt ctxt1 ctxt2 val s b HRel.
+    destruct (find_val type_ctxt v) as [typ|]; simpl; trivial.
+    destruct (convert_type typ) as [[dir form]|]; simpl; trivial.
+    rewrite (HRel v).
+    2: by do 2 constructor.
+    pose (iL := match find_val ctxt2 v with | Some c => match c with | CoIL i => Some i::nil | CoIR _ iL _ => iL end | None => undefined (prod_list form) end).
+    fold iL.
+    rewrite (context_s_rel_access_of_ind _ ctxt1 ctxt2).
+    2: by do 2 rewrite context_srel_Union in HRel; destruct HRel as [[] _].
+    destruct access_of_ind as [acc|].
+    destruct (update form iL acc val dir) as [[val' e']|]; simpl; clear iL.
+    2,3: by reflexivity.
+    split; trivial.
+    move=> elt HIn; simpl.
+    case_eq (ident_beq elt v); trivial.
+    move=> HEq; apply HRel; assumption.
 Qed.
 
 Lemma context_s_rel_bind_aux_list_compl:
     forall varL val ctxt type_ctxt b,
         match bind_aux_list ctxt type_ctxt varL val b with
-            | Some (ctxt', l) => context_srel (Complement ident (varl_freevars varL)) ctxt ctxt'
+            | Some (ctxt', l) => context_srel (Complement ident (bvarl_freevars varL)) ctxt ctxt'
             | None => True
         end.
 Proof.
@@ -1152,6 +1124,27 @@ Proof.
     }
 Qed.
 
+Lemma dec_in_bvar_freevars:
+    forall var elt, {In ident (bvar_freevars var) elt} + {not (In ident (bvar_freevars var) elt)}.
+Proof.
+    move=> [var index] elt; simpl.
+    destruct (dec_in_indexingl_freevars index elt).
+    by left; constructor.
+    case_eq (ident_beq var elt); move=> HEq.
+    {
+        left; constructor 1.
+        rewrite ident_beq_eq in HEq; destruct HEq.
+        constructor.
+    }
+    {
+        right; move=> H.
+        inversion H as [x H0|x H0]; auto.
+        rewrite <-Bool.not_true_iff_false in HEq.
+        apply HEq; rewrite ident_beq_eq.
+        inversion H0; reflexivity.
+    }
+Qed.
+
 Lemma dec_in_var_freevars:
     forall var elt, {In ident (var_freevars var) elt} + {not (In ident (var_freevars var) elt)}.
 Proof.
@@ -1190,8 +1183,8 @@ Qed.
 
 Lemma context_s_rel_bind_aux_list:
     forall varL type_ctxt ctxt1 ctxt2 val s b,
-    context_srel (Union ident (varl_freevars varL) s) ctxt1 ctxt2 ->
-        opt_rel (fun p1 p2 => context_srel (Union ident (varl_freevars varL) s) p1.1 p2.1 /\ p1.2 = p2.2) (bind_aux_list ctxt1 type_ctxt varL val b) (bind_aux_list ctxt2 type_ctxt varL val b).
+    context_srel (Union ident (bvarl_freevars varL) s) ctxt1 ctxt2 ->
+        opt_rel (fun p1 p2 => context_srel (Union ident (bvarl_freevars varL) s) p1.1 p2.1 /\ p1.2 = p2.2) (bind_aux_list ctxt1 type_ctxt varL val b) (bind_aux_list ctxt2 type_ctxt varL val b).
 Proof.
     move=> varL; induction varL as [|var varL HRec]; simpl.
     {
@@ -1214,13 +1207,13 @@ Proof.
         2: move=> p [].
         move=> [ctxt' val'] [ctxt'2 val'2]; simpl.
         move=> [HRel' ->] HRel2' HRel1'2; clear val'2 val.
-        specialize HRec with type_ctxt ctxt'2 ctxt' val' (Union ident (var_freevars var) s) b; move: HRec.
+        specialize HRec with type_ctxt ctxt'2 ctxt' val' (Union ident (bvar_freevars var) s) b; move: HRec.
         impl_tac.
         {
             move=> elt HIn.
             destruct HIn as [elt HIn|elt' []].
             {
-                destruct (dec_in_var_freevars var elt).
+                destruct (dec_in_bvar_freevars var elt).
                 + apply HRel'; constructor; assumption.
                 + rewrite <- HRel1'2.
                     - rewrite HRel.
@@ -1239,7 +1232,7 @@ Qed.
 Lemma context_srel_bind_compl:
     forall varL val ctxt type_ctxt b,
         match bind ctxt type_ctxt varL val b with
-        | Some ctxt' => context_srel (Complement ident (varl_freevars varL)) ctxt ctxt'
+        | Some ctxt' => context_srel (Complement ident (bvarl_freevars varL)) ctxt ctxt'
         | None => True
         end.
 Proof.
@@ -1253,8 +1246,8 @@ Qed.
 
 Lemma context_srel_bind:
     forall varL type_ctxt ctxt1 ctxt2 val s b,
-    context_srel (Union ident (varl_freevars varL) s) ctxt1 ctxt2 ->
-        opt_rel (context_srel (Union ident (varl_freevars varL) s)) (bind ctxt1 type_ctxt varL val b) (bind ctxt2 type_ctxt varL val b).
+    context_srel (Union ident (bvarl_freevars varL) s) ctxt1 ctxt2 ->
+        opt_rel (context_srel (Union ident (bvarl_freevars varL) s)) (bind ctxt1 type_ctxt varL val b) (bind ctxt2 type_ctxt varL val b).
 Proof.
     unfold bind.
     move=> varL type_ctxt ctxt1 ctxt2 val s b HRel.
@@ -1301,7 +1294,7 @@ Proof.
 Qed.
 
 Add Parametric Morphism (arch : architecture) : (Eqn)
-    with signature (@eq (list var)) ==> (@expr_rel arch) ==> (@eq bool) ==> (@deq_rel arch) as Eqn_morph.
+    with signature (@eq (list bvar)) ==> (@expr_rel arch) ==> (@eq bool) ==> (@deq_rel arch) as Eqn_morph.
 Proof.
     intros; apply expr_rel_IMP_deq_rel; assumption.
 Qed.
@@ -1681,7 +1674,7 @@ Qed.
 
 Inductive deqL :=
     | DLnil
-    | DLEqn : list var -> expr -> bool -> deqL -> deqL
+    | DLEqn : list bvar -> expr -> bool -> deqL -> deqL
     | DLLoop : ident -> arith_expr -> arith_expr -> deqL -> list stmt_opt -> deqL -> deqL.
 
 Fixpoint deqL_of_list_deq (d : list_deq) : deqL :=
@@ -1746,7 +1739,7 @@ Proof.
         move=> p; rewrite p; rewrite p in NoErr; clear p.
         destruct (eval_expr arch prog2 ctxt2 e) as [val|].
         2: reflexivity.
-        assert (context_srel (Union ident (varl_freevars v) s) ctxt1 ctxt2) as HRel'
+        assert (context_srel (Union ident (bvarl_freevars v) s) ctxt1 ctxt2) as HRel'
         by (move=> x [x' HIn|x' HIn]; apply HRel; trivial; apply HSubset; do 2 constructor; assumption).
         pose (p := context_srel_bind _ type_ctxt _ _ val _ b HRel'); move:p; clear HRel'.
         destruct (bind ctxt1 type_ctxt v val) as [ctxt1'|]; destruct (bind ctxt2 type_ctxt v val) as [ctxt2'|]; simpl.
@@ -1850,7 +1843,7 @@ Proof.
         move=> ->.
         destruct (eval_expr arch prog ctxt2 e) as [val|].
         2: reflexivity.
-        assert (context_srel (Union ident (varl_freevars v) s) ctxt1 ctxt2) as HRel'
+        assert (context_srel (Union ident (bvarl_freevars v) s) ctxt1 ctxt2) as HRel'
         by (move=> x [x' HIn|x' HIn]; apply HRel; trivial; apply HSubset; do 2 constructor; assumption).
         pose (p := context_srel_bind _ type_ctxt _ _ val _ b HRel'); move:p; clear HRel'.
         destruct (bind ctxt1 type_ctxt v val) as [ctxt1'|]; destruct (bind ctxt2 type_ctxt v val) as [ctxt2'|]; simpl.

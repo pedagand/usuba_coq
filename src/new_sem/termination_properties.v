@@ -70,24 +70,23 @@ with same_dtrees {A B} : list_def_tree A -> list_def_tree B -> Prop :=
         same_dtrees atl btl ->
         same_dtrees (LDTcons _ ahd atl) (LDTcons _ bhd btl).
 
-Definition defined_in (v : ident) (l : list nat) (p : nat) (eL : list (seq var * expr)) : Prop :=
+Definition defined_in (v : ident) (l : list nat) (p : nat) (eL : list (seq bvar * expr)) : Prop :=
     exists vL e ind,
         nth_error eL p = Some (vL, e) /\
         list_rel is_specialization l ind /\
-        (List.In (Index (Var v) ind) vL \/ (List.In (Var v) vL /\ ind = nil)).
+        List.In (v, ind) vL.
 
-Definition partial_defined_in (nskip : nat) (v : ident) (l : list nat) (p : nat) (eL : list (seq var * expr)) : Prop :=
+Definition partial_defined_in (nskip : nat) (v : ident) (l : list nat) (p : nat) (eL : list (seq bvar * expr)) : Prop :=
     exists vL e ind,
         nth_error eL p = Some (vL, e) /\
         list_rel is_specialization l ind /\
         (exists i, nskip <= i /\
-            (nth_error vL i = Some (Index (Var v) ind)
-                \/ (nth_error vL i = Some (Var v) /\ ind = nil))).
+            nth_error vL i = Some (v, ind)).
 
 Scheme def_tree_find := Induction for def_tree Sort Prop
 with list_def_tree_find := Induction for list_def_tree Sort Prop.
 
-Fixpoint valid_def_tree (v : ident) (t : def_tree nat) (l : list nat) (eL : list (seq var * expr)) : Prop :=
+Fixpoint valid_def_tree (v : ident) (t : def_tree nat) (l : list nat) (eL : list (seq bvar * expr)) : Prop :=
     match t with
     | DTBase eq_num => forall l' pos, list_rel_top eq l l' -> pos = eq_num /\ l = l' <-> defined_in v l' pos eL
     | DTRec trees => (forall pos, defined_in v l pos eL -> False) /\ valid_list_def_tree v trees 0 l eL
@@ -100,7 +99,7 @@ with valid_list_def_tree v trees count l eL :=
         valid_list_def_tree v tl (count.+1) l eL
     end.
 
-Fixpoint partial_valid_def_tree (nb : nat) (v : ident) (t : def_tree int_or_awaits) (l : list nat) (eL : list (seq var * expr)) : Prop :=
+Fixpoint partial_valid_def_tree (nb : nat) (v : ident) (t : def_tree int_or_awaits) (l : list nat) (eL : list (seq bvar * expr)) : Prop :=
     match t with
     | DTBase (IoAA _) =>
         (forall pos l', list_rel_top eq l l' -> nb <= pos -> defined_in v l'  pos eL -> False)
@@ -118,7 +117,7 @@ with partial_valid_list_def_tree nb v trees count l eL :=
         partial_valid_list_def_tree nb v tl (count.+1) l eL
     end.
 
-Fixpoint partial_valid_def_tree' (nb nskip : nat) (v : ident) (t : def_tree int_or_awaits) (l : list nat) (eL : list (seq var * expr)) : Prop :=
+Fixpoint partial_valid_def_tree' (nb nskip : nat) (v : ident) (t : def_tree int_or_awaits) (l : list nat) (eL : list (seq bvar * expr)) : Prop :=
     match t with
     | DTBase (IoAA _) =>
         (forall l', list_rel_top eq l l' -> partial_defined_in nskip v l' nb eL -> False) /\
@@ -162,7 +161,7 @@ with sub_utrees : list_use_tree -> list_use_tree -> Prop :=
 Scheme sub_utree_find := Induction for sub_utree Sort Prop
 with sub_utrees_find := Induction for sub_utrees Sort Prop.
 
-Definition used_in (v : ident) (l : list nat) (p : nat) (eL : list (seq var * expr)) : Prop :=
+Definition used_in (v : ident) (l : list nat) (p : nat) (eL : list (seq bvar * expr)) : Prop :=
     exists vL e ind,
         nth_error eL p = Some (vL, e) /\
         list_rel is_specialization l ind /\
@@ -177,7 +176,7 @@ Definition partial_used_in (v : ident) (l : list nat) (eL : list expr) : Prop :=
             (Ensembles.In _ (expr_freefullvars e') (Index (Var v) ind) \/
             (Ensembles.In _ (expr_freefullvars e') (Var v) /\ ind = nil)).    
 
-Fixpoint valid_use_tree (v : ident) (t : use_tree) (l : list nat) (eL : list (seq var * expr)) : Prop :=
+Fixpoint valid_use_tree (v : ident) (t : use_tree) (l : list nat) (eL : list (seq bvar * expr)) : Prop :=
     match t with
     | UTBase posL typ => forall pos, List.In pos posL <-> used_in v l pos eL
     | UTRec posL trees =>
@@ -192,7 +191,7 @@ with valid_list_use_tree v trees count l eL :=
         valid_list_use_tree v tl (count.+1) l eL
     end.
 
-Fixpoint partial_valid_use_tree (nb : nat) (v : ident) (t : use_tree) (l : list nat) (eL : list (seq var * expr)) : Prop :=
+Fixpoint partial_valid_use_tree (nb : nat) (v : ident) (t : use_tree) (l : list nat) (eL : list (seq bvar * expr)) : Prop :=
     match t with
     | UTBase posL typ => forall pos l', List.In pos posL /\ l' = nil <-> (nb <= pos /\ used_in v (l ++ l') pos eL)
     | UTRec posL trees =>
@@ -207,7 +206,7 @@ with partial_valid_list_use_tree nb v trees count l eL :=
         partial_valid_list_use_tree nb v tl (count.+1) l eL
     end.
 
-Fixpoint partial_valid_use_tree' (nb : nat) (eL : list expr) (v : ident) (t : use_tree) (l : list nat) (eqns : list (seq var * expr)) : Prop :=
+Fixpoint partial_valid_use_tree' (nb : nat) (eL : list expr) (v : ident) (t : use_tree) (l : list nat) (eqns : list (seq bvar * expr)) : Prop :=
     match t with
     | UTBase posL typ =>
         forall pos l', List.In pos posL /\ l' = nil <->
@@ -379,37 +378,25 @@ Definition valid_var tctxt v :=
     | Var v => find_val tctxt v <> None
     end.
 
-Definition valid_var_dtree {A} deps v :=
-    match v with
-    | Index (Index _ _) _ => False
-    | Index (Var v) ind =>
-        match find_val deps v with
-        | Some t => @valid_dtree_access A t ind
-        | None => False
-        end
-    | Var v => find_val deps v <> None
+Definition valid_var_dtree {A} deps (v : bvar) :=
+    let (v, ind) := v in
+    match find_val deps v with
+    | Some t => @valid_dtree_access A t ind
+    | None => False
     end.
 
-Definition dtree_valid_access_if_var {A} v var (defs : def_tree A) :=
-    match var with
-    | Var v' => True
-    | Index (Var v') ind =>
-        if ident_beq v v'
-        then valid_dtree_access defs ind
-        else True
-    | _ => False
-    end.
+Definition dtree_valid_access_if_var {A} v (var : bvar) (defs : def_tree A) :=
+    let (v', ind) := var in
+    if ident_beq v v'
+    then valid_dtree_access defs ind
+    else True.
     
-Definition valid_var_dtree' {A} deps v :=
-    match v with
-    | Index (Index _ _) _ => False
-    | Index (Var v) ind =>
-        match find_val deps v with
-        | Some (Some t) => @valid_dtree_access A t ind
-        | Some None => True
-        | None => False
-        end
-    | Var v => find_val deps v <> None
+Definition valid_var_dtree' {A} deps (v : bvar) :=
+    let (v, ind) := v in
+    match find_val deps v with
+    | Some (Some t) => @valid_dtree_access A t ind
+    | Some None => True
+    | None => False
     end.
 
 Definition valid_var_utree deps v :=
@@ -504,13 +491,13 @@ Definition r_dutree eqns v (p : option (def_tree nat) * use_tree) :=
         | None =>
             valid_use_tree v uses nil eqns /\
             (forall i path, defined_in v path i eqns -> False) /\
-            Forall (fun p : list var * expr =>
+            Forall (fun p : list bvar * expr =>
                 forall var, Ensembles.In _ (expr_freefullvars p.2) var -> utree_valid_access_if_var v var uses) eqns
         | Some defs =>
             valid_def_tree v defs nil eqns /\ valid_use_tree v uses nil eqns /\
             (exists typ,
                 def_tree_of_type' defs typ /\ use_tree_of_type uses typ) /\
-            Forall (fun p : list var * expr => let (vars, expr) := p in
+            Forall (fun p : list bvar * expr => let (vars, expr) := p in
                 Forall (fun var => dtree_valid_access_if_var v var defs) vars /\
                 forall var, Ensembles.In _ (expr_freefullvars expr) var -> utree_valid_access_if_var v var uses) eqns
         end.
@@ -564,7 +551,7 @@ with utrees_used trees path pos eq_num :=
 (* Definition of topological sort *)
 
 
-Definition is_topological_sort (eqns : list (list var * expr)) (ord : list nat) : Prop :=
+Definition is_topological_sort (eqns : list (list bvar * expr)) (ord : list nat) : Prop :=
         length eqns = length ord /\
         forall v path_d path_u p_used p_def,
             list_rel_top eq path_u path_d ->

@@ -5,9 +5,9 @@ Function clean_in_deqs (vars : iset.t) (dL : list_deq) : iset.t * list_deq :=
     match dL with
     | Dcons (Eqn v e l) tl =>
         let (vars', tl) := clean_in_deqs vars tl in 
-        let bound_vars := collect_varl v in
+        let bound_vars := collect_bvarl v in
         if iset.exists_ (fun i => iset.mem i vars') bound_vars
-        then (iset.union vars' (iset.union (collect_varl v) (collect_expr e)), Dcons (Eqn v e l) tl)
+        then (iset.union vars' (iset.union (collect_bvarl v) (collect_expr e)), Dcons (Eqn v e l) tl)
         else (vars', tl)
     | Dcons (Loop i ae1 ae2 body opt) tl =>
         let (vars', tl') := clean_in_deqs vars tl in

@@ -90,16 +90,12 @@ with update_def_trees (pos : nat) (path_tl : list indexing) (eq_num : nat) (t : 
             Some (LDTcons _ hd tl')
     end.
 
-Fixpoint update_vars (vars : seq var) (pos : nat) (dependancies : list (ident * def_tree int_or_awaits)) :=
+Fixpoint update_vars (vars : seq bvar) (pos : nat) (dependancies : list (ident * def_tree int_or_awaits)) :=
     match vars with
     | nil => Some dependancies
-    | Var v::tl =>
-        dependancies' <- update_vars tl pos dependancies;
-        update_ctxt dependancies' v (update_def_tree nil pos)
-    | Index (Var v) ind::tl =>
+    | (v, ind)::tl =>
         dependancies' <- update_vars tl pos dependancies;
         update_ctxt dependancies' v (update_def_tree ind pos)
-    | _ => None
     end.
     
 (* use trees *)
@@ -212,7 +208,7 @@ with update_list_expr el pos dependancies :=
 
 (* unification of both types of trees *)
 
-Fixpoint build_definitions_inner (pos : nat) (tctxt : list (ident * typ)) (eqns : list (seq var * expr)) :=
+Fixpoint build_definitions_inner (pos : nat) (tctxt : list (ident * typ)) (eqns : list (seq bvar * expr)) :=
     match eqns with
     | nil => Some (map_ctxt (fun t => DTBase _ (IoAA t)) tctxt, map_ctxt (fun t => UTBase nil t) tctxt)
     | (vars, e)::tl =>
@@ -388,16 +384,12 @@ Fixpoint is_spec_b path ind :=
     end.
 
 
-Definition is_generalization (v : ident) (path : list nat) (var : var) : bool :=
-    match var with
-    | Var v' =>
-        ident_beq v v'
-    | Index (Var v') ind =>
+Definition is_generalization (v : ident) (path : list nat) (var : bvar) : bool :=
+    let (v', ind) := var in
         ident_beq v v' && is_spec_b path ind
-    | _ => false
-    end.
+.
 
-Fixpoint generalization_in (v : ident) (path : list nat) (vars : list var) : bool :=
+Fixpoint generalization_in (v : ident) (path : list nat) (vars : list bvar) : bool :=
     match vars with
     | nil => false
     | v' :: tl =>

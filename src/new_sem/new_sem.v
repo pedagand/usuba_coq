@@ -9,6 +9,9 @@ From Usuba Require Import utils ident usuba_AST usuba_ASTProp arch
     topological_sort
     def_tree_proofs use_tree_proofs build_rel_fun_proofs.
 
+Definition valid_bvar tctxt (bv : bvar) : Prop :=
+    valid_var tctxt (Index (Var bv.1) bv.2).
+
 Lemma build_definitions_inner_soundness:
     forall eqns tctxt eqns_hd defs uses,
         distinct (map fst tctxt) ->
@@ -16,11 +19,11 @@ Lemma build_definitions_inner_soundness:
         map fst tctxt = map fst defs /\
         map fst tctxt = map fst uses /\
         list_rel def_tree_of_type (map snd defs) (map snd tctxt) /\
-        Forall (fun p : list var * expr => let (vars, expr) := p in
+        Forall (fun p : list bvar * expr => let (vars, expr) := p in
             Forall (valid_var_dtree defs) vars /\
             forall v, Ensembles.In _ (expr_freefullvars expr) v -> valid_var_utree uses v) eqns /\
-        Forall (fun p : list var * expr => let (vars, expr) := p in
-            Forall (valid_var tctxt) vars /\
+        Forall (fun p : list bvar * expr => let (vars, expr) := p in
+            Forall (valid_bvar tctxt) vars /\
             forall v, Ensembles.In _ (expr_freefullvars expr) v -> valid_var tctxt v) eqns /\
         Forall (fun p : ident * def_tree int_or_awaits => let (v, t) := p in
             partial_valid_def_tree (length eqns_hd) v t nil (eqns_hd ++ eqns)) defs /\
@@ -133,14 +136,11 @@ Proof.
                 move=> var LIn; apply forall_vars in LIn.
                 move: eq1 LIn sub_dtree; clear.
                 unfold valid_var_dtree.
-                destruct var as [v|[v|] ind].
-                3: by move=> _ [].
-                all: move: defs''; induction defs' as [|[vdef def_hd] def_tl HRec].
+                destruct var as [v ind].
+                move: defs''; induction defs' as [|[vdef def_hd] def_tl HRec].
                 all: move=> [|[vdef' def_hd'] def_tl']; simpl.
                 all: move=> H; inversion H; trivial.
-                all: destruct ident_beq; simpl.
-                by intros; discriminate.
-                by move=> find_val lrel; inversion lrel; auto.
+                destruct ident_beq; simpl.
                 {
                     move=> valid lrel; inversion lrel.
                     apply (sub_dtree_keep_access _ _ _ valid); assumption.
@@ -174,17 +174,13 @@ Proof.
                 move=> var LIn; apply allValid1 in LIn.
                 move: LIn HEq1' type_soundness1'.
                 clear; move: tctxt.
-                unfold valid_var_dtree, valid_var.
-                destruct var as [v|[v|]ind].
-                3: move=> tctxt [].
-                all: induction defs'' as [|[k1 v1] t1 HRec]; simpl.
-                by move=> tctxt H; destruct (H Logic.eq_refl).
-                2: by move=> tctxt [].
-                all: move=> [|[k2 v2] t2] find_eq HEq; simpl in *.
+                unfold valid_var_dtree, valid_bvar, valid_var.
+                destruct var as [v ind].
+                induction defs'' as [|[k1 v1] t1 HRec]; simpl.
+                by move=> tctxt [].
+                move=> [|[k2 v2] t2] find_eq HEq; simpl in *.
                 all: move: find_eq; inversion HEq.
                 all: destruct ident_beq.
-                by discriminate.
-                by move=> find_eq lr; inversion lr; apply HRec; assumption.
                 {
                     move=> find_eq lr; inversion lr.
                     refine (valid_access_keep_dtree _ _ _ find_eq _); assumption.
@@ -239,10 +235,10 @@ Theorem build_definitions_soundness:
             | Some def => def_tree_of_type' def typ
             | None => True end) (map snd defs) (map snd tctxt) /\
         list_rel use_tree_of_type (map snd uses) (map snd tctxt) /\
-        Forall (fun p : list var * expr => let (vars, expr) := p in
-            Forall (valid_var tctxt) vars /\
+        Forall (fun p : list bvar * expr => let (vars, expr) := p in
+            Forall (valid_bvar tctxt) vars /\
             forall v, Ensembles.In _ (expr_freefullvars expr) v -> valid_var tctxt v) eqns /\
-        Forall (fun p : list var * expr => let (vars, expr) := p in
+        Forall (fun p : list bvar * expr => let (vars, expr) := p in
             Forall (valid_var_dtree' defs) vars /\
             forall v, Ensembles.In _ (expr_freefullvars expr) v -> valid_var_utree uses v) eqns /\
         Forall (fun p : ident * option (def_tree nat) => let (v, t) := p in match t with
@@ -279,15 +275,12 @@ Proof.
             move=> var LIn; apply in_vars in LIn; clear in_vars.
             move: same_trees FstEq LIn; clear.
             unfold valid_var_dtree, valid_var_dtree'.
-            destruct var as [v|[v|]].
-            3: by trivial.
-            all: move: defs''; induction defs' as [|[vdef def_hd] def_tl HRec].
+            destruct var as [v ind].
+            move: defs''; induction defs' as [|[vdef def_hd] def_tl HRec].
             all: move=> [|[vdef' def_hd'] def_tl']; simpl.
             all: move=> lr; inversion lr; trivial.
-            by move=> _ Abs _; apply Abs; reflexivity.
-            all: move=> HEq; inversion HEq; destruct ident_beq.
-            by discriminate.
-            1,3: by apply HRec; assumption.
+            move=> HEq; inversion HEq; destruct ident_beq.
+            2: by apply HRec; assumption.
             destruct def_hd'; trivial.
             apply keep_valid_acces_change_dtree; assumption.
         }
@@ -385,11 +378,9 @@ Proof.
                     split; [> idtac | assumption ].
                     rewrite Forall_forall in Forall_valid.
                     unfold defined_in in def.
-                    destruct def as [vL [e [ind [nth_eq [is_spec LInCases]]]]].
+                    destruct def as [vL [e [ind [nth_eq [is_spec LIn]]]]].
                     apply nth_error_In in nth_eq; apply Forall_valid in nth_eq.
                     clear Forall_valid; destruct nth_eq as [Forall_valid _].
-                    destruct LInCases as [LIn|[_ empty]].
-                    2: by rewrite empty in is_spec; inversion is_spec; destruct dtree; simpl; trivial.
                     rewrite Forall_forall in Forall_valid.
                     apply Forall_valid in LIn; clear Forall_valid.
                     simpl in LIn; rewrite ident_beq_refl in LIn.
@@ -436,8 +427,8 @@ Theorem build_definitions_soundness':
         build_definitions tctxt eqns = Some (defs, uses) ->
         map fst tctxt = map fst defs /\
         list_rel (r_dutree eqns) (map fst defs) (zip (map snd defs) (map snd uses)) /\
-        Forall (fun p : list var * expr => let (vars, expr) := p in
-            Forall (valid_var tctxt) vars /\
+        Forall (fun p : list bvar * expr => let (vars, expr) := p in
+            Forall (valid_bvar tctxt) vars /\
             forall v, Ensembles.In _ (expr_freefullvars expr) v -> valid_var tctxt v) eqns.
 Proof.
     move=> tctxt eqns defs uses is_map build_eq.
@@ -449,7 +440,7 @@ Proof.
         Forall (fun p : ident * option (def_tree nat) => let (vdef, dtree) := p in
             match dtree with
             | Some dtree =>
-                Forall (fun p : list var * expr =>
+                Forall (fun p : list bvar * expr =>
                     Forall (fun v => dtree_valid_access_if_var vdef v dtree) p.1) eqns
             | None => True end) defs) as valid_accesses_defs.
     {
@@ -463,14 +454,14 @@ Proof.
         pose (p := is_map_soundness _ _ _ LIn is_map).
         move=> x LIn_vars; apply all_vars in LIn_vars.
         unfold valid_var_dtree' in LIn_vars; unfold dtree_valid_access_if_var.
-        destruct x as [v|[v|]]; trivial.
+        destruct x as [v ind]; trivial.
         case_eq (ident_beq vdef v); trivial.
         rewrite ident_beq_eq; move=> Eq; destruct Eq.
         rewrite p in LIn_vars; assumption.
     }
     assert (
         Forall (fun p : ident * use_tree => let (vuse, utree) := p in
-            Forall (fun p : seq var * expr =>
+            Forall (fun p : seq bvar * expr =>
                 forall var : var,
                     In usuba_AST.var (expr_freefullvars p.2) var ->
                     utree_valid_access_if_var vuse var utree) eqns) uses) as valid_accesses_uses.
@@ -574,8 +565,8 @@ Lemma build_topological_sort_soundness:
     forall tctxt eqns ord,
         build_topological_sort tctxt eqns = Some ord ->
         is_topological_sort eqns ord /\
-        Forall (fun p : list var * expr => let (vars, expr) := p in
-            Forall (valid_var tctxt) vars /\ 
+        Forall (fun p : list bvar * expr => let (vars, expr) := p in
+            Forall (valid_bvar tctxt) vars /\ 
             forall v, Ensembles.In _ (expr_freefullvars expr) v -> valid_var tctxt v) eqns.
 Proof.
     unfold build_topological_sort.
@@ -628,17 +619,17 @@ Proof.
     {
         rewrite <-fst_eq.
         unfold defined_in in defined.
-        destruct defined as [vL [e [ind [nth_eq [_ LInCases]]]]].
+        destruct defined as [vL [e [ind [nth_eq [_ LIn]]]]].
         apply nth_error_In in nth_eq.
         rewrite Forall_forall in all_valid; apply all_valid in nth_eq.
         destruct nth_eq as [forall_vars _].
         rewrite Forall_forall in forall_vars.
-        destruct LInCases as [LIn|[LIn _]]; apply forall_vars in LIn; simpl in LIn.
-        all: case_eq (find_val tctxt v).
-        2,4: move=> Eq; rewrite Eq in LIn; [> destruct LIn | destruct (LIn Logic.eq_refl) ].
-        all: move=> t find_eq; rewrite find_eq in LIn.
-        all: apply find_val_In in find_eq.
-        all: apply (in_map fst _ _) in find_eq; simpl in find_eq; assumption.
+        apply forall_vars in LIn; unfold valid_bvar in LIn; simpl in LIn.
+        case_eq (find_val tctxt v).
+        2: by move=> Eq; rewrite Eq in LIn; destruct LIn.
+        move=> t find_eq; rewrite find_eq in LIn.
+        apply find_val_In in find_eq.
+        apply (in_map fst _ _) in find_eq; simpl in find_eq; assumption.
     }
     {
         move: top_eq; clear.
@@ -860,7 +851,7 @@ Definition gen_range' (olen : option (option nat)) : list nat :=
     | Some (Some len) => gen_range 0 (len - 1)
     end.
 
-Inductive acc_pred : list (ident * typ) -> list (list var * expr) -> expr -> Prop :=
+Inductive acc_pred : list (ident * typ) -> list (list bvar * expr) -> expr -> Prop :=
     | AccConst : forall tctxt eqns z otyp, acc_pred tctxt eqns (Const z otyp)
     | AccExpVar : forall tctxt eqns v, acc_var v nil nil tctxt eqns -> acc_pred tctxt eqns (ExpVar (Var v))
     | AccExpVarInd : forall tctxt eqns v ind, acc_var v nil ind tctxt eqns -> acc_pred tctxt eqns (ExpVar (Index (Var v) ind))
@@ -876,10 +867,10 @@ Inductive acc_pred : list (ident * typ) -> list (list var * expr) -> expr -> Pro
     | AccPack : forall tctxt eqns e1 e2 otyp, acc_pred tctxt eqns e1 -> acc_pred tctxt eqns e2 -> acc_pred tctxt eqns (Pack e1 e2 otyp)
     | AccFun : forall tctxt eqns v el, acc_pred_l tctxt eqns el -> acc_pred tctxt eqns (Fun v el)
     | AccFun_v : forall tctxt eqns v ae el, acc_pred_l tctxt eqns el -> acc_pred tctxt eqns (Fun_v v ae el)
-with acc_pred_l : list (ident * typ) -> list (list var * expr) -> expr_list -> Prop :=
+with acc_pred_l : list (ident * typ) -> list (list bvar * expr) -> expr_list -> Prop :=
     | AccEnil : forall tctxt eqns, acc_pred_l tctxt eqns Enil
     | AccECons : forall tctxt eqns e el, acc_pred tctxt eqns e -> acc_pred_l tctxt eqns el -> acc_pred_l tctxt eqns (ECons e el)
-with acc_find_var : ident -> list nat -> list (list var * expr) -> list (ident * typ) -> list (list var * expr) -> Prop :=
+with acc_find_var : ident -> list nat -> list (list bvar * expr) -> list (ident * typ) -> list (list bvar * expr) -> Prop :=
     | AccFindIn : forall v path_nat eqns tctxt eqns' vL e,
         acc_pred tctxt eqns e ->
         generalization_in v path_nat vL = true ->
@@ -890,7 +881,7 @@ with acc_find_var : ident -> list nat -> list (list var * expr) -> list (ident *
         acc_find_var v path_nat eqns' tctxt eqns ->
         generalization_in v path_nat vL = false ->
         acc_find_var v path_nat ((vL, e) :: eqns') tctxt eqns
-with acc_var : ident -> list nat -> list indexing -> list (ident * typ) -> list (list var * expr) -> Prop :=
+with acc_var : ident -> list nat -> list indexing -> list (ident * typ) -> list (list bvar * expr) -> Prop :=
     | AccVarFinished : forall v path_nat tctxt eqns,
         acc_find_var v path_nat eqns tctxt eqns ->
         acc_forall v path_nat nil tctxt eqns [seq Const_e (Z.of_nat i) | i <- gen_range' (omap (get_len_of_array path_nat) (find_val tctxt v))] ->
@@ -907,7 +898,7 @@ with acc_var : ident -> list nat -> list indexing -> list (ident * typ) -> list 
         acc_find_var v path_nat eqns tctxt eqns ->
         acc_forall v path_nat path_tl tctxt eqns aeL ->
         acc_var v path_nat (ISlice aeL::path_tl) tctxt eqns
-with acc_forall : ident -> list nat -> list indexing -> list (ident * typ) -> list (list var * expr) -> list arith_expr -> Prop :=
+with acc_forall : ident -> list nat -> list indexing -> list (ident * typ) -> list (list bvar * expr) -> list arith_expr -> Prop :=
     | AccForallNil : forall v path_nat path_tl tctxt eqns,
         acc_forall v path_nat path_tl tctxt eqns nil
     | AccForallCons : forall v path_nat path_tl tctxt eqns ae_hd ae_tl,
@@ -969,8 +960,7 @@ Proof.
             assert (forall path,
                 (exists ind, list_rel is_specialization path ind /\
                         list_rel_top eq path_in path /\
-                        (List.In (Index (Var v) ind) vars \/
-                        List.In (Var v) vars /\ ind = [::])) -> False) as defined'.
+                        List.In (v, ind) vars) -> False) as defined'.
             {
                 move=> path [ind [is_spec [eq_top LIn]]].
                 move: (defined 0 path); impl_tac; auto.
@@ -985,37 +975,25 @@ Proof.
             case_eq (is_generalization v path_in vhd).
             {
                 move=> is_gen; exfalso; clear HRec is_err.
-                destruct vhd as [v'|[v'|] ind]; simpl in *.
-                3: by discriminate is_gen.
-                {
-                    rewrite ident_beq_eq in is_gen; destruct is_gen.
-                    apply (defined' nil); eexists; split.
-                    by constructor.
-                    split.
-                    by constructor.
-                    by auto.
-                }
-                {
-                    move/andP in is_gen; unfold is_true in is_gen.
-                    rewrite ident_beq_eq in is_gen.
-                    destruct is_gen as [-> is_spec].
-                    rewrite is_spec_b_soundness in is_spec.
-                    move: defined'.
-                    inversion is_spec as [path_nat path_ind path_tl is_spec'].
-                    move=> H'; specialize H' with path_nat; apply H'; clear H'.
-                    exists ind.
-                    split; [> assumption | split; auto ].
-                    clear.
-                    induction path_nat; simpl; constructor; trivial.
-                }
+                destruct vhd as [v' ind]; simpl in *.
+                move/andP in is_gen; unfold is_true in is_gen.
+                rewrite ident_beq_eq in is_gen.
+                destruct is_gen as [-> is_spec].
+                rewrite is_spec_b_soundness in is_spec.
+                move: defined'.
+                inversion is_spec as [path_nat path_ind path_tl is_spec'].
+                move=> H'; specialize H' with path_nat; apply H'; clear H'.
+                exists ind.
+                split; [> assumption | split; auto ].
+                clear.
+                induction path_nat; simpl; constructor; trivial.
             }
             {
                 move=> _; apply HRec.
                 move=> path [ind [is_spec [top_eq HIn]]]; apply (defined' path).
                 exists ind; split; trivial.
                 split; trivial.
-                destruct HIn as [H|[H H']]; [> left | right; split; trivial ].
-                all: by constructor.
+                simpl; right; assumption.
             }
         }
     }
@@ -1030,63 +1008,32 @@ Lemma generalization_in_soudness:
         generalization_in v path_in vars = true <->
             exists ind,
                 is_specialization' path_in ind /\
-                (List.In (Index (Var v) ind) vars \/
-                List.In (Var v) vars /\ ind = nil).
+                (List.In (v, ind)) vars.
 Proof.
     move=> v path_in vars; induction vars as [|v_hd v_tl HRec]; simpl.
     {
-        by split; [> idtac | move=> [ind [_ [[]|[[] _]]]]].
+        split; [> discriminate | move=> [ind [_ []]]].
     }
     {
         unfold is_generalization.
-        destruct v_hd as [v'|[v'|v' ind'] ind].
+        destruct v_hd as [v' ind].
+        case_eq (ident_beq v v' && is_spec_b path_in ind).
+        all:move/andP.
         {
-            case_eq (ident_beq v v').
-            {
-                rewrite ident_beq_eq.
-                move=> ->; split; trivial; move=> _.
-                exists nil; split; auto.
-                by refine (AddPath nil _ _ _); constructor.
-            }
-            {
-                move=> Neg; rewrite HRec; clear HRec.
-                split; move=> [ind [is_spec LIn]]; exists ind; split; trivial.
-                by destruct LIn as [LIn|[LIn Eq]]; auto.
-                destruct LIn as [[Abs|LIn]|[[VarEq|LIn] empty]]; auto.
-                by inversion Abs.
-                rewrite <-not_true_iff_false in Neg.
-                exfalso; apply Neg; clear Neg.
-                inversion VarEq.
-                rewrite ident_beq_eq; reflexivity.
-            }
+            unfold is_true; rewrite ident_beq_eq.
+            move=> [HEq_v is_spec]; split; trivial; move=> _.
+            rewrite is_spec_b_soundness in is_spec.
+            destruct HEq_v; exists ind; split; auto.
         }
         {
-            case_eq (ident_beq v v' && is_spec_b path_in ind).
-            all:move/andP.
-            {
-                unfold is_true; rewrite ident_beq_eq.
-                move=> [HEq_v is_spec]; split; trivial; move=> _.
-                rewrite is_spec_b_soundness in is_spec.
-                destruct HEq_v; exists ind; split; auto.
-            }
-            {
-                move=> Neg; rewrite HRec; clear HRec.
-                split; move=> [ind' [is_spec LIn]]; exists ind'; split; trivial.
-                by destruct LIn as [LIn|[LIn Eq]]; auto.
-                destruct LIn as [[Abs|LIn]|[[VarEq|LIn] empty]]; auto.
-                2: by inversion VarEq.
-                exfalso; apply Neg.
-                inversion Abs; split.
-                by unfold is_true; rewrite ident_beq_eq.
-                unfold is_true; rewrite is_spec_b_soundness; auto.
-            }
-        }
-        {
-            rewrite HRec; clear HRec.
-            split; move=> [new_ind [is_spec LIn]]; exists new_ind; split; trivial.
-            by destruct LIn as [LIn|[LIn Eq]]; auto.
-            destruct LIn as [[Abs|LIn]|[[Abs|LIn] empty]]; auto.
-            all: by inversion Abs.
+            move=> Neg; rewrite HRec; clear HRec.
+            split; move=> [ind' [is_spec LIn]]; exists ind'; split; trivial.
+            by right; assumption.
+            destruct LIn as [Abs|LIn]; auto.
+            exfalso; apply Neg.
+            inversion Abs; split.
+            by unfold is_true; rewrite ident_beq_eq.
+            unfold is_true; rewrite is_spec_b_soundness; auto.
         }
     }
 Qed.
@@ -1182,8 +1129,8 @@ Lemma termination_proof_ind_lemma:
                 nth k (ord_hd ++ ord_tl) pos < k) ->
             acc_var v path_in path_tl tctxt (eqns_hd ++ eqns_tl)) ->
         is_topological_sort (eqns_hd ++ eqns_tl) (ord_hd ++ ord_tl) ->
-        Forall (fun p : seq var * expr => let (vars, expr) := p in
-            Forall (valid_var tctxt) vars /\
+        Forall (fun p : seq bvar * expr => let (vars, expr) := p in
+            Forall (valid_bvar tctxt) vars /\
             (forall v : var, In var (expr_freefullvars expr) v -> valid_var tctxt v)) (eqns_hd ++ eqns_tl) ->
         acc_find_var v path_in eqns_tl tctxt (eqns_hd ++ eqns_tl).
 Proof.
@@ -1778,8 +1725,8 @@ Qed.
 
 Lemma termination_lemma:
     forall k tctxt eqns ord, is_topological_sort eqns ord ->
-        Forall (fun p : list var * expr => let (vars, expr) := p in
-            Forall (valid_var tctxt) vars /\ 
+        Forall (fun p : list bvar * expr => let (vars, expr) := p in
+            Forall (valid_bvar tctxt) vars /\ 
             forall v, Ensembles.In _ (expr_freefullvars expr) v -> valid_var tctxt v) eqns ->
         forall v path_tl path_in,
             Forall valid_index path_tl ->
@@ -1835,8 +1782,7 @@ Proof.
                     assert (forall path,
                             list_rel_top eq path_in path ->
                                 (exists ind, list_rel is_specialization path ind /\
-                                    (List.In (Index (Var v) ind) vars \/
-                                    List.In (Var v) vars /\ ind = [::])) -> False) as defined'.
+                                    List.In (v, ind) vars) -> False) as defined'.
                     {
                         move=> path lrel_top [ind [is_spec LIn]].
                         move: (defined 0 nil path).
@@ -2726,7 +2672,7 @@ Definition acc_forall_inv_head {v path_in path_tl tctxt eqns ae_hd ae_tl} (H : a
         match eq_ind (_ :: _) (fun e => match e with _ :: _ => True | _ => False end) I _ HEq with end
     end Logic.eq_refl.
 
-Definition list_head_1 (el : list (list var * expr)) :=
+Definition list_head_1 (el : list (list bvar * expr)) :=
     match el with
     | (vL, _) :: _ => vL
     | nil => nil
@@ -2743,7 +2689,7 @@ Definition acc_find_var_inv_tl {v path vL e eqns_tl tctxt eqns} (acc : acc_find_
     | AccNotFind _ _ _ _ _ _ _ a _ => fun _ _ => a
     end Logic.eq_refl.
 
-Definition list_expr_hd (el : list (list var * expr)) :=
+Definition list_expr_hd (el : list (list bvar * expr)) :=
     match el with
     | (_, e) :: _ => e
     | nil => Const 0 None
@@ -2864,31 +2810,21 @@ Fixpoint build_value (typ : typ) (path_ind : list indexing) (path_nat : list nat
         end
     end.
 
-Fixpoint extract_val (vL : list var) (v : ident) (path : list nat) (tctxt : list (ident * typ)) (vals : list cst_or_int) : option cst_or_int :=
+Fixpoint extract_val (vL : list bvar) (v : ident) (path : list nat) (tctxt : list (ident * typ)) (vals : list cst_or_int) : option cst_or_int :=
     match vL with
     | nil => None
     | var :: vL =>
         if is_generalization v path var
         then
             typ <- find_val tctxt v;
-            path' <- match var with
-                | Var _ => Some nil
-                | Index (Var _) ind => Some ind
-                | _ => None
-            end;
-            build_value typ path' path vals
+            build_value typ var.2 path vals
         else
-            (v', path') <- match var with
-                | Var v' => Some (v', nil)
-                | Index (Var v') ind => Some (v', ind)
-                | _ => None
-            end;
+            let (v', path') := var in
             typ <- find_val tctxt v';
             (typ, len) <- get_typ typ path';
             vals <- skip_value typ len vals;
             extract_val vL v path tctxt vals
     end.
-
 
 (** We assert that `length values = prod_list dim` *)
 Fixpoint get_access (values : list Z) (acc : access) (dim : list nat) : option (list Z * list nat) :=
@@ -2923,7 +2859,7 @@ Fixpoint get_access (values : list Z) (acc : access) (dim : list nat) : option (
     end.
 
   
-Fixpoint eval_expr (arch : architecture) (eqns : list (list var * expr))
+Fixpoint eval_expr (arch : architecture) (eqns : list (list bvar * expr))
         (tctxt : list (ident * typ)) (args : list (ident * cst_or_int)) (e : expr)
         (a : acc_pred tctxt eqns e) {struct a} : option Value :=
     match e return acc_pred tctxt eqns e -> option (Value) with
@@ -2996,7 +2932,7 @@ Fixpoint eval_expr (arch : architecture) (eqns : list (list var * expr))
         vl <- eval_list_expr arch eqns tctxt args el (acc_pred_inv_Fun_v acc);
         None
     end a
-with eval_list_expr (arch : architecture) (eqns : list (list var * expr)) (tctxt : list (ident * typ))
+with eval_list_expr (arch : architecture) (eqns : list (list bvar * expr)) (tctxt : list (ident * typ))
         (args : list (ident * cst_or_int)) (el : expr_list) (a : acc_pred_l tctxt eqns el) {struct a}
             : option Value :=
     match el return acc_pred_l tctxt eqns el -> option Value with
@@ -3006,7 +2942,7 @@ with eval_list_expr (arch : architecture) (eqns : list (list var * expr)) (tctxt
         tl <- eval_list_expr arch eqns tctxt args tl (acc_pred_inv_tl acc);
         Some (linearize_list_value hd tl)
     end a
-with eval_list_expr' (arch : architecture) (eqns : list (list var * expr)) (tctxt : list (ident * typ))
+with eval_list_expr' (arch : architecture) (eqns : list (list bvar * expr)) (tctxt : list (ident * typ))
         (args : list (ident * cst_or_int)) (el : expr_list) (a : acc_pred_l tctxt eqns el) {struct a}
             : option (option (nat * list Z * list nat * dir)) :=
     match el return acc_pred_l tctxt eqns el -> option (option (nat * list Z * list nat * dir)) with
@@ -3028,7 +2964,7 @@ with eval_list_expr' (arch : architecture) (eqns : list (list var * expr)) (tctx
         | _ => None
         end
     end a
-with eval_var_find (eqns eqns': list (list var * expr)) (arch : architecture)
+with eval_var_find (eqns eqns': list (list bvar * expr)) (arch : architecture)
         (tctxt : list (ident * typ)) (args : list (ident * cst_or_int)) (v : ident)
         (path : list nat) (a : acc_find_var v path eqns' tctxt eqns) {struct a}
             : option (option cst_or_int) :=
@@ -3048,7 +2984,7 @@ with eval_var_find (eqns eqns': list (list var * expr)) (arch : architecture)
             eval_var_find eqns eqns_tl arch tctxt args v path (acc_find_var_inv_tl acc HEq)
         end Logic.eq_refl
     end a
-with eval_var (arch : architecture) (eqns : list (list var * expr)) (tctxt : list (ident * typ))
+with eval_var (arch : architecture) (eqns : list (list bvar * expr)) (tctxt : list (ident * typ))
         (args : list (ident * cst_or_int)) (v : ident) (path_in : list nat) (path_tl : list indexing)
         (a : acc_var v path_in path_tl tctxt eqns) {struct a} : option cst_or_int :=
     match eval_var_find eqns eqns arch tctxt args v path_in (acc_var_inv_find a) with
@@ -3114,7 +3050,7 @@ with eval_var (arch : architecture) (eqns : list (list var * expr)) (tctxt : lis
             Some (CoIR d v f)
         end
     end
-with eval_var_slice (arch : architecture) (eqns : list (list var * expr)) (tctxt : list (ident * typ))
+with eval_var_slice (arch : architecture) (eqns : list (list bvar * expr)) (tctxt : list (ident * typ))
     (args : list (ident * cst_or_int))
     (v : ident) (path_in : list nat) (path_tl : list indexing) (aeL : list arith_expr)
     (a : acc_forall v path_in path_tl tctxt eqns aeL)

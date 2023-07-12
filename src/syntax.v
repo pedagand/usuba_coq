@@ -17,10 +17,15 @@ Declare Scope Usuba_arith_expr.
 Delimit Scope Usuba_arith_expr with ua_aexpr.
 Declare Scope Usuba_var.
 Delimit Scope Usuba_var with ua_var.
+Declare Scope Usuba_bvar.
+Delimit Scope Usuba_bvar with ua_bvar.
 
 Coercion ExpVar : var >-> expr.
 Coercion Var_e : ident >-> arith_expr.
 Coercion Const_e : Z >-> arith_expr.
+
+Definition bvar_of_ident (v : string) : bvar := (Id_s v, nil).
+Coercion bvar_of_ident : string >-> bvar.
 
 Definition c x := Const x None.
 Coercion c : Z >-> expr.
@@ -60,10 +65,10 @@ Fixpoint push_array (t : typ) (l : nat) : typ :=
 
 Notation "t '[' e ']'" := (push_array (t)%ua_type e) (at level 61, left associativity) : Usuba_type.
 
-Notation " a '<|-' b" := (Eqn (a)%ua_var (b)%ua_expr false)
+Notation " a '<|-' b" := (Eqn (a)%ua_bvar (b)%ua_expr false)
     (at level 89, right associativity) : Usuba_eqn.
 
-Notation " a '<:-' b" := (Eqn (a)%ua_var (b)%ua_expr true)
+Notation " a '<:-' b" := (Eqn (a)%ua_bvar (b)%ua_expr true)
     (at level 89, right associativity) : Usuba_eqn.
 
 (* Notation "'(' a1 , .. , a2 ')' '<-' b" := (Eqn (cons (a1)%ua_var .. (cons (a2)%ua_var nil) ..) (b)%ua_expr false)
@@ -112,17 +117,17 @@ Definition u256 : typ := Uint (Varslice (Id_s "d")) (Mint 256).
 Definition u512 : typ := Uint (Varslice (Id_s "d")) (Mint 512).
 
 
-Definition input : string := "input".
-Definition output : string := "output".
-Definition out : string := "out".
-Definition i : string := "i".
-Definition o : string := "o".
-Definition key : string := "key".
-Definition plain : string := "plain".
-Definition cipher : string := "cipher".
-Definition tmp : string := "tmp".
-Definition f : string := "f".
-Definition round : string := "round".
+Definition input : ident := "input"%string.
+Definition output : ident := "output"%string.
+Definition out : ident := "out"%string.
+Definition i : ident := "i"%string.
+Definition o : ident := "o"%string.
+Definition key : ident := "key"%string.
+Definition plain : ident := "plain"%string.
+Definition cipher : ident := "cipher"%string.
+Definition tmp : ident := "tmp"%string.
+Definition f : ident := "f"%string.
+Definition round : ident := "round"%string.
 
 Definition test : string := "test".
 Definition a : string := "a".
@@ -132,7 +137,7 @@ Open Scope Z_scope.
 
 Definition node1 := node test args a : Nat returns b' : Nat vars nil 
     let 
-        ( b' [ 1 ])%ua_var :: nil <:- ExpVar (Var a)
+        (Id_s b', IInd 1 :: nil ) :: nil <:- ExpVar (Var a)
     tel.
 
 Definition x : ident := "x"%string.
@@ -142,5 +147,5 @@ Definition refresh : ident := "refresh"%string.
 
 Definition f_node := node f args (x : Uint Vslice (Mint 32)) returns (y: Uint Vslice (Mint 32)) vars nil
     let
-        Var y :: nil <:- ((x <<< 5) & Fun refresh (ECons x Enil)) xor (x <<< 1)
+        (y, nil) :: nil <:- ((x <<< 5) & Fun refresh (ECons x Enil)) xor (x <<< 1)
     tel.

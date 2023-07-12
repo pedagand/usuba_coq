@@ -18,10 +18,10 @@ Proof.
     {
         move=> vars x; specialize HRec with vars x.
         destruct (clean_in_deqs vars (list_deq_of_deqL tl)); simpl in *.
-        case (iset.exists_ (iset.mem^~ t) (collect_varl v)); simpl; trivial.
+        case (iset.exists_ (iset.mem^~ t) (collect_bvarl v)); simpl; trivial.
         do 2 rewrite iset.mem_spec; do 2 rewrite iset.mem_spec in HRec.
         do 2 rewrite iset.union_spec; rewrite collect_expr_soundness.
-        rewrite collect_varl_soundness.
+        rewrite collect_bvarl_soundness.
         rewrite HRec; clear HRec; split.
         + move=> [[]|[]]; auto; move=> H; right.
             + constructor; assumption.
@@ -109,12 +109,12 @@ Proof.
         pose (HRec := HRec' vars); move: HRec.
         destruct (clean_in_deqs vars (list_deq_of_deqL tl)) as [vars' tl']; simpl in *.
         clear HRec'.
-        case_eq (iset.exists_ (iset.mem^~ vars') (collect_varl v)); simpl.
+        case_eq (iset.exists_ (iset.mem^~ vars') (collect_bvarl v)); simpl.
         {
             move=> _ HRec _ NoErr HRel1 HRel2.
             rewrite <- (eval_expr_change_ctxt2 _ _ ctxt1 ctxt2 prog prog).
             + destruct (eval_expr arch prog ctxt1 expr) as [val|]; simpl; trivial.
-                assert (context_srel (Union ident (varl_freevars v)
+                assert (context_srel (Union ident (bvarl_freevars v)
                     (Union ident (deqs_vars tl') (fun i : ident => iset.mem i vars = true))) ctxt1 ctxt2) as HRel3.
                 {
                     move=> x HIn; destruct HIn as [|x []].
@@ -149,7 +149,7 @@ Proof.
             all: assert (iset.mem elt vars' = true) as Hfreevars' by (rewrite Hfreevars; auto).
             all: clear Hfreevars; unfold Complement; unfold In; move=> HIn'.
             all: apply NegExists; unfold iset.Exists; exists elt; split; trivial.
-            all: rewrite collect_varl_soundness; unfold In; assumption.
+            all: rewrite collect_bvarl_soundness; unfold In; assumption.
         }
     }
     {

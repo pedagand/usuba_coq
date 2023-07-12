@@ -9,7 +9,7 @@ Goal
         convert_type typ = Some (dir, 1::nil) ->
         find_val ctxt var = None ->
         eval_deq arch prog type_ctxt ctxt
-            (Eqn (Index (Var var) [:: IInd (Const_e 0%Z)] :: (Index (Var var) [:: IInd (Const_e 0%Z)]) :: nil) (Tuple (ECons (Const 1 None)
+            (Eqn ((var, [:: IInd (Const_e 0%Z)]) :: (var, [:: IInd (Const_e 0%Z)]) :: nil) (Tuple (ECons (Const 1 None)
                             (ECons (Const 2 None) Enil)))
                 false) = opt_ctxt'
         -> (ctxt' <- opt_ctxt'; find_val ctxt' var) = None.
@@ -36,7 +36,7 @@ Goal
         convert_type typ = Some (dir, 1::nil) ->
         (exists v, eval_var (Index (Var var) [:: IInd (Const_e 0)]) ctxt = Some v) ->
         eval_deq arch prog type_ctxt ctxt
-            (Eqn (Index (Var var) [:: IInd (Const_e 0%Z)] :: (Index (Var var) [:: IInd (Const_e 0%Z)]) :: nil) (Tuple (ECons (Const 1 None)
+            (Eqn ((var, [:: IInd (Const_e 0%Z)]) :: (var, [:: IInd (Const_e 0%Z)]) :: nil) (Tuple (ECons (Const 1 None)
                             (ECons (Const 2 None) Enil)))
                 true) = opt_ctxt'
         -> (ctxt' <- opt_ctxt'; find_val ctxt' var) = Some (CoIR dir (Some 2%Z::nil) (1::nil)).
@@ -100,7 +100,7 @@ Goal
         convert_type typ = Some (dir, 2::nil) ->
         find_val ctxt var = None ->
         eval_deq arch prog type_ctxt ctxt
-             (Eqn (Index (Var var) [:: IRange (Const_e 1) (Const_e 0)]::nil) (Tuple (ECons (Const 1 None)
+             (Eqn ((var, [:: IRange (Const_e 1) (Const_e 0)])::nil) (Tuple (ECons (Const 1 None)
                             (ECons (Const 2 None) Enil)))
                 false) = opt_ctxt'
         -> (ctxt' <- opt_ctxt'; find_val ctxt' var) = Some (CoIR dir (Some 2::Some 1::nil)%Z (2::nil)).
@@ -157,7 +157,7 @@ Goal
         (exists v, eval_var (Index (Var var) [:: IInd (Const_e 0)]) ctxt = Some v) ->
         (exists v, eval_var (Index (Var var) [:: IInd (Const_e 1)]) ctxt = Some v) ->
         eval_deq arch prog type_ctxt ctxt
-             (Eqn (Index (Var var) [:: IRange (Const_e 1) (Const_e 0)]::nil) (Tuple (ECons (Const 1 None)
+             (Eqn ((var, [:: IRange (Const_e 1) (Const_e 0)])::nil) (Tuple (ECons (Const 1 None)
                             (ECons (Const 2 None) Enil)))
                 true) = opt_ctxt'
         -> (ctxt' <- opt_ctxt'; find_val ctxt' var) = Some (CoIR dir (Some 2::Some 1::nil)%Z (2::nil)).

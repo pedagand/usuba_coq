@@ -61,12 +61,22 @@ Fixpoint var_freevars (v : var) : Ensemble ident :=
     | Index v i => Union ident (var_freevars v) (indexingl_freevars i)
     end.
 
+Definition bvar_freevars (v : bvar) : Ensemble ident :=
+    let (v, i) := v in 
+    Union ident (Singleton _ v) (indexingl_freevars i).
+
 Fixpoint varl_freevars vl :=
     match vl with
     | nil => Empty_set ident
     | v :: tl => Union ident (var_freevars v) (varl_freevars tl)
     end.
 
+Fixpoint bvarl_freevars vl :=
+    match vl with
+    | nil => Empty_set ident
+    | v :: tl => Union ident (bvar_freevars v) (bvarl_freevars tl)
+    end.
+    
 Fixpoint expr_freevars (e : expr) : Ensemble ident :=
     match e with
     | Const _ _ => Empty_set ident
@@ -87,9 +97,15 @@ with exprl_freevars el :=
     | ECons e el => Union ident (expr_freevars e) (exprl_freevars el)
     end.
 
+Fixpoint bvarl_vars (vl : seq bvar) : Ensemble ident :=
+    match vl with 
+    | nil => Empty_set _
+    | (v, _) :: tl => Union _ (Singleton _ v) (bvarl_vars tl)
+    end.
+
 Fixpoint deq_vars (d : deq) : Ensemble ident :=
     match d with 
-    | Eqn v e _ => Union ident (expr_freevars e) (varl_freevars v)
+    | Eqn v e _ => Union ident (expr_freevars e) (bvarl_freevars v)
     | Loop i ae1 ae2 eqns _ =>
         Union ident (Singleton ident i)
             (Union ident (aexpr_freevars ae1)
@@ -103,7 +119,7 @@ with deqs_vars (d : list_deq) : Ensemble ident :=
 
 Fixpoint deq_boundvars (d : deq) : Ensemble ident :=
     match d with 
-    | Eqn v e _ => (varl_freevars v)
+    | Eqn v e _ => (bvarl_freevars v)
     | Loop i _ _ eqns _ => Union ident (Singleton ident i) (deqs_boundvars eqns)
     end
 with deqs_boundvars (d : list_deq) : Ensemble ident :=

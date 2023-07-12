@@ -426,7 +426,7 @@ Fixpoint build_ctxt_aux (typ : typ) (input : list (@cst_or_int Z)) (l : list nat
         build_ctxt_aux typ input (l ++ [:: len])
     end.
 
-Fixpoint build_ctxt (args : p) (input : list (@cst_or_int Z)) : option (list (list var * expr)) :=
+Fixpoint build_ctxt (args : p) (input : list (@cst_or_int Z)) : option (list (list bvar * expr)) :=
     match args with
     | nil => match input with
         | nil => Some nil
@@ -435,7 +435,7 @@ Fixpoint build_ctxt (args : p) (input : list (@cst_or_int Z)) : option (list (li
     | var::tl =>
         (expr, input') <- build_ctxt_aux (VD_TYP var) input nil;
         ctxt <- build_ctxt tl input';
-        Some (([:: Var (VD_ID var)], expr)::ctxt)
+        Some (([:: (VD_ID var, nil)], expr)::ctxt)
     end.
 
 Fixpoint update_context {A} (f : value_tree -> A -> option (value_tree * A))
@@ -544,25 +544,20 @@ Fixpoint update_value_tree (path : seq indexing) (tree : value_tree)
     end
 .
 
-Fixpoint bind_equation (vars : seq var) (values : seq (@cst_or_int Z)) (ctxt : context) : option context :=
+Fixpoint bind_equation (vars : seq bvar) (values : seq (@cst_or_int Z)) (ctxt : context) : option context :=
     match vars with
     | nil =>
         match values with
         | nil => Some ctxt
         | _ :: _ => None
         end
-    | var :: tl =>
-        (ctxt', values') <- match var with
-            | Var v => update_context (update_value_tree nil) v ctxt values
-            | Index (Var v) ind =>
-                update_context (update_value_tree ind) v ctxt values
-            | Index (Index _ _ ) _ => None
-        end;
+    | (v, ind) :: tl =>
+        (ctxt', values') <- update_context (update_value_tree ind) v ctxt values;
         bind_equation tl values' ctxt'
     end
 .
 
-Fixpoint simplify_equations (arch : architecture) (prog : prog_ctxt) (ctxt : context) (eqns : list (list var * expr)) : option (context * list (list var * expr)) :=
+Fixpoint simplify_equations (arch : architecture) (prog : prog_ctxt) (ctxt : context) (eqns : list (list bvar * expr)) : option (context * list (list bvar * expr)) :=
     match eqns with
     | nil => Some (ctxt, eqns)
     | (vars, expr) :: tl =>
@@ -578,7 +573,7 @@ Fixpoint simplify_equations (arch : architecture) (prog : prog_ctxt) (ctxt : con
     end
 .
 
-Fixpoint simplify_equations_iters (arch : architecture) (prog : prog_ctxt) (fuel : nat) (ctxt : context) (eqns : list (list var * expr)) : option context :=
+Fixpoint simplify_equations_iters (arch : architecture) (prog : prog_ctxt) (fuel : nat) (ctxt : context) (eqns : list (list bvar * expr)) : option context :=
     match fuel with
     | 0 =>
         match eqns with
