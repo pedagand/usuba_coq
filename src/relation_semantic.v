@@ -106,6 +106,26 @@ Inductive eval_var (ctxt : list (ident * @cst_or_int Z)) : var -> @cst_or_int Z 
         eval_var ctxt (Index v ind) (CoIR d val2 form2)
 .
 
+Inductive eval_bvar_to (ctxt : list (ident * @cst_or_int Z))
+    : bvar -> cst_or_int -> Prop :=
+    | EBTCoIR : forall v ind dir form1 val1 form2 val2,
+        find_val v ctxt (CoIR dir val1 form1) ->
+        index_val ctxt form1 val1 ind form2 val2 ->
+        eval_bvar_to ctxt (v, ind) (CoIR dir val2 form2)
+    | EBTCoIL : forall v val,
+        find_val v ctxt (CoIL val) ->
+        eval_bvar_to ctxt (v, nil) (CoIL val)
+.
+
+Inductive eval_bvars_to (ctxt : list (ident * @cst_or_int Z))
+    : seq bvar -> seq (@cst_or_int Z) -> Prop :=
+    | EBsTnil : eval_bvars_to ctxt nil nil 
+    | EBsCons : forall hd tl v_hd v_tl,
+        eval_bvar_to ctxt hd v_hd ->
+        eval_bvars_to ctxt tl v_tl ->
+        eval_bvars_to ctxt (hd :: tl) (linearize_list_value [:: v_hd] v_tl)
+.
+
 Inductive eval_expr_to (arch : architecture)
     : prog -> list (ident * @cst_or_int Z) -> expr -> list (@cst_or_int Z) -> Prop :=
     | EETConstN1 : forall fprog ctxt n,
@@ -184,14 +204,11 @@ with eval_expr_list_to (arch : architecture)
         eval_expr_to arch fprog ctxt hd val_hd ->
         eval_expr_list_to arch fprog ctxt tl val_tl ->
         eval_expr_list_to arch fprog ctxt (ECons hd tl) (linearize_list_value val_hd val_tl)
-with eval_bvars_to (arch : architecture)
-    : prog -> list (ident * @cst_or_int Z) -> seq bvar -> list cst_or_int -> Prop :=
-    (* TODO *)
 with check_deq (arch : architecture)
     : prog -> list (ident * @cst_or_int Z) -> deq -> Prop :=
     | CDEqn : forall fprog ctxt (vars : seq bvar) e val,
         eval_expr_to arch fprog ctxt e val ->
-        eval_bvars_to arch fprog ctxt vars val ->
+        eval_bvars_to ctxt vars val ->
         check_deq arch fprog ctxt (Eqn vars e false)
     | CDLoop : forall fprog ctxt i start_e start_i end_e end_i deqs opt,
         eval_arith_expr ctxt start_e start_i ->
@@ -212,8 +229,8 @@ with eval_node_to (arch : architecture)
     : prog -> p -> p -> def_i -> option nat -> list (@cst_or_int Z) -> list (@cst_or_int Z) -> Prop :=
     | EVTSingle :
         forall fprog in_names temp_names out_names in_values out_values eqns ctxt,
-        eval_bvars_to arch fprog ctxt (map (fun v => (VD_ID v, nil)) in_names) in_values ->
-        eval_bvars_to arch fprog ctxt (map (fun v => (VD_ID v, nil)) out_names) out_values ->
+        eval_bvars_to ctxt (map (fun v => (VD_ID v, nil)) in_names) in_values ->
+        eval_bvars_to ctxt (map (fun v => (VD_ID v, nil)) out_names) out_values ->
         check_deq_list arch fprog ctxt eqns ->
         eval_node_to arch fprog in_names out_names (Single temp_names eqns) None in_values out_values
     | EVTMultiple :
