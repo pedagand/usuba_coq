@@ -3,7 +3,7 @@ Require Import ZArith.
 Require Import Coq.Sets.Ensembles.
 From mathcomp Require Import seq ssrnat.
 
-From Usuba Require Import ident usuba_AST arch semantic_base termination_funs.
+From Usuba Require Import ident usuba_AST arch semantic_base.
 
 Inductive value_tree : Type :=
     | VTBase : Sum Z typ -> value_tree
@@ -523,7 +523,7 @@ Fixpoint update_value_tree (path : seq indexing) (tree : value_tree)
         | VTBase (SumL _) => None
         | VTBase (SumR (Array typ len)) =>
             Some (gen_trees (VTBase (SumR typ)) len)
-        | VTBase (SumR typ) => None
+        | VTBase (SumR _typ) => None
         | VTRec trees => Some trees
         end;
         iL <- match ind with

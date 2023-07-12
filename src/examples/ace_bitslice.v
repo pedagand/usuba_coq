@@ -15,6 +15,12 @@ Definition B : string := "B".
 Definition C : string := "C".
 Definition D : string := "D".
 Definition E : string := "E".
+Definition A' : string := "A'".
+Definition B' : string := "B'".
+Definition C' : string := "C'".
+Definition D' : string := "D'".
+Definition E' : string := "E'".
+Definition E'' : string := "E''".
 Definition RC : string := "RC".
 Definition SC : string := "SC".
 
@@ -30,7 +36,7 @@ let
     round[0] :: nil <|- input;
 
     for i in 0 to 7 do
-      (Index round (IInd (Var_e i + 1)%ua_aexpr :: ISlice (Const_e 0 :: Const_e 1 :: nil) :: nil))%ua_var :: nil <|- [f @ [round[i][0]] xor round[i][1] xor 0xfffffffe xor ((rc >> i) & 1), round[i][0]]
+      (Index round (IInd (Var_e i + 1)%ua_aexpr :: ISlice (Const_e 0 :: Const_e 1 :: nil) :: nil))%ua_var :: nil <|- [f @ [(Index (Var round) (IInd i :: IInd 0 :: nil))] xor (Index (Var round) (IInd i :: IInd 1 :: nil)) xor 0xfffffffe xor ((rc >> i) & 1), (Index (Var round) (IInd i :: IInd 0 :: nil))]
       done;
 
     Var output :: nil <|- round[8]
@@ -38,15 +44,16 @@ tel.
 
 Definition node_ACE_step := node ACE_step args A:u32[2],B:u32[2],C:u32[2],D:u32[2],E:u32[2],RC:u32[3],SC:u32[3]
 returns Ar:u32[2],Br:u32[2],Cr:u32[2],Dr:u32[2],Er:u32[2]
-vars nil
+vars
+    (A':u32[2]) :: (B':u32[2]) :: (C':u32[2]) :: (D':u32[2]) :: (E':u32[2]) :: (E'':u32[2]) :: nil
 let
-    Var A :: nil <:- simeck_box @ [A,RC[0]];
-    Var C :: nil <:- simeck_box @ [C,RC[1]];
-    Var E :: nil <:- simeck_box @ [E,RC[2]];
-    Var B :: nil <:- B xor C xor [0,SC[0]] xor [0xffffffff,0xffffff00];
-    Var D :: nil <:- D xor E xor [0,SC[1]] xor [0xffffffff,0xffffff00];
-    Var E :: nil <:- E xor A xor [0,SC[2]] xor [0xffffffff,0xffffff00];
-    Var Ar :: Var Br :: Var Cr :: Var Dr :: Var Er :: nil <:- [D, C, A, E, B]
+    Var A' :: nil  <|- simeck_box @ [A,RC[0]];
+    Var C' :: nil  <|- simeck_box @ [C,RC[1]];
+    Var E' :: nil  <|- simeck_box @ [E,RC[2]];
+    Var B' :: nil  <|- B xor C' xor [0,SC[0]] xor [0xffffffff,0xffffff00];
+    Var D' :: nil  <|- D xor E' xor [0,SC[1]] xor [0xffffffff,0xffffff00];
+    Var E'' :: nil <|- E' xor A' xor [0,SC[2]] xor [0xffffffff,0xffffff00];
+    Var Ar :: Var Br :: Var Cr :: Var Dr :: Var Er :: nil <|- [D', C', A', E'', B']
 tel.
 
 
