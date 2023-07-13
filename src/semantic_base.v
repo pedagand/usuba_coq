@@ -734,7 +734,7 @@ Fixpoint loop_build (s_i e_i : nat) : list nat :=
         | S e_i' =>
             e_i::loop_build s_i e_i'
     end.
-    
+
 Fixpoint list_of_list_deq (ctxt : list (ident * nat)) (deqL : list_deq) : option (list (seq bvar * expr)) :=
     match deqL with
     | Dnil => Some nil

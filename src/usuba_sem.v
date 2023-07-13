@@ -226,8 +226,12 @@ Fixpoint update (form : list nat) (val : list (option Z)) (acc : access) (e : li
             val' <- split_into_segments form_hd (prod_list form_tl) val;
             match acc with
             | AAll =>
-                (l1, l2) <- build_ctxt_aux_take_n (length val) e dir;
-                Some (map Some l1, l2)
+                if can_bind val b
+                then
+                    (l1, l2) <- build_ctxt_aux_take_n (length val) e dir;
+                    Some (map Some l1, l2)
+                else
+                    None
             | AInd i acc_tl =>
                 subl <- nth_error val' i;
                 (subl', e') <- update form_tl subl acc_tl e dir b;
