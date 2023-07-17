@@ -130,8 +130,12 @@ Inductive expr :=
   | Shuffle : var -> seq nat -> expr
   | Bitmask : expr -> arith_expr -> expr
   | Pack : expr -> expr -> option typ -> expr
-  | Fun : ident -> expr_list -> expr
-  | Fun_v : ident -> arith_expr -> expr_list -> expr
+  | Fun : forall (f: ident)(i: option arith_expr)(functor: list mtyp)(transpose: list mtyp)(args: expr_list), expr
+  (** syntax: (%{transpose}x)?[%{f}(<%{i}>)?(x%{functor})?(%args)] *)
+  (** semantics: apply the %i^th function named %f to its arguments %args. 
+      %f is applied functorially on functor %functor (if empty: functor identity)
+      inputs are first transposed wrt. to functor %transpose (if empty: functor identity) *)
+
 with expr_list :=
   | Enil
   | ECons : expr -> expr_list -> expr_list.
@@ -154,8 +158,7 @@ Fixpoint expr_size (e : expr) : nat :=
     | Bitmask e ae => 1 + expr_size e + arith_expr_size ae
     | Pack e1 e2 None => 1 + expr_size e1 + expr_size e2
     | Pack e1 e2 (Some t) => 1 + expr_size e1 + expr_size e2 + typ_size t
-    | Fun id el => 1 + expr_list_size el
-    | Fun_v id e el => 1 + arith_expr_size e + expr_list_size el
+    | Fun id e el _ _ => 0 (* XXX: repair?  1 + match e with Some e => arith_expr_size e | _ =>  0 end + expr_list_size el*)
     end
 with expr_list_size (el : expr_list) : nat :=
     match el with
@@ -168,7 +171,22 @@ Inductive stmt_opt :=
 
 Inductive deq :=
     | Eqn : seq var -> expr -> bool -> deq
-    | Loop : ident -> arith_expr -> arith_expr -> list_deq -> seq stmt_opt -> deq
+    | Fby : forall (init: Z)(next: expr), deq
+    (** syntax: [%{init} fby %{next}] *)
+    (** semantics: at time 0, set to `init`; 
+                   at time `n+1`, set to `next`, which may depend (transitively) on itself at time `n` *)
+
+    (* XXX: this could be an expression but we would first need to
+    normalize it to a top-level equation (such as here) to give an
+    executable semantics. *)
+
+    | Warp : forall (i: ident)(ae1 ae2: arith_expr)(el: expr_list)(eqs: list_deq), deq
+    (** syntax: [warp over %{i} in [%{ae1}, %{ae2}] returns (%{el}) { %{eqs} }] *)
+    (** semantics: iterate `eqs` over time range [`ae1`, `ae2`] and return value of `el` during `ae2` *)
+    (** %i is bound in %eqs, as a static parameter *)
+
+    (** XXX: this ought to be an expression but this would yield tie the mutual recursion with [list_deq] *)
+
 with list_deq :=
     | Dnil
     | Dcons : deq -> list_deq -> list_deq.
@@ -179,8 +197,9 @@ with list_deq_find := Induction for list_deq Sort Prop.
 Fixpoint deq_size deq : nat :=
     match deq with
     | Eqn v e b => 1 + list_var_size v + expr_size e
+    | _ => 0 (* XXX: repair? 
     | Loop id ae1 ae2 dl stmt => 1 + arith_expr_size ae1 + arith_expr_size ae2 +
-        deq_list_size dl + length stmt
+        deq_list_size dl + length stmt *)
     end
 with deq_list_size dl := match dl with
     | Dnil => 0
