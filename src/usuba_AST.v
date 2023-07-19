@@ -171,8 +171,8 @@ Inductive stmt_opt :=
 
 Inductive deq :=
     | Eqn : seq var -> expr -> bool -> deq
-    | Fby : forall (init: Z)(next: expr), deq
-    (** syntax: [%{init} fby %{next}] *)
+    | Fby : forall (vs: seq var)(init: Z)(next: expr), deq
+    (** syntax: [%{vs} = %{init} fby %{next}] *)
     (** semantics: at time 0, set to `init`; 
                    at time `n+1`, set to `next`, which may depend (transitively) on itself at time `n` *)
 
@@ -180,8 +180,8 @@ Inductive deq :=
     normalize it to a top-level equation (such as here) to give an
     executable semantics. *)
 
-    | Warp : forall (i: ident)(ae1 ae2: arith_expr)(el: expr_list)(eqs: list_deq), deq
-    (** syntax: [warp over %{i} in [%{ae1}, %{ae2}] returns (%{el}) { %{eqs} }] *)
+    | Warp : forall (vs: seq var)(i: ident)(ae1 ae2: arith_expr)(el: expr_list)(eqs: list_deq), deq
+    (** syntax: [%{vs} = warp over %{i} in [%{ae1}, %{ae2}] returns (%{el}) { %{eqs} }] *)
     (** semantics: iterate `eqs` over time range [`ae1`, `ae2`] and return value of `el` during `ae2` *)
     (** %i is bound in %eqs, as a static parameter *)
 
