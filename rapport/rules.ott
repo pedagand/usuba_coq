@@ -400,7 +400,7 @@ P <- nodeDef |- f : forall </ dn // n /> , forall </ sm // m /> , A => </ typm /
 len </ zn // n/> = 1 lshift i1
 nodeDef = table f ( x : U d s [ i1 ] ) -> ( y : U d s [ i2 ] ) [ </ zn // n /> ]
 ------------------------------------------------------------------------------------------------------------- :: Table
-P <- nodeDef |- f : forall d , forall s, Logic (U d s) => U dir s [ i1 ] -> U dir s [ i2 ]
+P <- nodeDef |- f : forall d , forall s, Logic (U d s) => U d s [ i1 ] -> U d s [ i2 ]
 
 
 defn foreach i has [ a1 , a2 ] . G , P , A |-D </ deqn [ xn <- in ] // n /> :: :: TypeLDeq :: 'TDeq' by

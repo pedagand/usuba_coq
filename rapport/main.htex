@@ -329,6 +329,16 @@ et que pour les boucles toutes les sous déclarations sont bien typées.
   \label{fig:typ-deq}
 \end{figure}
 
+Le typage des nœuds contient deux règles présenté dans la figure \ref{fig:typ-node}. La règle de typage des nœuds d'équations indique que toutes les équations
+doivent être bien typées dans le contexte de toutes les variables.
+
+Le typage d'une table est plus subtil. En effet une table prend en entré $i1$ entiers de $s$ bits et les considère comme $b$ entiers de $n$ bits en transposants
+la matrice de leurs représentation binaire.
+Ces entiers permettent de faire $s$ accès dans la table qui contient $1 \ll i1$ entiers de $i2$ bits.
+On obtient alors $s$ entiers de $i2$ bits qui sont transposé en $i2$ entiers de $s$ bits.
+De plus la raison pour laquel on demande à ce que les opérations logiques soient définie sur les entiers est pour pouvoir remplacer ce nœud par une liste
+d'équation afin d'éviter les accès mémoires.
+
 \begin{figure}[h]
   \ottdefnTypeNode{}
   \caption{Typage d'un noeud}
