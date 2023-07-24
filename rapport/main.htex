@@ -16,12 +16,23 @@
 \usepackage[margin=2.5cm]{geometry}
 
 \newcommand{\Usuba}{\textsc{Usuba}}
+\newcommand{\doubleplus}{+\!\!\!+\;}
 
 \title{\Usuba}
 \author{Samuel \textsc{Vivien}}
 \date{Spring 2023}
 
 \include{rules}
+
+
+\newcommand{\ottdruleBinopBis}[1]{\ottdrule[#1]{%
+\ottpremise{\Gamma  \ottsym{,}  \ottnt{P}  \ottsym{,}  \ottnt{A}  \vdash_E  \ottnt{e_{{\mathrm{1}}}}  \ottsym{:}  \tau_1}%
+\ottpremise{\Gamma  \ottsym{,}  \ottnt{P}  \ottsym{,}  \ottnt{A}  \vdash_E  \ottnt{e_{{\mathrm{2}}}}  \ottsym{:}  \tau_2}%
+\ottpremise{\ottnt{A}  \vdash  \ottkw{ClassOf} \,  \ottnt{binop}  \, (\tau_1 \land \tau_2)}%
+}{
+\Gamma  \ottsym{,}  \ottnt{P}  \ottsym{,}  \ottnt{A}  \vdash_E   (\ottnt{e_{{\mathrm{1}}}} \, \ottkw{into} \, \tau_1 \land \tau_2)\;  \ottnt{binop} _{ \tau_1 \land \tau_2 } \;  (\ottnt{e_{{\mathrm{2}}}} \, \ottkw{into} \, \tau_1 \land \tau_2)   \ottsym{:}  \tau_1 \land \tau_2}{%
+{\ottdrulename{Binop}}{}%
+}}
 
 
 \begin{document}
@@ -141,6 +152,9 @@ une implémentation future d'un compilateur certifié.
 \section{Syntaxe et comportement actuel de \Usuba{}}
 
 Un programme en \Usuba{} est composé de plusieurs nœuds. Il en exists deux types : les nœuds d'équations et les tableaux comme indiqué dans la figure \ref{fig:syntax}.
+Ces nœuds correspondent à des fonctions du premier ordre. Les nœuds peuvent s'appeler les uns les autres mais seulement ceux qui ont été défini avant et les
+appels récursifs ne sont pas autorisé. En effet commes les conditionels ne sont pas autorisé, si l'on pouvais faire des appels récursif alors on aurais
+systématiquement une boucle infinie.
 
 Les tableaux permettent d'implémenter des S-BOX. Ces nœuds ne sont pas particulièrement intéressants et peuvent être considérés
 comme des boites noires dans la suite de ce rapport.
@@ -306,7 +320,7 @@ Ces règles peuvent sembler obscures cependant l'intuition derrière est relativ
 \end{itemize}
 
 Cependant ces règles de typage ne permettent pas de typer certaines opérations qui sont actuellement utilisé dans des codes \Usuba{}. Par exemple
-si l'on as $x$ de type $u32[2]$ alors $x + (x[0], x[1])$, n'est pas typable.
+si l'on as $x$ de type $\textbf{U V}\; 32[2]$ alors $x + (x[0], x[1])$, n'est pas typable.
 Pour palier à ce problèmes nous introduisonts dans le langage \Usuba{} deux nouvelles constructions : les constructeurs de tableaux et les coercions.
 Les constructeurs de tableau on pour but de pouvoir permettre de gérer de nombreux soucis en permettant de créer des tableau plutôt que des objets
 avec un type abstrait et fluctuant comme les tuples dans l'implémentation actuelle.
@@ -355,212 +369,318 @@ il faut implémenter la dite sémantique dans un assistant de preuve.
 L'assistant de preuve choisi pour cette formalisation est Coq en raison de sa compatibilité avec \textsc{OCaml} car le compilateur
 existant est écrit dans ce langage.
 
-Afin de pouvoir comparer différentes techniques 4 sémantique différentes ont été implémenté.
-Nous allons donc désormais discuter des avantages et inconvénients des différentes sémantiques.
+Parmi ces sémantiques, il y as 3 sémantiques qui calculent un résultat et une quatrième qui est une relation et qui vit dans \texttt{Prop}.
+
+Les différences entre ces sémantiques se situent au niveau de leur définition et de leur gestion du contexte et les discussions dans les paragraphes qui
+vont suivre se consentrerons dessus. Cependant ces sémantiques définissent aussi le comportement du reste des constructions qui existent en \Usuba{} nous parlerons
+donc d'abord de ces points communs.
+
+\subsection{Points communs des sémantiques}
+
+Tout d'abord toutes les sémantiques ont une même notion de valeur qui est un type somme entre juste un entier (pour quand on ne connaît pas le type du dit entier)
+et un tableau multidimensionnel qui est défini comme un triplet direction, entiers stockés dedans et liste des dimensions.
+Ces valeurs correspondent à un élément de type $\tau$. Une liste de telles valeurs correspond à un élément de type $\mathcal{T}$.
+De plus pour les 3 sémantiques qui calcul les erreurs sont représentés par un type option où \texttt{None} correspond à une erreur.
+
+Le second point commun entre les 3 sémantiques qui calculent est la gestion de la sémantique des nœuds.
+En effet, la sémantique d'un nœud est défini comme une fonction d'une liste de valeurs dans une option de liste de valeurs.
+On peut alors passer à la fonction d'évaluation du corp d'un nœud une liste de la sémantique de tous les nœuds défini précédemment
+sans créer de récursivité mutuelle entre les différentes fonctions de définition de la sémantique.
+
 
 \subsection{Sémantique par évaluation}
 \label{sec:evalsem}
 
 La première sémantique implémenté pour \Usuba{} est une sémantique par évalutation.
 
-La sémantique d'une expression est donc définie de façon intuive par une fonction qui prend en argument un contexte et un arbre
-de syntaxe et qui retourne potentiellement une valeur car les erreurs sont représentés par \texttt{None}.
+Cette sémantique est définie de façon intuitive à partir de son nom, on évalue tout dans l'ordre. Pour cela la sémantique
+d'une expression est donc définie à partir d'une fonction qui à partir d'une expression prend un contexte et renvoie une option de liste de valeurs.
+Pour cette sémantique, un contexte est définie pour une structure (en l'occurence une liste de paire) qui associe à certains identifiants une
+valeur incomplète. Où une valeur incomplète est une valeur où l'on as remplacé la liste des éléments d'un tableau par une liste d'option pour pouvoir
+désigner les éléments par encore défini.
 
-À partir de cela la sémantique d'une équation est définie par une fonction qui prend en entré un contexte et une équation
-représentés par une paire composé d'une liste de variables et d'une expression.
+En effet dans le système $\{v[0] = 1; v[1] = v[0] \}$ avec $v$ de type $\textbf{U V }32[2]$. Alors entre les deux équations, seulement un des éléments du tableau est
+défini. On représente donc ça par un contexte qui à $v$ associe $\texttt{InR} (\textbf{V} ,\; [\texttt{Some}\; 1, \texttt{None}],\; [1])$.
+
+À partir de cela on définie la sémantique d'une équation est définie par une fonction qui prend en entré un contexte et qui en renvoie un nouveau
+si la sémantique aucune erreur ne se produit.
 Cette fonction évalue l'expression puis utilise cette valeur et la liste de variables pour modifier le contexte.
 La sémantique d'une liste de d'équation est quand à elle définie par un itération de la sémantique d'une équation.
 
 Cette sémantique est celle la plus proche de l'implémentation actuelle de \Usuba{} car c'est la seule des 4
-qui accepte de définir une même variable plusieurs fois.
-En effet chaque équation spécifie s'il s'agit de la création d'une variable ou de sa modification.
+qui accepte de définir une même variable plusieurs fois. En effet une équation sans modification $=$ n'accepte de
+remplacer que des \texttt{None} par des valeurs dans le contexte alors que qu'en équation avec modification $:=$ n'accepte
+que de remplacer que des \texttt{Some}.
 
-De plus cette sémantique permet de définir facilement une équivalence de programme en indiquant que deux expressions sont
-équivalentes si pour tous contextes elles s'évaluent en les mêmes valeurs.
+Mais cela à pour conséquence que le comportement d'un nœud dépend de l'ordre dans lequel sont écrites les équations.
+En effet si l'ordre déclarations n'influençais pas la sémantique, alors il ne serais pas possible d'avoir des constructions
+impératives tel que les déclarations $:=$.
+Les autres sémantiques ont été définie pour ne pas dépendre de l'ordre des équations afin de plus ressembler à un modèle équationel.
+Cependant elles ne supportent donc plus la possibilité d'écrire des équations avec modification.
 
-Cependant dans cette sémantique, le comportement d'un nœud dépend de l'ordre dans lequel sont écrites les équations.
-Les autres sémantiques ont donc été définie pour ne pas dépendre de l'ordre des équations.
+Pour ce qui est d'utiliser ette sémantique pour de la preuve de programme, il est facile de définir une équivalence de programme
+en indiquant que deux expressions sont équivalentes si pour tous contextes elles s'évaluent en les mêmes valeurs.
+Et de la même façon on peut définir les équivalences d'équations, de déclaration et de nœuds.
+Cette sémantique possède donc l'avantage d'avoir un ordre d'évaluation clair et indiqué par la syntaxe ce qui permet de faire plus facilement
+des preuves de préservation de la sémantique pour les différentes étapes de la compilation.
+
+
+Désormais nous allons présenter 3 autres sémantiques qui ont été défini dans le but de pouvoir interpréter des programmes sans dépendre de l'ordre
+dans lequel les équations des nœuds sont écrites.
+On considère donc désormais que toutes les équations sont des équations sans modification car les redéfinitions sont incompatibles avec une sémantique purement équationelle.
 
 \subsection{Sémantique relationelle}
 \label{sec:relsem}
 
-Afin de palier les limites montré précédemment une nouvelle sémantique as été définie.
-Cependant celle ci est relationelle, ce qui lui permet de représentés seulement les évaluations qui réussissent.
+La première des ces 3 sémantiques est définie à partir de relations.
+Celle ci permet d'indiqué qu'une expression met en relation un contexte et une valeur si l'évaluation réussi. Cela permet de représenter de façon
+encore plus concise les erreurs car si l'évaluation d'une expression dans un certain contexte plante, alors l'expression ne met le contexte en relation
+avec aucune valeur.
 
-Pour la sémantique par évaluation \texttt{e} s'évalue en \texttt{val} était représenté par
-
-\[
-  \texttt{eval\_expr ctxt e = Some val}
-\]
-
-pour la nouvelle sémantique relationelle on représente ça par une simple relation
-
-\[
-  \texttt{e $\mapsto_{ctxt}$ val}  
-\]
-
-De plus les erreurs sont représenté par une absence de relation, on n'as donc plus besoin d'avoir une valeur spécifique
-pour les représentés.
 
 La spécificité de cette sémantique se situe au niveau de la gestion du contexte. La sémantique d'une équation est
-définie par vérifier dans le contexte donné la liste de variables à gauche de l'équation et l'expression à droite de l'équation
-s'évaluent bien en la même valeur. Le contexte quand à lui est définie au niveau de la sémantique globale d'un nœud :
+la vérification dans le contexte donné la liste de variables à gauche de l'équation et l'expression à droite de l'équation
+s'évaluent bien en des valeurs compatibles. Le contexte quand à lui est définie au niveau de la sémantique globale d'un nœud d'équations.
 
 \begin{align*}
   \forall \; names_{in} & \; values_{in} \; names_{out} \; values_{out}, \; \exists ! \; ctxt, \\
     & valid\_equations_{ctxt} \; eqns \rightarrow \\
     & names_{in} \mapsto_{ctxt} values_{in} \rightarrow \\
+    & \text{map fst} \; ctxt = names_{in} \doubleplus names_{out} \doubleplus temps \rightarrow \\
     & names_{out} \mapsto_{ctxt} values_{out} \rightarrow \\
-    & (names_{in} \rightarrow_{eqns} names_{out}) \; values_{in} \mapsto values_{out}
+    & values_{in} \mapsto_{\textbf{node } f ( names_{in} ) \rightarrow ( names_{out} ) \; \textbf{vars}\; temps \; \textbf{let} \; eqns \; \textbf{tel}} values_{out}
 \end{align*}
 
-Cette sémantique possède plusieurs caractéristiques notables :
+Cependant cette formule est relativement arbitraire car elle il existe plusieurs variante qui sont intéressantes de considérer. En effet l'unicité de
+l'existance du contexte n'est pas forcément une nécessité. Par exemple pour si on prend le système $\{y = 0 * x\}$ où $x$ est une variable temporaire
+et $y$ une variable renvoyé. Alors la valeur de $y$ est indépendante de la valeur de $x$.
+Il peut donc être décidé lors du choix de la sémantique que l'unicité de la valeur de $x$ est inutile et que seulement l'unicité de la valeur renvoyé est nécessaire.
+Cependant stocker une preuve de l'unicité directement dans la sémantique nécessite que les différentes passes de réécriture de code dans le compilateur doivent
+prouver la préservation de l'unicité. Ce qui peut être difficile dans le cas modification de l'ensemble des variables.
+Pour ressoudre ce problème, une autre possibilité serais de ne pas demander la moindre unicité directement dans la sémantique, mais seulement avoir le typeur
+qui prouve l'unicité et les différentes passes prouvent seulement la préservation de l'ensemble des résultats possibles.
+
+En dehors du point aborder ci-dessus, cette sémantique possèdes plusieurs autres choses qu'il est important de remarquer :
 \begin{itemize}
-\item Elle est indépendante de l'ordre des équations, cela découle de la communativité du et logique.
+\item Elle est indépendante de l'ordre des équations, cela découle de la communativité et l'associativité du “et” logique.
 \item Elle ne garantie pas l'unicité des définitions contrairements aux précédentes, seulement la cohérence de
-ces définitions pour un contexte donné.
+ces définitions pour un contexte donné. Par exemple le système $\{y = x; y = x\}$ est parfaitement valide pour cette sémantique.
+De plus le système $\{x = 0 \times x\}$ l'est aussi.
+\item Elle ne calcule pas.
 \end{itemize}
 
-Cependant cette sémantique possède un très grosse limitation qui complique sont utilisation dans un compilateur certifié.
-Pour pouvoir garantir la correction du typage on voudrait prouver que si le typeur accepte un programme, alors pour toute entré
-le programme renvoie une valeur de sortie. Cependant cela nécessite d'être capable pour toute entrée d'exhiber un contexte
-qui vérifie les bonnes hypothèses. On aurais donc besoin de définir une autre sémantique par dessus afin de pouvoir prouver
-la correction du typage.
-
+Le trosième point est le plus problématique.
+En effet cette sémantique ne calcule pas de contexte valide mais toute preuve qu'un programme est valide doit contenir tous les contextes de tous les nœuds.
+Pour cela, si l'on veux utiliser cette sémantique pour construire un compilateur certifié, alors si le typeur as pour but de garantir que l'évaluation d'un nœud
+ne plante pas il faut que la preuve de correction de celui ci calcule un contexte valide.
+Il faudrait donc définir une autre sémantique en plus de celle ci pour pouvoir prouver la correction d'un typeur.
 Cependant l'aspect relationelle de cette sémantique rend probablement plus facile les preuves de correction des autres passes d'un compilateur.
 
 \subsection{Sémantique par tri topologique}
+\label{sec:toposem}
 
-La sémantique par tri topologique est de loin la plus compliqué des 4 sémantiques.
+La sémantique par tri topologique est de loin la plus compliqué des 4 sémantiques présentés ici car elle fait appel as de nombreuses notion et preuves
+afin de pouvoir être définie.
 
-L'idée de cette sémantique peut être vue comme de l'appel par nom.
-Supossons que nous avons un nœud qui retourne \texttt{x}, on va donc chercher dans quel equation est définie \texttt{x}.
+Ces sémantique est une sémantique par appel par nom. En effet, plutôt que tout calculer jusqu'au résultat, l'évaluation regarde quel est le résultat
+voulu avant de remonter dans les dépendances pour les évaluer.
+Par exemple, si nous avons un nœud qui retourne \texttt{x}, on va donc chercher dans quel equation est définie \texttt{x}.
 Puis l'on évalue l'expression associé afin d'obtenir la valeur de \texttt{x}, mais cela nécessite potentiellement de connaître la valeur de \texttt{y}.
 On continue donc récursivement en calculant la valeur de \texttt{y} et ainsi de suite.
 
-Cependant une telle évaluation n'est pas garantie de terminer et toute fonction définie dans la logique de Coq doit posséder une preuve de terminaison.
-En effet perdre cette garantie permet de prouver faux.
+Cependant une telle évaluation n'est pas garantie de terminer. En effet, l'évaluation de $x$ dans le système $\{x = y; y = x\}$ ne termine pas.
+Or, toute fonction définie dans la logique de Coq doit posséder une preuve de terminaison.
+Cette nécessité est un pré-requis pour la cohérence car si il est possible de définir une fonction divergente alors il est possible d'exhiber une preuve de faux.
 
-Il existe donc une méthode pour prouver la terminaison d'une fonction : rajouter un argument strictement décroissant.
-La méthode simple est de fournir un carburant (ie : un entier naturel qui diminue à chaque appel récursif).
-Cependant cette techniques possèdes plusieurs limitation :
+Cependant, convaincre Coq que  des fonctions mutuellements récursives terminent toujours est ardu à moins d'avoir un argument strictement décroissant.
+Pour cela la méthode la plus courante pour prouver la terminaison est de rajouter un nouvel argument strictement décroissant.
+
+Parmi les différentes possibilités d'arguments à rajouter, le plus courant est de rajouter un entier (que l'on nomme couramment “carburant”) qui décroit strictement
+à chaque appel récursif. Cependant cette technique possède plusieurs limitation :
 \begin{itemize}
 \item Cela modifie le code extrait.
 \item Il est difficile de garantir que l'on as mis suffisament de carburant pour n'en manquer que dans les boucles infinies.
 \end{itemize}
 
-Pour éviter ces soucis il existe une autre possibilité : fournir un prédicat d'accessibilité.
-Cela permet d'éviter de gérer les cas où l'on manque de carburant car cela n'arrive jamais.
-De plus le code extrait ne contient pas ce prédicat car les termes dans \texttt{Prop} ne sont pas extraits.
+De plus dans le cas d'un compilateur, quand on réécrit un morceau de code, on risque de changer la quantité de carburant nécessaire pour évaluer une expression.
+Il faut donc réussir à garantir que cette modification est aussi accompagné d'une modification du carburant fourni afin de s'assurer que l'on ne change
+pas un code qui est interprété comme divergeant en un autre qui ne diverge pas ou inversement.
+
+Pour éviter ces soucis il existe une autre possibilité : fournir un prédicat d'accessibilité. Il s'agit d'un terme dont le type
+dépend des arguments de notre fonction dont on veux prouver la terminaison et dont les sous-termes correspondent aux appels récursifs de la fonction.
+Cela permet d'éviter de ne jamais manquer de carburant si le GADT qui sert de prédicat d'accessibilité est bien défini.
+Utiliser un prédicat possède l'énorme intérêt que si le GADT utilisé pour définir le prédicat d'accessibilité est une proposition,
+alors le code extrait ne contient pas ce la prédicat d'accessibilité. On obtient donc un code OCaml plus propre et plus efficace.
 Cependant cette technique possède aussi ses limites car il faut être capable de prouver l'existance d'un prédicat d'accessibilité.
-Il faut donc que lors de l'évaluation d'un nœud une telle sémantique vérifie si l'évaluation va terminer.
-Puis, seulement la vérification a accepté, évaluer le corps du nœud.
+Or, pour prouver l'existance d'un tel précidat il faut que notre fonction termine bien sur les arguments fournis.
+Afin de résourdre ce problème l'évaluation d'un nœud commence donc par vérifier si l'évaluation va terminer ou non.
+Puis, si le vérificateur de terminaison accepte le système de déclaration, le système de déclaration est utilisé pour évaluer les valeurs de renvoie.
 
-Il faut aussi prouver la correction de la vérification afin de pouvoir obtenir un prédicat d'accessibilité si le vérificateur de terminaison accepte le nœud.
-
-Pour cela nous avons définie et certifié un tri topologique sur une liste d'équation.
-L'idée étant que si nous avons deux équations tel que l'une définie une variable \texttt{x} qui est utilisé par la seconde. Alors la seconde équation dépend de la première.
-À partir de là nous sommes avons définie un graphe de dépendance sur les équations, on peut donc effecter un tri topologique sur ce graphe afin de vérifier qu'il s'agit bien d'un graphe acyclique.
-
-En réalité la définition du graphe est plus compliqué que ci-dessus car \Usuba{} contient des tableaux. Une définition plus exacte de ce graphe est fournis dans la section \ref{sec:topo}. 
+Afin de pouvoir tester si l'évaluation va terminer ou non, on commence par réécrire notre système de déclaration en une liste d'équations.
+Puis un tri topologique est effectué sur ces équations pour obtenir la garanti qu'il n'existe pas de cycles.
+Ce tri est effectué sur le graphe orienté obtenue en regardant si une équation dépend du calcul d'une autre.
+L'idée étant que si nous avons deux équations tel que l'une définie une variable \texttt{x} qui est utilisé par la seconde.
+Alors la seconde équation dépend de la première. En raison de l'existance des tableaux en \Usuba{} et la possibilité de les définir
+en plusieurs fois, une équation peut dépendre d'une variable $x$ sans pour autant que l'on ai $x$ qui apparaîsse dans l'équation.
+Une définition plus en détail de la relation de dépendance est fourni dans la section \ref{sec:topo}.
 
 Cette sémantique possède deux grosses limitations : 
 \begin{itemize}
 \item La sémantique est particulièrement lourde à définir car afin de prouver l'existance d'un prédicat d'accessibilité il faut être capable de calculer
-le graphe (et prouver des propriétés dessus) puis prouver que si on a un tri topologique alors on as un prédicat d'accessibilité ce qui a nécessité plus de 5k lignes de Coq.
-\item Toute modification sur le programme oblige de pouvoir garantir que la vérificateur de terminaison continue as accepter la programme fourni.
+le graphe (et prouver des propriétés dessus) puis prouver que si on a un tri topologique alors on as un prédicat d'accessibilité ce qui a nécessité plus
+de 5k lignes de Coq.
+\item De plus, toute modification sur le programme oblige de pouvoir garantir que la vérificateur de terminaison continue as accepter la programme fourni.
 \end{itemize}
 
-Cette sémantique est donc peut utilisable en partique dans un compilateur et raison de sa difficulté à supporter des réécritures.
-Cependant les outils implémenté lors de sa mise en place sont très intéressants intellectuellement et sont nécessaire pour prouver la terminaison
-de toute évaluation indépendante de l'ordre. Le dernier point est important car c'est une étape nécessaire d'un typeur si l'on veux qu'il puisse garantir qu'un
-programme ne s'évalue pas en une erreur.
+Le second problèmes rend donc cette sémantique difficilement utilisable pour prouver la correction d'un compilateur.
+Cependant les outils implémentés lors de son implémentation peuvent être très utile pour un compilateur.
+Plus particulièrement, le vérificateur de terminaison est probablement une étape nécessaire dans un typeur pour une sémantique
+où l'évaluation de dépend pas de l'ordre des équations.
+Car pour pouvoir garantir que l'évaluation ne génère pas d'erreur il faut garantir qu'il n'est pas possible d'avoir une erreur de divergence.
 
 \subsection{Sémantique par point fixe}
+\label{sec:fixesem}
 
-Cette dernière sémantique est sensé être plus légère que la précédente tout en étant une sémantique qui calcule et indépendante de l'ordre d'évaluation.
+Cette dernière sémantique est sensé être plus légère que la précédente tout en étant encore une sémantique qui calcule
+et qui est indépendante de l'ordre d'évaluation.
 
 L'idée derrière celle ci est que chaque équation peut être évalué exactement une fois mais l'on ne connais pas encore l'ordre dans lequel il faut le faire.
-On parcours donc la liste des équations en essayant de les évaluer. Pour chaque équation on a deux cas :
+Pour cela, la fonction d'évaluation parcours la liste des équations en essayant de les évaluer. Pour chaque équation on a deux possibilités :
 \begin{enumerate}
-\item On réussi à évaluer l'expression de cette équation, on modifie donc le contexte et on peut oublié l'équation.
-\item On ne réussi pas à évaluer l'expression, on garde donc l'équation pour plus tard.
+\item Soit on réussi à évaluer l'expression de cette équation, on modifie alors le contexte et on peut oublier l'équation.
+\item Soit on ne réussi pas à évaluer l'expression, on garde donc l'équation pour plus tard.
 \end{enumerate}
 
 Une fois que l'on as parcourus toutes les équations plusieurs cas de figure peuvent avoir lieux :
 \begin{enumerate}
-\item Il reste plus aucune équation : on a donc fini et on peut renvoyé le contexte calculé.
-\item Le nombre d'équations a strictement diminué mais il en reste : on recommence avec le contexte obtenue et les équations qui restent.
+\item Il reste plus aucune équation : on a donc fini et on peut renvoyer le contexte calculé.
+\item Le nombre d'équations a strictement diminué mais il en reste : on refait une itération avec le contexte obtenue et les équations qui restent.
 \item On as gardé le même nombre non nul d'équations : on renvoie une erreur car on n'arrive pas à conclure.
 \end{enumerate}
 
-Le nombre d'équations diminuant strictement à chaque appel récursif cette évaluation termine après au plus nombre d'équations initial itérations.
+Le nombre d'équations diminuant strictement à chaque appel récursif de cette évaluation termine après un nombre d'itération d'au plus la quantité initiale d'équations.
+Mais on remarque que dans le cas où l'on restreint le nombre d'itération à uniquement 1, alors on retombe sur la sémantique par évaluation de la section
+\ref{sec:evalsem} où l'on as interdit les équations de modification.
 
-Cette sémantique possède plusieurs charactéristiques intéressantes :
-\begin{itemize}
-\item Elle est bien indépendante de l'ordre des équations
-\item Si on la restreint à un seul parcours sur la liste d'équations, on retrouve sur la sémantique par évaluation de la section \ref{sec:evalsem}
-\end{itemize}
+Cependant cette sémantique ne permet pas d'interpréter certains programmes valide pour la sémantique relationelle (section \ref{sec:relsem}).
+En effets le système $\{y = y\}$ n'est pas valide pour notre nouvelle sémantique mais l'est pour la sémantique relationelle.
+Ceci vient du fait que la sémantique relationelle considère comme valide tous les contextes qui sont des point fixes du système de déclaration alors
+que celle ci calcule un plus petit point fixe (et il n'en existe pas pour le système $\{y = y\}$).
+Cependant l'existance d'un plus petit point fixe ne garanti pas non plus l'absence d'erreur dans l'évaluation d'un système (par exemple le système $\{y = 0 \times y\}$).
 
-Cette méthode essaye de calculer un plus petit point fixe (d'où le nom de la sémantique), cependant l'existance d'un point fixe ne garanti pas
-qu'un programme ne génère pas une erreur. En effet, voici deux exemples d'équations possèdant un point fixe mais dont l'évaluation par la sémantique
-renvoie une erreur :
-
-\begin{align*}
-  \{ x & = x \} \\
-  \{ y & = 0 \times y \}
-\end{align*}
-
-Il s'agit d'une différence notable avec la sémantique de la section \ref{sec:relsem} qui elle accepte tous les point fixes.
+Ce plus cette sémantique, tout comme la sémantique par tri topologique garanti que toute valeur est défini au plus une fois contrairements à la sémantique relationelle.
+Mais cette sémantique ne garanti pas que toutes les variables intermédiaries sont bien défini contrairements à la sémantique par tri topologique où le
+vérificateur de terminaison s'assure que tous les tableaux ne sont jamais partiellement défini même si la définition est réparti dans plusieurs équations
+différentes.
 
 \section{Tri topologique sur les équations}
 \label{sec:topo}
 
-Afin de pouvoir effectué un tri topologique sur les équations il faut générer un graphe de dépendances entre les équations.
+Nous allons désormais revenir sur la définition du tri topologique sur les équations effectué dans la sémantique par tri topologique \ref{sec:toposem}.
+Ce tri est important car il fait aussi parti des étapes utiles à l'implémentation d'un typeur qui vérifierais que le système d'équations est bien fondé
+et que l'évaluation à l'aide de la sémantique par point fixe \ref{sec:fixsem} termine bien.
+
+Afin de pouvoir effectuer un tri topologique sur les équations il faut d'abord avoir un graphe de dépendances entre les équations.
 Pour cela nous allons poser la relation $x \prec y$ qui signifie que l'équation numéro $x$ dépend de l'équation numéro $y$.
 Une telle dépendance arrive si l'équation numéro $y$ utilise une valeur définie dans l'équation numéro $x$.
 
 Comme notre langage possède des tableaux, une variable est composé de deux informations : un identifiant et une liste d'indices.
+Or pour pouvoir effectuer un tri sur le système $\{v[0] = 1; v[1] = v[0]\}$ où l'on a $v$ de type $\textbf{U V}\; 1[2]$ il faut avoir
+une notion plus précise que seulement : “l'équation $v[1] = v[0]$ utilise et défini $v$”.
 
-Précédemment nous avons indiqué que seul l'identifiant était utilisé.
-Cependant cela ne permet pas de faire un tri sur le programme suivant où $v$ est de type $b[2]$
-
-\begin{align*}
-  \{ v[0] & = 1 \\
-     v[1] & = v[0] \}
-\end{align*}
-
-alors qu'il sensé être valide malgrè le fait que la seconde équation nécessite une sous composante de $v$ et définie
-une sous composante de $v$.
-
-Maintenant si l'on regarde l'exemple ci dessous où on prend $v$ de type $b[5]$ :
+Maintenant si l'on regarde l'exemple ci dessous avec $v$ de type $\textbf{U V}\; 1[5]$ :
 
 \begin{align*}
-  \{ v[0,1] & = (0, 1) \\
-     v[3] &= 3 \\
+  \{ v[0,1] & = (0, 1) ;\\
+     v[3] &= 3 ;\\
      v[2,4] & = v[1,3] \}
 \end{align*}
 
-on remarque que l'équation 3 nécessite les deux autres équations. Pour parler de celà on définie
-la notion de chemin dans un indentifiant comme une liste d'entiers. On dit que ce chemin est une instanciation d'une liste d'indices
-si chaque entiers est une instanciation de l'indice correspondant et que les deux listes ont la même longueur.
+on remarque que l'équation 3 nécessite les deux autres équations.
+Pour parler de celà on définie la notion de chemin dans un identifiant comme une liste d'entiers.
+Plus plus on dit que le chemin est une instanciation d'une liste d'indiçages si chaque entiers est une instanciation de l'indiçage correspondant
+et que les deux listes ont la même longueur.
 \begin{itemize}
 \item Pour un indice seul, l'entier associé est son unique instanciation.
-\item Pour un interval, les entiers dedans sont ses instanciations.
 \item Pour une liste d'entiers, les entiers de la liste sont ses instanciations.
+\item Pour un interval, les entiers dedans sont ses instanciations.
 \end{itemize}
 
-On observe donc que si l'équation numéro $y$ utilise le chemin $c$ dans un identifiant $v$ et que l'équation numéro $x$ définie
-le chemin $c$ de $v$ alors on doit avoir $x \prec y$. Cependant cette propriétés n'est pas encore suffisante.
+On utilise cette notion de chemin pour obtenir la condition suivante :
+si l'équation numéro $y$ utilise le chemin $c$ dans un identifiant $v$ et que l'équation numéro $x$ définie
+le chemin $c$ de $v$ alors on a $x \prec y$.
 
+Cependant cette propriété n'est pas encore suffisante.
 En effet si une définition définie $v$ et qu'un autre utilise $v[0]$ alors la second dépend de la première.
 
-On pose donc la définition suivante : $x \prec y$ si il existes deux chemins $c_{x}$ et $c_{y}$ et un identifiant $v$ tel que
+On pose donc la définition suivante de $x \prec y$ : il existes deux chemins $c_{x}$ et $c_{y}$ et un identifiant $v$ tel que
 \begin{enumerate}
-\item L'équation numéro $x$ définie le chemin $c_{x}$ de l'identifiant $v$ 
-\item L'équation numéro $y$ utilise le chemin $c_{y}$ de l'identifiant $v$
-\item $c_{x}$ est un préfixe de $c_{y}$ ou $c_{y}$ est un préfixe de $c_{x}$
+\item l'équation numéro $x$ définie le chemin $c_{x}$ de l'identifiant $v$,
+\item l'équation numéro $y$ utilise le chemin $c_{y}$ de l'identifiant $v$
+\item et $c_{x}$ est un préfixe de $c_{y}$ ou $c_{y}$ est un préfixe de $c_{x}$
 \end{enumerate}
+
+\section{Extensions possibles}
+
+Plusieurs extensions de \Usuba{} et des fonctionnalités présentés ci dessus sont possibles.
+Dans les paragraphes suivants nous présenterons donc de tels extensions et des intérêts que celles ci ont.
+
+\subsection{Autoriser l'indiçage sur les expressions}
+
+À l'heure actuelle dans \Usuba{} il est uniquement possible de faire des indiçage sur des variables et pas sur des expressions.
+Ceci est une conséquence direct de l'absence de système de type clair qui permet de s'avoir comment les structures de tableau
+se propagent lors différentes opérations.
+Cependant le nouveau système de type présenté dans la section \ref{sec:typ} permet de résoudre ce problème.
+De plus autoriser une telle syntaxe d'indiçage sur une expression pourrais permettre de faire de la substitution sur les termes
+en rendant la syntaxe compositionnelle.
+
+Malgré ce bénéfice, une telle modification rendrais la sémantique non compositionnelle. En effet $v[1]$ n'aurais pas le même comportement
+suivant si l'indiçage as lieu sur une variable $v$ ou une expression. Cette différence est que si on indice sur une expression alors il
+faut que tout $v$ soit défini et pas seulement la partie utilisée. Il est possible de définir une sémantique compositionnelle pour pouvoir
+avoir le même comportement pour les deux interprétations de la syntaxe en autorisant de manipuler des valeurs non définies.
+Cependant si on autorise les opérations à manipuler des valeurs potentiellement non défini alors le compilateur risque de générer
+des codes qui plantent. En effet, on pourrais alors écrire $\{y[1] = (x / y)[0]\}$ et
+si ce calcul n'est pas simplifié au cours de la compilation le code généré calculeras $x[1] / y[1]$ avec $y[1]$ non défini.
+Or si $y[1]$ est nul, le code assembleur associé générera une erreur de division par zéro.
+
+\subsection{Augmenter les types possibles pour les opérateurs binaires}
+
+Un autre ajout à \Usuba{} possible serais d'augementer le nombre de codes typables en autorisant les opérations binaires entre deux types différents
+mais compatibles.
+Actuellement on ne peux pas calculer $x + y$ où $x$ est de type $\textbf{U V}\; 32[2][3]$ et $y$ de type $\textbf{U V}\; 32[6]$ d'après le système de type présenté précédemment.
+Cependant parmi les 28 exemples valide de \Usuba{} pour le compilateur actuel, une telle opération est utilisé 2 fois.
+
+L'idée serais donc de transformer la règles \textsc{Binop} de la figure \ref{fig:typ-expr} en celle de la figure \ref{fig:typ-binop}.
+Où $\tau_1 \land \tau_2$ est défini uniquement pour deux tableaux multidimensionnels ayant le même type atomique et le même nombre d'éléments.
+
+\begin{figure}[h]
+  \begin{ottdefnblock}[]{$\Gamma  \ottsym{,}  \ottnt{P}  \ottsym{,}  \ottnt{A}  \vdash_E  \ottnt{e}  \ottsym{:}  \mathcal{T}$}{}
+  \ottusedrule{\ottdruleBinopBis{}}
+  \end{ottdefnblock}
+  \caption{Nouvelle règle de typage des opérateurs binaires}
+  \label{fig:typ-binop}
+\end{figure}
+
+Une telle règle permet donc de typer correctement l'exemple précédent.
+Cependant il existe plusieurs définitions possibles pour ce PGCD sur deux types de tableaux :
+\begin{enumerate}
+\item Si les deux types sont compatibles, renvoyer le premier
+\item Si les deux types sont identiques en renvoyer un sinon renvoyer le type du tableau unidimensionel associé $type_{elements}[nb_{elements}]$
+\item Renvoyer le type du tableau unidimensionel associé dans tous les cas
+\item Préserver toutes les dimensions extérieures identiques et applatir à partir de la première dimension différente
+\item Préserver toutes les dimensions intérieures identiques et applatir à partir de la première dimension différente
+\item Préserver autant de dimensions intérieures et extérieures que possible et applatir le milieu
+\end{enumerate}
+
+À part la troisième règle qui semble particulièrement arbitraire il est difficile de choisir parmi les autres si l'une est
+plus intéressantes les autres.
+Or, toutes les occurences d'une telle opération dans les codes existant se font entre un tableau unidimensionel et un tableau bidimensionel.
+Les règles 2, 4, 5 et 6 sont donc indistinguables sur ces exemples ce qui rend toute comparaison difficile.
+
+Cependant comme il fallais choisir une règle lors de l'implémentation des sémantique, c'est la règle 4 qui as été choisi.
+Une opération entre $\textbf{U V}\; 32[2][3][2][2]$ et $\textbf{U V}\; 32[2][6][2]$ renvoie donc un $\textbf{U V}\; 32[2][12]$.
+
+\section{Conclusion}
 
 
 \end{document}
