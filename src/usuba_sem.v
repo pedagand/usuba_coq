@@ -91,11 +91,11 @@ Fixpoint extract_ctxt (var_names : p) (ctxt : context) : option (list (@cst_or_i
         | None => None
         | Some (CoIL c) =>
             tl <- extract_ctxt tl ctxt;
-            Some (linearize_list_value (CoIL c::nil) tl)
+            Some (CoIL c :: tl)
         | Some (CoIR d l form) =>
             l' <- remove_option_from_list l;
             tl <- extract_ctxt tl ctxt;
-            Some (linearize_list_value (CoIR d l' form::nil) tl)
+            Some (CoIR d l' form :: tl)
         end
     end.
 
@@ -144,17 +144,18 @@ Fixpoint eval_expr (arch : architecture) (prog : prog_ctxt) (ctxt : context) (e 
         | Bitmask e ae => None
         | Pack e1 e2 None => None
         | Pack e1 e2 (Some t) => None
+        | Coercion e ltyp =>
+            v <- eval_expr arch prog ctxt e;
+            coercion ltyp v
         | Fun id el =>
             args <- eval_expr_list arch prog ctxt el;
             f <- find_val prog id;
-            l_val <- f None args;
-            Some (linearize_list_value l_val nil)
+            f None args
         | Fun_v id ie el =>
             args <- eval_expr_list arch prog ctxt el;
             i <- eval_arith_expr ctxt ie;
             f <- find_val prog id;
-            l_val <- f (Some i) args;
-            Some (linearize_list_value l_val nil)
+            f (Some i) args
     end
 with eval_expr_list (arch : architecture) (prog : prog_ctxt) (ctxt : context) (el : expr_list) : option (list (@cst_or_int Z)) :=
     match el with
@@ -162,7 +163,7 @@ with eval_expr_list (arch : architecture) (prog : prog_ctxt) (ctxt : context) (e
     | ECons e tl =>
         v <- eval_expr arch prog ctxt e;
         tl <- eval_expr_list arch prog ctxt tl;
-        Some (linearize_list_value v tl)
+        Some (v ++ tl)
     end
 with eval_expr_list' (arch : architecture) (prog : prog_ctxt) (ctxt : context) (el : expr_list) : option (option (nat * list Z * list nat * dir)) :=
     match el with
@@ -179,6 +180,12 @@ with eval_expr_list' (arch : architecture) (prog : prog_ctxt) (ctxt : context) (
                 then
                     Some (Some (l + 1, v ++ v', form', d'))
                 else None
+            end
+        | CoIL v::nil =>
+            match tl with
+            | Some (l, v', nil, d) =>
+                Some (Some (l + 1, v :: v', nil, d))
+            | _ => None
             end
         | _ => None
         end

@@ -134,6 +134,7 @@ Inductive expr :=
   | Pack : expr -> expr -> option typ -> expr
   | Fun : ident -> expr_list -> expr
   | Fun_v : ident -> arith_expr -> expr_list -> expr
+  | Coercion : expr -> list typ -> expr
 with expr_list :=
   | Enil
   | ECons : expr -> expr_list -> expr_list.
@@ -158,6 +159,7 @@ Fixpoint expr_size (e : expr) : nat :=
     | Pack e1 e2 (Some t) => 1 + expr_size e1 + expr_size e2 + typ_size t
     | Fun id el => 1 + expr_list_size el
     | Fun_v id e el => 1 + arith_expr_size e + expr_list_size el
+    | Coercion e ltyp => 1 + expr_size e + length ltyp
     end
 with expr_list_size (el : expr_list) : nat :=
     match el with

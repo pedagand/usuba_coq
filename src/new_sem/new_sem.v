@@ -865,6 +865,7 @@ Inductive acc_pred : list (ident * typ) -> list (list bvar * expr) -> expr -> Pr
     | AccShuffleInd : forall tctxt eqns v l ind, acc_var v nil ind tctxt eqns -> acc_pred tctxt eqns (Shuffle (Index (Var v) ind) l)
     | AccBitmask : forall tctxt eqns e ae, acc_pred tctxt eqns e -> acc_pred tctxt eqns (Bitmask e ae)
     | AccPack : forall tctxt eqns e1 e2 otyp, acc_pred tctxt eqns e1 -> acc_pred tctxt eqns e2 -> acc_pred tctxt eqns (Pack e1 e2 otyp)
+    | AccCoercion : forall tctxt eqns e ltyp, acc_pred tctxt eqns e -> acc_pred tctxt eqns (Coercion e ltyp)
     | AccFun : forall tctxt eqns v el, acc_pred_l tctxt eqns el -> acc_pred tctxt eqns (Fun v el)
     | AccFun_v : forall tctxt eqns v ae el, acc_pred_l tctxt eqns el -> acc_pred tctxt eqns (Fun_v v ae el)
 with acc_pred_l : list (ident * typ) -> list (list bvar * expr) -> expr_list -> Prop :=
@@ -1178,7 +1179,7 @@ Proof.
         refine (expr_find _ (fun exprl =>
             Forall (fun e => is_subexpr e expr) (list_of_expr_list exprl) ->
             (forall v, In var (exprl_freefullvars exprl) v -> valid_var tctxt v) ->
-            acc_pred_l tctxt (eqns_hd ++ (vars, expr) :: eqns_tl) exprl) _ _ _ _ _ _ _ _ _ _ _ _ _ _ _).
+            acc_pred_l tctxt (eqns_hd ++ (vars, expr) :: eqns_tl) exprl) _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _).
         (* Const *)
         {
             intros; constructor.
@@ -1701,7 +1702,14 @@ Proof.
             refine (is_subexpr_trans _ _ _ _ is_sub); auto.
             simpl; right; assumption.
         }
-        (* Enil *)
+        (* Coercion *)
+        {
+            move=> e HRec l is_sub valid.
+            intros; constructor.
+            apply HRec; trivial.
+            refine (is_subexpr_trans _ _ _ _ is_sub).
+            simpl; right; apply is_subexpr_refl.
+        }        (* Enil *)
         {
             intros; constructor.
         }
@@ -2478,6 +2486,16 @@ Definition acc_pred_inv_Not {tctxt eqns e} (a : acc_pred tctxt eqns (Not e)) : a
         match eq_ind (Not _) (fun e => match e with Not _ => True | _ => False end) I _ HEq with end
     end Logic.eq_refl.
 
+Definition expr_inv_coercion e := match e with | Coercion e _ => e | _ => e end.
+
+Definition acc_pred_inv_Coercion {tctxt eqns e l} (a : acc_pred tctxt eqns (Coercion e l)) : acc_pred tctxt eqns e :=
+    match a in (acc_pred tctxt eqns e') return Coercion e l = e' -> acc_pred tctxt eqns (expr_inv_coercion e')
+    with
+    | AccCoercion _ _ _ _ a => fun _ => a
+    | _ => fun HEq =>
+        match eq_ind (Coercion _ _) (fun e => match e with Coercion _ _ => True | _ => False end) I _ HEq with end
+    end Logic.eq_refl.
+    
 Definition expr_inv_Shift e := match e with | Shift _ e _ => e | _ => e end.
 
 Definition acc_pred_inv_Shift {tctxt eqns sop e ae} (a : acc_pred tctxt eqns (Shift sop e ae)) : acc_pred tctxt eqns e :=
@@ -2984,6 +3002,9 @@ Fixpoint eval_expr (arch : architecture) (prog : prog_ctxt) (eqns : list (list b
         i <- eval_arith_expr nil ae;
         f <- find_val prog v;
         f (Some i) vl
+    | Coercion e ltyp => fun acc =>
+        v <- eval_expr arch prog eqns tctxt args e (acc_pred_inv_Coercion acc);
+        coercion ltyp v
     end a
 with eval_list_expr (arch : architecture) (prog : prog_ctxt) (eqns : list (list bvar * expr)) (tctxt : list (ident * typ))
         (args : list (ident * cst_or_int)) (el : expr_list) (a : acc_pred_l tctxt eqns el) {struct a}
@@ -2993,7 +3014,7 @@ with eval_list_expr (arch : architecture) (prog : prog_ctxt) (eqns : list (list 
     | ECons hd tl => fun acc =>
         hd <- eval_expr arch prog eqns tctxt args hd (acc_pred_inv_hd acc);
         tl <- eval_list_expr arch prog eqns tctxt args tl (acc_pred_inv_tl acc);
-        Some (linearize_list_value hd tl)
+        Some (hd ++ tl)
     end a
 with eval_list_expr' (arch : architecture) (prog : prog_ctxt) (eqns : list (list bvar * expr)) (tctxt : list (ident * typ))
         (args : list (ident * cst_or_int)) (el : expr_list) (a : acc_pred_l tctxt eqns el) {struct a}
@@ -3013,6 +3034,12 @@ with eval_list_expr' (arch : architecture) (prog : prog_ctxt) (eqns : list (list
                     Some (Some (l + 1, v ++ v', form', d'))
                 else
                     None
+            end
+        | CoIL v :: nil =>
+            match tl with
+            | Some (l, v', nil, d) =>
+                Some (Some (l + 1, v :: v', nil, d))
+            | _ => None
             end
         | _ => None
         end
@@ -3166,7 +3193,7 @@ Fixpoint eval_vars arch prog tctxt args eqns out_vars : (forall v, List.In v out
         fun acc_pred =>
             v <- eval_var arch prog eqns tctxt args v nil nil (proj_term_hd _ _ _ _ acc_pred);
             v_tl <- eval_vars arch prog tctxt args eqns tl (proj_term_tl _ _ _ _ acc_pred);
-            Some (linearize_list_value (v :: nil) v_tl)
+            Some (v :: v_tl)
     end.
 
 Fixpoint build_ctxt (args : p) (input : list (@cst_or_int Z)) : option (list (ident * @cst_or_int Z)) :=

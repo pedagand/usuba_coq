@@ -192,7 +192,7 @@ Fixpoint update_expr (e : expr) (pos : nat) (dependancies : list (ident * use_tr
     | ExpVar (Index (Index _ _) _) | Shuffle (Index (Index _ _) _) _ => None
     | Tuple el | BuildArray el | Fun _ el | Fun_v _ _ el =>
         update_list_expr el pos dependancies
-    | Not e | Shift _ e _ | Bitmask e _ =>
+    | Not e | Shift _ e _ | Bitmask e _ | Coercion e _ =>
         update_expr e pos dependancies
     | Log _ e1 e2 | Arith _ e1 e2 | Pack e1 e2 _ =>
         dependancies' <- update_expr e1 pos dependancies;

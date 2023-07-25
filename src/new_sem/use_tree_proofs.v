@@ -2203,7 +2203,7 @@ Proof.
         list_rel sub_utree (map snd dependancies) (map snd dependancies') /\
         Forall (fun p : ident * use_tree => let (v, t) := p in
             partial_valid_use_tree' (length eqns_hd) (list_of_expr_list el ++ expr_ctxt) v t nil (eqns_hd ++ (vars, full_expr) :: eqns_tl)) dependancies'
-        ) _ _ _ _ _ _ _ _ _ _ _ _ _ _ _).
+        ) _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _).
     all: simpl.
     {
         move=> z o eL dependancies dependancies' H; inversion H; auto.
@@ -3362,6 +3362,39 @@ Proof.
             destruct HIn as [[e' [[] H]]|is_sub'].
             refine (is_subexpr_trans _ _ _ _ is_sub); auto.
             simpl; right; assumption.
+        }
+    }
+    (* Coercion *)
+    {
+        simpl.
+        move=> e HRec l ctxt dependancies dependancies' HEq is_sub is_map fst_eq type_soundness HValid.
+        apply (HRec ctxt) in HEq; trivial.
+        {
+            destruct HEq as [Eq [type_soundness' [acc_valid [all_sub valid]]]].
+            do 4 (split; trivial).
+            rewrite Forall_forall; rewrite Forall_forall in valid.
+            move=> [v t] LIn; apply valid in LIn.
+            rewrite <-(partial_valid_use_tree'_change_list (e::ctxt)); trivial.
+            clear.
+            move=> v; split; move=> [e' [LIn HIn]]; inversion LIn as [HEq|LIn'].
+            {
+                exists (Coercion e l); destruct HEq.
+                split; simpl; auto.
+            }
+            {
+                exists e'; simpl; auto.
+            }
+            {
+                destruct HEq.
+                exists e; split; simpl in *; auto.
+            }
+            {
+                exists e'; simpl; auto.
+            }
+        }
+        {
+            refine (is_subexpr_trans _ _ _ _ is_sub); auto.
+            simpl; right; apply is_subexpr_refl.
         }
     }
     (* Enil *)

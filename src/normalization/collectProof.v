@@ -163,7 +163,7 @@ Lemma collect_expr_soundness:
         iset.In elt (collect_expr e) <-> In ident (expr_freevars e) elt.
 Proof.
     move=> e.
-    refine (expr_find (fun e => _) (fun exprL => _) _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ e); simpl; auto; clear e.
+    refine (expr_find (fun e => _) (fun exprL => _) _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ e); simpl; auto; clear e.
     {
         intros; exact (iset_empty_soudness _).
     }

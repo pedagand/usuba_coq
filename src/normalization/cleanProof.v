@@ -277,7 +277,7 @@ Theorem subst_infer_collect_expr:
     forall info e, collect_expr (subst_infer_expr info e) = collect_expr e.
 Proof.
     move=> info e.
-    refine (expr_find (fun e => _) (fun exprL => _) _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ e); simpl; auto; clear e.
+    refine (expr_find (fun e => _) (fun exprL => _) _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ e); simpl; auto; clear e.
     + move=> n []; auto.
     + move=> e H; exact H.
     + move=> e H; exact H.

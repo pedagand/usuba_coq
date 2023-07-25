@@ -241,19 +241,22 @@ Fixpoint eval_expr (arch : architecture) (prog : prog_ctxt) (ctxt : context) (e 
             | SumR e1' =>
                 match v2 with
                 | SumR e2' => Some (SumR (Log op e1' e2'))
-                | SumL v2 =>
-                    e2' <- list_val_to_expr v2;
+                | SumL [:: v2] =>
+                    e2' <- val_to_expr v2;
                     Some (SumR (Log op e1' e2'))
+                | SumL _ => None
                 end
-            | SumL v1 =>
+            | SumL [:: v1] =>
                 match v2 with
                 | SumR e2' =>
-                    e1' <- list_val_to_expr v1;
+                    e1' <- val_to_expr v1;
                     Some (SumR (Log op e1' e2'))
-                | SumL v2 =>
-                    val <- eval_binop f v1 v2;
+                | SumL [:: v2] =>
+                    val <- eval_binop f [:: v1] [:: v2];
                     Some (SumL val)
+                | SumL _ => None
                 end
+            | SumL _ => None
             end
         | Arith op e1 e2 =>
             v1 <- eval_expr arch prog ctxt e1;
@@ -269,18 +272,21 @@ Fixpoint eval_expr (arch : architecture) (prog : prog_ctxt) (ctxt : context) (e 
             | SumR e1' =>
                 match v2 with
                 | SumR e2' => Some (SumR (Arith op e1' e2'))
-                | SumL v2 =>
-                    e2' <- list_val_to_expr v2;
+                | SumL [:: v2] =>
+                    e2' <- val_to_expr v2;
                     Some (SumR (Arith op e1' e2'))
+                | SumL _ => None
                 end
-            | SumL v1 =>
+            | SumL [:: v1] =>
                 match v2 with
                 | SumR e2' =>
-                    e1' <- list_val_to_expr v1;
+                    e1' <- val_to_expr v1;
                     Some (SumR (Arith op e1' e2'))
-                | SumL v2 =>
-                    option_map SumL (eval_binop f v1 v2)
+                | SumL [:: v2] =>
+                    option_map SumL (eval_binop f [:: v1] [:: v2])
+                | SumL _ => None
                 end
+            | SumL _ => None
             end
         | Shift op e1 e2 =>
             v1 <- eval_expr arch prog ctxt e1;
@@ -294,6 +300,12 @@ Fixpoint eval_expr (arch : architecture) (prog : prog_ctxt) (ctxt : context) (e 
         | Bitmask e ae => None
         | Pack e1 e2 None => None
         | Pack e1 e2 (Some t) => None
+        | Coercion e ltyp =>
+            v <- eval_expr arch prog ctxt e;
+            match v with
+            | SumL v => option_map SumL (coercion ltyp v)
+            | SumR e' => Some (SumR (Coercion e' ltyp))
+            end
         | Fun id el =>
             args <- eval_expr_list arch prog ctxt el;
             f <- find_val prog id;
@@ -301,7 +313,7 @@ Fixpoint eval_expr (arch : architecture) (prog : prog_ctxt) (ctxt : context) (e 
             | SumR el' => Some (SumR (Fun id el'))
             | SumL args =>
                 l_val <- f None args;
-                Some (SumL (linearize_list_value l_val nil))
+                Some (SumL l_val)
             end
         | Fun_v id ie el =>
             args <- eval_expr_list arch prog ctxt el;
@@ -312,7 +324,7 @@ Fixpoint eval_expr (arch : architecture) (prog : prog_ctxt) (ctxt : context) (e 
                 Some (SumR (Fun_v id (Const_e (Z.of_nat i)) el'))
             | SumL args =>
                 l_val <- f (Some i) args;
-                Some (SumL (linearize_list_value l_val nil))
+                Some (SumL l_val)
             end
     end
 with simpl_expr_list (arch : architecture) (prog : prog_ctxt) (ctxt : context) (el : expr_list) : option expr_list :=
@@ -344,7 +356,7 @@ with eval_expr_list (arch : architecture) (prog : prog_ctxt) (ctxt : context) (e
                 e' <- list_val_to_expr v;
                 Some (SumR (ECons e' tl'))
             | SumL tl =>
-                Some (SumL (linearize_list_value v tl))
+                Some (SumL (v ++ tl))
             end
         end
     end
@@ -374,32 +386,15 @@ with eval_expr_list' (arch : architecture) (prog : prog_ctxt) (ctxt : context) (
                             Some (SumL (Some (l + 1, v ++ v', form', d')))
                         else None
                     end
+                | CoIL v::nil =>
+                    match tl with
+                    | Some (l, v', nil, d) =>
+                        Some (SumL (Some (l + 1, v :: v', nil, d)))
+                    | _ => None
+                    end
                 | _ => None
                 end
             end
-        end
-    end.
-
-Fixpoint build_ctxt_aux_take_n (nb : nat) (input : list (@cst_or_int Z)) (d : dir) : option (list Z * list (@cst_or_int Z)) :=
-    match nb with
-    | 0 => Some (nil, input)
-    | S nb' => match input with
-        | nil => None
-        | (CoIL n)::in_tl =>
-            (out, rest) <- build_ctxt_aux_take_n nb' in_tl d;
-            Some (n::out, rest)
-        | (CoIR d' iL _)::in_tl =>
-            if dir_beq d d'
-            then
-                let (hd, tl) := try_take_n nb iL in
-                match tl with
-                | SumR nil => Some (hd, in_tl)
-                | SumR tl => Some(hd, CoIR d' tl (length tl::nil)::in_tl)
-                | SumL nb =>
-                    (out, rest) <- build_ctxt_aux_take_n nb in_tl d;
-                    Some (hd ++ out, rest)
-                end
-            else None
         end
     end.
 

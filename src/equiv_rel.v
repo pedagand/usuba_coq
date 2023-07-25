@@ -1526,6 +1526,8 @@ Proof.
         destruct (eval_expr_list arch prog ctxt2 el); trivial.
         rewrite (eval_aexpr_change_ctxt ae ctxt1 ctxt2); trivial.
         by apply context_srel_imp_context_csrel; move=> x HIn; apply HContent; do 2 constructor; assumption.
+    + move=> e' HRec l ctxt1 ctxt2 HContent.
+        rewrite (HRec ctxt1 ctxt2 HContent); reflexivity.
     + auto.
     + move=> e' HRec el HRecL ctxt1 ctxt2 HContent.
         rewrite (HRec ctxt1 ctxt2).
@@ -1637,6 +1639,9 @@ Proof.
         move: rel; impl_tac.
         by discriminate.
         move=> <- _; reflexivity.
+    + move=> e' HRec l ctxt1 ctxt2 HContent NoErr.
+        rewrite (HRec ctxt1 ctxt2); trivial.
+        move=> H; rewrite H in NoErr; apply NoErr; reflexivity.
     + auto.
     + move=> e' HRec el HRecL ctxt1 ctxt2 HContent.
         split; move=> NoErr.

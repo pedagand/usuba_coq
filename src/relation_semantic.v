@@ -123,7 +123,7 @@ Inductive eval_bvars_to (ctxt : list (ident * @cst_or_int Z))
     | EBsCons : forall hd tl v_hd v_tl,
         eval_bvar_to ctxt hd v_hd ->
         eval_bvars_to ctxt tl v_tl ->
-        eval_bvars_to ctxt (hd :: tl) (linearize_list_value [:: v_hd] v_tl)
+        eval_bvars_to ctxt (hd :: tl) (v_hd :: v_tl)
 .
 
 Inductive eval_expr_to (arch : architecture)
@@ -180,6 +180,7 @@ Inductive eval_expr_to (arch : architecture)
         eval_shift arch op val i = Some val_out ->
         eval_expr_to arch fprog ctxt (Shift op e ae) val_out
     (* TODO : Shuffle Bitmask Pack *)
+    (* TODO coercion *)
     | EETFun : forall fprog ctxt v el val_args val_out,
         eval_expr_list_to arch fprog ctxt el val_args ->
         eval_prog_to arch fprog v val_args None val_out ->
@@ -193,7 +194,11 @@ with eval_expr_list_to' (arch : architecture)
     : prog -> list (ident * @cst_or_int Z) -> expr_list -> nat -> list Z -> list nat -> dir -> Prop :=
     | EETLnil' : forall fprog ctxt form d,
         eval_expr_list_to' arch fprog ctxt Enil 0 nil form d
-    | EETcons' : forall fprog ctxt hd tl dir l_hd form len l_tl,
+    | EETcons'_CoIL : forall fprog ctxt hd tl dir v len l_tl,
+        eval_expr_to arch fprog ctxt hd [:: CoIL v] ->
+        eval_expr_list_to' arch fprog ctxt tl len l_tl nil dir ->
+        eval_expr_list_to' arch fprog ctxt (ECons hd tl) len.+1 (v :: l_tl) nil dir
+    | EETcons'_CoIR : forall fprog ctxt hd tl dir l_hd form len l_tl,
         eval_expr_to arch fprog ctxt hd [:: CoIR dir l_hd form] ->
         eval_expr_list_to' arch fprog ctxt tl len l_tl form dir ->
         eval_expr_list_to' arch fprog ctxt (ECons hd tl) len.+1 (l_hd ++ l_tl) form dir
@@ -203,7 +208,7 @@ with eval_expr_list_to (arch : architecture)
     | EETLcons : forall fprog ctxt hd tl val_hd val_tl,
         eval_expr_to arch fprog ctxt hd val_hd ->
         eval_expr_list_to arch fprog ctxt tl val_tl ->
-        eval_expr_list_to arch fprog ctxt (ECons hd tl) (linearize_list_value val_hd val_tl)
+        eval_expr_list_to arch fprog ctxt (ECons hd tl) (val_hd ++ val_tl)
 with check_deq (arch : architecture)
     : prog -> list (ident * @cst_or_int Z) -> deq -> Prop :=
     | CDEqn : forall fprog ctxt (vars : seq bvar) e val,

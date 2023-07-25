@@ -153,17 +153,21 @@ Definition compute_form {A} (l1 : list (@cst_or_int A)) : list nat :=
     end.
 
 Definition eval_binop (binop : dir -> option (Z -> Z -> Z)) (l1 l2 : list (@cst_or_int Z)) : option (list (@cst_or_int Z)) :=
-    d <- match get_dir l1 with
-        | None => get_dir l2
-        | Some d => Some d
-        end;
-    v1 <- coerce_to d l1;
-    v2 <- coerce_to d l2;
-    op <- binop d;
-    v3 <- list_map2 op v1 v2;
-    let form1 := compute_form l1 in
-    let form2 := compute_form l2 in
-    Some (CoIR d v3 (scm form1 form2)::nil).
+    match l1 with
+    | [:: CoIR d1 v1 form1] => 
+        match l2 with
+        | [:: CoIR d2 v2 form2] =>
+            if dir_beq d1 d2
+            then
+                op <- binop d1;
+                v3 <- list_map2 op v1 v2;
+                Some (CoIR d1 v3 (scm form1 form2)::nil)
+            else
+                None
+        | _ => None
+        end
+    | _ => None
+    end.
 
 Definition eval_monop_coi (monop : dir -> option (Z -> Z)) (v : @cst_or_int Z) : option (@cst_or_int Z) :=
     match v with
@@ -184,9 +188,9 @@ Fixpoint eval_monop (monop : dir -> option (Z -> Z)) (v : list (@cst_or_int Z)) 
 
 Definition eval_shift (arch : architecture) (op : shift_op) (v : list (@cst_or_int Z)) (v2 : nat) : option (list (@cst_or_int Z)) :=
     match v with
-    | CoIR d (i::nil) len::nil =>
+    | CoIR d (i::nil) nil::nil =>
         i' <- shift_wrapper (IMPL_SHIFT arch) op v2 d i;
-        Some (CoIR d (i'::nil) len::nil)
+        Some (CoIR d (i'::nil) nil::nil)
     | CoIR d i len::nil => match op with
         | Lshift =>
             (hd, tl) <- take_n v2 i;
@@ -425,6 +429,41 @@ Fixpoint build_ctxt_aux_take_n (nb : nat) (input : list (@cst_or_int Z)) (d : di
         end
     end.
 
+Fixpoint build_value (typ : typ) (input : list (@cst_or_int Z)) (l : list nat) : option (@cst_or_int Z * list (@cst_or_int Z)) :=
+    match typ with
+    | Nat => match input with
+        | CoIL n :: input' => Some (CoIL n, input') 
+        | _ => None
+        end
+    | Uint d (Mint n) =>
+        annot <- IntSize_of_nat n;
+        d <- match d with
+            | Hslice => Some (DirH annot)
+            | Vslice => Some (DirV annot)
+            | Bslice => Some DirB
+            | _ => None
+        end;
+        (valL, input') <- build_ctxt_aux_take_n (prod_list l) input d;
+        Some (CoIR d valL l, input')
+    | Uint _ Mnat => None
+    | Uint _ (Mvar _) => None
+    | Array typ len =>
+        build_value typ input (l ++ [:: len])
+    end.
+
+Fixpoint coercion (l : list typ) (values : list (@cst_or_int Z)) : option (list (@cst_or_int Z)) :=
+    match l with
+    | nil =>
+        match values with
+        | nil => Some nil
+        | _ :: _ => None
+        end
+    | hd :: tl =>
+        (hd', values') <- build_value hd values nil;
+        tl' <- coercion tl values';
+        Some (hd' :: tl')
+    end.
+
 Definition proj_types (p : var_d) : ident * typ := (VD_ID p, VD_TYP p).
 
 (* Transposition of list of intergers in binary representations *)
@@ -620,6 +659,7 @@ Fixpoint subst_infer_expr (infered : monomorph_info) (e : expr) : expr :=
     | Shift op e ae => Shift op (subst_infer_expr infered e) ae
     | Bitmask e ae => Bitmask (subst_infer_expr infered e) ae
     | Pack e1 e2 o_typ => Pack (subst_infer_expr infered e1) (subst_infer_expr infered e2) (option_map (subst_infer_typ infered) o_typ)
+    | Coercion e ltyp => Coercion (subst_infer_expr infered e) (map (subst_infer_typ infered) ltyp)
     | Fun v el => Fun v (subst_infer_list_expr infered el)
     | Fun_v v ae el => Fun_v v ae (subst_infer_list_expr infered el)
     end
@@ -716,6 +756,7 @@ Fixpoint subst_expr (ctxt : list (ident * nat)) (e : expr) : expr :=
     | Shuffle v l => Shuffle (subst_var ctxt v) l
     | Bitmask e ae => Bitmask (subst_expr ctxt e) (subst_aexpr ctxt ae)
     | Pack e1 e2 typ => Pack (subst_expr ctxt e1) (subst_expr ctxt e2) typ
+    | Coercion e ltyp => Coercion (subst_expr ctxt e) ltyp
     | Fun f el => Fun f (subst_exprl ctxt el)
     | Fun_v f ae el => Fun_v f (subst_aexpr ctxt ae) (subst_exprl ctxt el)
     end
