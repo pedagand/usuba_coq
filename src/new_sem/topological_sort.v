@@ -91,7 +91,7 @@ Fixpoint remove_option_from_list {A : Type} (l : list (option A)) : option (list
     end.
 
 Definition build_order (f : nat -> nat -> bool) (len : nat) : option (seq nat) :=
-    match visit_all f len (gen_list None len) (gen_list false len) len (len * len) with
+    match visit_all f len (gen_list None len) (gen_list false len) len ((len + 1) * (len + 1)) with
     | None => None
     | Some indices => remove_option_from_list indices
     end.
@@ -588,7 +588,7 @@ Theorem build_order_soundness:
 Proof.
     move=> f l ord.
     unfold build_order.
-    move: (visit_all_soundness f (l * l) (gen_list false l) l (gen_list None l)).
+    move: (visit_all_soundness f ((l + 1) * (l + 1)) (gen_list false l) l (gen_list None l)).
     rewrite length_gen_list.
     destruct visit_all; [> idtac | discriminate ].
     move=> H; move: (H _ Logic.eq_refl); clear H.

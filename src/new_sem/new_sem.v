@@ -2748,10 +2748,93 @@ Definition skip_value (typ : typ) (nb_times : nat) (vals : list cst_or_int) : op
     (_, vals) <- build_ctxt_aux_take_n (nb_times * get_length typ) vals d;
     Some vals.
 
+Fixpoint build_ctxt_aux_take_n (nb : nat) (input : list (@cst_or_int Z)) (d : dir) : option (list Z * list (@cst_or_int Z)) :=
+    match nb with
+    | 0 => Some (nil, input)
+    | S nb' => match input with
+        | nil => None
+        | (CoIL n)::in_tl =>
+            (out, rest) <- build_ctxt_aux_take_n nb' in_tl d;
+            Some (n::out, rest)
+        | (CoIR d' iL _)::in_tl =>
+            if dir_beq d d'
+            then
+                let (hd, tl) := try_take_n nb iL in
+                match tl with
+                | SumR nil => Some (hd, in_tl)
+                | SumR tl => Some(hd, CoIR d' tl (length tl::nil)::in_tl)
+                | SumL nb =>
+                    (out, rest) <- build_ctxt_aux_take_n nb in_tl d;
+                    Some (hd ++ out, rest)
+                end
+            else None
+        end
+    end.
+
+Fixpoint build_ctxt_aux (typ : typ) (input : list (@cst_or_int Z)) (l : list nat) : option (@cst_or_int Z * list (@cst_or_int Z)) :=
+    match typ with
+    | Nat => match input with
+        | CoIL n :: input' => Some (CoIL n, input') 
+        | _ => None
+        end
+    | Uint d (Mint n) =>
+        annot <- IntSize_of_nat n;
+        d <- match d with
+            | Hslice => Some (DirH annot)
+            | Vslice => Some (DirV annot)
+            | Bslice => Some DirB
+            | _ => None
+        end;
+        (valL, input') <- build_ctxt_aux_take_n (prod_list l) input d;
+        Some (CoIR d valL l, input')
+    | Uint _ Mnat => None
+    | Uint _ (Mvar _) => None
+    | Array typ len =>
+        build_ctxt_aux typ input (l ++ [:: len])
+    end.
+
+(** We assert that `length values = prod_list dim` *)
+Fixpoint get_access (values : list Z) (acc : access) (dim : list nat) : option (list Z * list nat) :=
+    match acc with
+    | AAll => Some (values, dim)
+    | ASlice nil _ => None
+    | AInd i acc_tl =>
+        match dim with
+        | nil => None
+        | d::dim_tl =>
+            if length values mod d =? 0
+            then
+                l' <- split_into_segments d (length values / d) values;
+                v <- nth_error l' i;
+                get_access v acc_tl dim_tl
+            else
+                None
+        end
+    | ASlice indices acc_tl =>
+        match dim with
+        | nil =>
+            None
+        | d::dim_tl =>
+            if length values mod d =? 0
+            then
+                l' <- split_into_segments d (length values / d) values;
+                (l', dim') <- fold_right (fun v l => (l', _) <- l; v' <- v; (v'', dim') <- get_access v' acc_tl dim_tl; Some (v'' ++ l', dim'))
+                        (Some (nil, nil)) (map (fun i => nth_error l' i) indices);
+                Some (l', length indices::dim')
+            else None (** Assertion not verified *)
+        end
+    end.
+
 Fixpoint build_value (typ : typ) (path_ind : list indexing) (path_nat : list nat) (vals : list cst_or_int) : option (@cst_or_int Z) :=
     match path_ind with
     | nil =>
-        None (* TODO *)
+        match build_ctxt_aux typ vals nil with
+        | Some (CoIR d v form, _) =>
+            acc <- access_of_ind nil (map (fun i => IInd (Const_e (Z.of_nat i))) path_nat);
+            (v,f) <- get_access v acc form;
+            Some (CoIR d v f)
+        | _ => None
+        end
     | IInd _ :: pind_tl =>
         match path_nat with
         | nil => None
@@ -2826,40 +2909,7 @@ Fixpoint extract_val (vL : list bvar) (v : ident) (path : list nat) (tctxt : lis
             extract_val vL v path tctxt vals
     end.
 
-(** We assert that `length values = prod_list dim` *)
-Fixpoint get_access (values : list Z) (acc : access) (dim : list nat) : option (list Z * list nat) :=
-    match acc with
-    | AAll => Some (values, dim)
-    | ASlice nil _ => None
-    | AInd i acc_tl =>
-        match dim with
-        | nil => None
-        | d::dim_tl =>
-            if length values mod d =? 0
-            then
-                l' <- split_into_segments d (length values / d) values;
-                v <- nth_error l' i;
-                get_access v acc_tl dim_tl
-            else
-                None
-        end
-    | ASlice indices acc_tl =>
-        match dim with
-        | nil =>
-            None
-        | d::dim_tl =>
-            if length values mod d =? 0
-            then
-                l' <- split_into_segments d (length values / d) values;
-                (l', dim') <- fold_right (fun v l => (l', _) <- l; v' <- v; (v'', dim') <- get_access v' acc_tl dim_tl; Some (v'' ++ l', dim'))
-                        (Some (nil, nil)) (map (fun i => nth_error l' i) indices);
-                Some (l', length indices::dim')
-            else None (** Assertion not verified *)
-        end
-    end.
-
-  
-Fixpoint eval_expr (arch : architecture) (eqns : list (list bvar * expr))
+Fixpoint eval_expr (arch : architecture) (prog : prog_ctxt) (eqns : list (list bvar * expr))
         (tctxt : list (ident * typ)) (args : list (ident * cst_or_int)) (e : expr)
         (a : acc_pred tctxt eqns e) {struct a} : option Value :=
     match e return acc_pred tctxt eqns e -> option (Value) with
@@ -2869,7 +2919,7 @@ Fixpoint eval_expr (arch : architecture) (eqns : list (list bvar * expr))
         match find_val args v with
         | Some val => Some [:: val]
         | None =>
-            v <- eval_var arch eqns tctxt args v nil nil (acc_pred_inv_Var acc);
+            v <- eval_var arch prog eqns tctxt args v nil nil (acc_pred_inv_Var acc);
             Some [:: v]
         end
     | ExpVar (Index (Var v) ind) => fun acc =>
@@ -2883,22 +2933,22 @@ Fixpoint eval_expr (arch : architecture) (eqns : list (list bvar * expr))
                 Some [:: CoIR d v f]
             end
         | None =>
-            v <- eval_var arch eqns tctxt args v nil ind (acc_pred_inv_Var_Ind acc);
+            v <- eval_var arch prog eqns tctxt args v nil ind (acc_pred_inv_Var_Ind acc);
             Some [:: v]
         end
     | ExpVar _ => fun _ => None
     | Tuple el => fun acc =>
-        eval_list_expr arch eqns tctxt args el (acc_pred_inv_Tuple acc)
+        eval_list_expr arch prog eqns tctxt args el (acc_pred_inv_Tuple acc)
     | BuildArray el => fun acc =>
-        vl <- eval_list_expr' arch eqns tctxt args el (acc_pred_inv_BuildArray acc);
+        vl <- eval_list_expr' arch prog eqns tctxt args el (acc_pred_inv_BuildArray acc);
         (nb, vals, form, d) <- vl;
         Some (CoIR d vals (nb :: form) :: nil)
     | Not e => fun acc =>
-        v <- eval_expr arch eqns tctxt args e (acc_pred_inv_Not acc);
+        v <- eval_expr arch prog eqns tctxt args e (acc_pred_inv_Not acc);
         eval_monop (arith_wrapper (IMPL_LOG arch) lnot) v
     | Arith aop e1 e2 => fun acc =>
-        v1 <- eval_expr arch eqns tctxt args e1 (acc_pred_inv_Arith_1 acc);
-        v2 <- eval_expr arch eqns tctxt args e2 (acc_pred_inv_Arith_2 acc);
+        v1 <- eval_expr arch prog eqns tctxt args e1 (acc_pred_inv_Arith_1 acc);
+        v2 <- eval_expr arch prog eqns tctxt args e2 (acc_pred_inv_Arith_2 acc);
         let f := match aop with
             | Add => arith_wrapper (IMPL_ARITH arch) add_fun
             | Sub => arith_wrapper (IMPL_ARITH arch) sub_fun
@@ -2908,8 +2958,8 @@ Fixpoint eval_expr (arch : architecture) (eqns : list (list bvar * expr))
         end
         in eval_binop f v1 v2
     | Log lop e1 e2 => fun acc =>
-        v1 <- eval_expr arch eqns tctxt args e1 (acc_pred_inv_Log_1 acc);
-        v2 <- eval_expr arch eqns tctxt args e2 (acc_pred_inv_Log_2 acc);
+        v1 <- eval_expr arch prog eqns tctxt args e1 (acc_pred_inv_Log_1 acc);
+        v2 <- eval_expr arch prog eqns tctxt args e2 (acc_pred_inv_Log_2 acc);
         f <- match lop with
             | And | Masked And =>   Some (arith_wrapper (IMPL_LOG arch) land)
             | Or | Masked Or =>     Some (arith_wrapper (IMPL_LOG arch) lor)
@@ -2919,37 +2969,40 @@ Fixpoint eval_expr (arch : architecture) (eqns : list (list bvar * expr))
         end;
         eval_binop f v1 v2
     | Shift sop e ae => fun acc =>
-        v1 <- eval_expr arch eqns tctxt args e (acc_pred_inv_Shift acc);
+        v1 <- eval_expr arch prog eqns tctxt args e (acc_pred_inv_Shift acc);
         v2 <- eval_arith_expr nil ae;
         eval_shift arch sop v1 v2
     | Bitmask _ _ => fun _ => None
     | Pack _ _ _ => fun _ => None
     | Shuffle _ _ => fun _ => None
     | Fun v el => fun acc =>
-        vl <- eval_list_expr arch eqns tctxt args el (acc_pred_inv_Fun acc);
-        None
+        vl <- eval_list_expr arch prog eqns tctxt args el (acc_pred_inv_Fun acc);
+        f <- find_val prog v;
+        f None vl
     | Fun_v v ae el => fun acc =>
-        vl <- eval_list_expr arch eqns tctxt args el (acc_pred_inv_Fun_v acc);
-        None
+        vl <- eval_list_expr arch prog eqns tctxt args el (acc_pred_inv_Fun_v acc);
+        i <- eval_arith_expr nil ae;
+        f <- find_val prog v;
+        f (Some i) vl
     end a
-with eval_list_expr (arch : architecture) (eqns : list (list bvar * expr)) (tctxt : list (ident * typ))
+with eval_list_expr (arch : architecture) (prog : prog_ctxt) (eqns : list (list bvar * expr)) (tctxt : list (ident * typ))
         (args : list (ident * cst_or_int)) (el : expr_list) (a : acc_pred_l tctxt eqns el) {struct a}
             : option Value :=
     match el return acc_pred_l tctxt eqns el -> option Value with
     | Enil => fun _ => Some nil
     | ECons hd tl => fun acc =>
-        hd <- eval_expr arch eqns tctxt args hd (acc_pred_inv_hd acc);
-        tl <- eval_list_expr arch eqns tctxt args tl (acc_pred_inv_tl acc);
+        hd <- eval_expr arch prog eqns tctxt args hd (acc_pred_inv_hd acc);
+        tl <- eval_list_expr arch prog eqns tctxt args tl (acc_pred_inv_tl acc);
         Some (linearize_list_value hd tl)
     end a
-with eval_list_expr' (arch : architecture) (eqns : list (list bvar * expr)) (tctxt : list (ident * typ))
+with eval_list_expr' (arch : architecture) (prog : prog_ctxt) (eqns : list (list bvar * expr)) (tctxt : list (ident * typ))
         (args : list (ident * cst_or_int)) (el : expr_list) (a : acc_pred_l tctxt eqns el) {struct a}
             : option (option (nat * list Z * list nat * dir)) :=
     match el return acc_pred_l tctxt eqns el -> option (option (nat * list Z * list nat * dir)) with
     | Enil => fun _ => Some None
     | ECons hd tl => fun acc =>
-        hd <- eval_expr arch eqns tctxt args hd (acc_pred_inv_hd acc);
-        tl <- eval_list_expr' arch eqns tctxt args tl (acc_pred_inv_tl acc);
+        hd <- eval_expr arch prog eqns tctxt args hd (acc_pred_inv_hd acc);
+        tl <- eval_list_expr' arch prog eqns tctxt args tl (acc_pred_inv_tl acc);
         match hd with
         | CoIR d v form::nil =>
             match tl with
@@ -2964,7 +3017,7 @@ with eval_list_expr' (arch : architecture) (eqns : list (list bvar * expr)) (tct
         | _ => None
         end
     end a
-with eval_var_find (eqns eqns': list (list bvar * expr)) (arch : architecture)
+with eval_var_find (eqns eqns': list (list bvar * expr)) (arch : architecture) (prog : prog_ctxt)
         (tctxt : list (ident * typ)) (args : list (ident * cst_or_int)) (v : ident)
         (path : list nat) (a : acc_find_var v path eqns' tctxt eqns) {struct a}
             : option (option cst_or_int) :=
@@ -2975,19 +3028,19 @@ with eval_var_find (eqns eqns': list (list bvar * expr)) (arch : architecture)
         return generalization_in v path vL = g -> option (option cst_or_int)
         with
         | true => fun HEq =>
-            match eval_expr arch eqns tctxt args e (acc_find_var_inv_hd acc HEq) with
+            match eval_expr arch prog eqns tctxt args e (acc_find_var_inv_hd acc HEq) with
             | Some val =>
                 Some (extract_val vL v path tctxt val)
             | None => Some None
             end
         | false => fun HEq =>
-            eval_var_find eqns eqns_tl arch tctxt args v path (acc_find_var_inv_tl acc HEq)
+            eval_var_find eqns eqns_tl arch prog tctxt args v path (acc_find_var_inv_tl acc HEq)
         end Logic.eq_refl
     end a
-with eval_var (arch : architecture) (eqns : list (list bvar * expr)) (tctxt : list (ident * typ))
+with eval_var (arch : architecture) (prog : prog_ctxt) (eqns : list (list bvar * expr)) (tctxt : list (ident * typ))
         (args : list (ident * cst_or_int)) (v : ident) (path_in : list nat) (path_tl : list indexing)
         (a : acc_var v path_in path_tl tctxt eqns) {struct a} : option cst_or_int :=
-    match eval_var_find eqns eqns arch tctxt args v path_in (acc_var_inv_find a) with
+    match eval_var_find eqns eqns arch prog tctxt args v path_in (acc_var_inv_find a) with
     | None => match path_tl return acc_var v path_in path_tl tctxt eqns -> option cst_or_int with
         | nil => fun acc =>
             match find_val tctxt v as ot
@@ -3004,7 +3057,7 @@ with eval_var (arch : architecture) (eqns : list (list bvar * expr)) (tctxt : li
                     then
                         None
                     else
-                        t <- eval_var_slice arch eqns tctxt args v path_in nil
+                        t <- eval_var_slice arch prog eqns tctxt args v path_in nil
                             [seq Const_e (Z.of_nat i) | i <- gen_range 0 (len - 1)] acc';
                         (dir, val, form, nb) <- t;
                         Some (CoIR dir val (nb :: form))
@@ -3015,11 +3068,11 @@ with eval_var (arch : architecture) (eqns : list (list bvar * expr)) (tctxt : li
             return acc_var v (path_in ++ [:: unwrap oi]) path_tl' tctxt eqns -> option cst_or_int
             with
             | Some i => fun acc' =>
-                eval_var arch eqns tctxt args v (path_in ++ [:: i]) path_tl' acc'
+                eval_var arch prog eqns tctxt args v (path_in ++ [:: i]) path_tl' acc'
             | None => fun _ => None
             end (acc_var_inv_Ind_rec acc)
         | ISlice aeL :: path_tl' => fun acc =>
-            t <- eval_var_slice arch eqns tctxt args v path_in path_tl' aeL (acc_Var_inv_Slice_rec acc);
+            t <- eval_var_slice arch prog eqns tctxt args v path_in path_tl' aeL (acc_Var_inv_Slice_rec acc);
             (dir, val, form, nb) <- t;
             Some (CoIR dir val (nb :: form))
         | IRange ae1 ae2 :: path_tl' => fun acc =>
@@ -3031,7 +3084,7 @@ with eval_var (arch : architecture) (eqns : list (list bvar * expr)) (tctxt : li
                 return acc_forall v path_in path_tl' tctxt eqns [seq Const_e (Z.of_nat i) | i <- gen_range i1 (unwrap oi2)] -> option _
                 with
                 | Some i2 => fun acc' =>
-                    t <- eval_var_slice arch eqns tctxt args v path_in path_tl'
+                    t <- eval_var_slice arch prog eqns tctxt args v path_in path_tl'
                         [seq Const_e (Z.of_nat i) | i <- gen_range i1 i2] acc';
                     (dir, val, form, nb) <- t;
                     Some (CoIR dir val (nb :: form))
@@ -3050,7 +3103,7 @@ with eval_var (arch : architecture) (eqns : list (list bvar * expr)) (tctxt : li
             Some (CoIR d v f)
         end
     end
-with eval_var_slice (arch : architecture) (eqns : list (list bvar * expr)) (tctxt : list (ident * typ))
+with eval_var_slice (arch : architecture) (prog : prog_ctxt) (eqns : list (list bvar * expr)) (tctxt : list (ident * typ))
     (args : list (ident * cst_or_int))
     (v : ident) (path_in : list nat) (path_tl : list indexing) (aeL : list arith_expr)
     (a : acc_forall v path_in path_tl tctxt eqns aeL)
@@ -3059,12 +3112,12 @@ with eval_var_slice (arch : architecture) (eqns : list (list bvar * expr)) (tctx
     return acc_forall v path_in path_tl tctxt eqns aeL -> _ with
     | nil => fun _ => Some None
     | ae_hd :: ae_tl => fun acc =>
-        tl <- eval_var_slice arch eqns tctxt args v path_in path_tl ae_tl (acc_forall_inv_tail acc);
+        tl <- eval_var_slice arch prog eqns tctxt args v path_in path_tl ae_tl (acc_forall_inv_tail acc);
         match eval_arith_expr nil ae_hd as oi
         return acc_var v (path_in ++ [:: unwrap oi]) path_tl tctxt eqns -> _
         with
         | Some i => fun acc' =>
-            v <- eval_var arch eqns tctxt args v (path_in ++ [:: i]) path_tl acc';
+            v <- eval_var arch prog eqns tctxt args v (path_in ++ [:: i]) path_tl acc';
             match tl with
             | None =>
                 match v with
@@ -3106,59 +3159,14 @@ Proof.
     simpl; left; reflexivity.
 Qed.
 
-Fixpoint eval_vars arch tctxt args eqns out_vars : (forall v, List.In v out_vars -> acc_var v nil nil tctxt eqns) -> option (list cst_or_int) :=
+Fixpoint eval_vars arch prog tctxt args eqns out_vars : (forall v, List.In v out_vars -> acc_var v nil nil tctxt eqns) -> option (list cst_or_int) :=
     match out_vars with
     | nil => fun=> Some nil
     | v::tl =>
         fun acc_pred =>
-            v <- eval_var arch eqns tctxt args v nil nil (proj_term_hd _ _ _ _ acc_pred);
-            v_tl <- eval_vars arch tctxt args eqns tl (proj_term_tl _ _ _ _ acc_pred);
+            v <- eval_var arch prog eqns tctxt args v nil nil (proj_term_hd _ _ _ _ acc_pred);
+            v_tl <- eval_vars arch prog tctxt args eqns tl (proj_term_tl _ _ _ _ acc_pred);
             Some (linearize_list_value (v :: nil) v_tl)
-    end.
-
-Fixpoint build_ctxt_aux_take_n (nb : nat) (input : list (@cst_or_int Z)) (d : dir) : option (list Z * list (@cst_or_int Z)) :=
-    match nb with
-    | 0 => Some (nil, input)
-    | S nb' => match input with
-        | nil => None
-        | (CoIL n)::in_tl =>
-            (out, rest) <- build_ctxt_aux_take_n nb' in_tl d;
-            Some (n::out, rest)
-        | (CoIR d' iL _)::in_tl =>
-            if dir_beq d d'
-            then
-                let (hd, tl) := try_take_n nb iL in
-                match tl with
-                | SumR nil => Some (hd, in_tl)
-                | SumR tl => Some(hd, CoIR d' tl (length tl::nil)::in_tl)
-                | SumL nb =>
-                    (out, rest) <- build_ctxt_aux_take_n nb in_tl d;
-                    Some (hd ++ out, rest)
-                end
-            else None
-        end
-    end.
-
-Fixpoint build_ctxt_aux (typ : typ) (input : list (@cst_or_int Z)) (l : list nat) : option (@cst_or_int Z * list (@cst_or_int Z)) :=
-    match typ with
-    | Nat => match input with
-        | CoIL n :: input' => Some (CoIL n, input') 
-        | _ => None
-        end
-    | Uint d (Mint n) =>
-        annot <- IntSize_of_nat n;
-        d <- match d with
-            | Hslice => Some (DirH annot)
-            | Vslice => Some (DirV annot)
-            | Bslice => Some DirB
-            | _ => None
-        end;
-        (valL, input') <- build_ctxt_aux_take_n (prod_list l) input d;
-        Some (CoIR d valL l, input')
-    | Uint _ Mnat => None
-    | Uint _ (Mvar _) => None
-    | Array typ len =>
-        build_ctxt_aux typ input (l ++ [:: len])
     end.
 
 Fixpoint build_ctxt (args : p) (input : list (@cst_or_int Z)) : option (list (ident * @cst_or_int Z)) :=
@@ -3186,7 +3194,7 @@ Fixpoint eval_node_inner (arch : architecture) (prog : prog_ctxt) (in_names out_
         return build_topological_sort (tctxt_hd ++ tctxt_tl) eqns' = opt -> option (list cst_or_int) with
         | None => fun => None
         | Some _ => fun eq =>
-            eval_vars arch (tctxt_hd ++ tctxt_tl) args eqns' (map fst tctxt_hd) (termination _ _ _ _ eq)
+            eval_vars arch prog (tctxt_hd ++ tctxt_tl) args eqns' (map fst tctxt_hd) (termination _ _ _ _ eq)
         end Logic.eq_refl
     | Table l, None => match (in_names, input) with
         | (n1::nil, CoIR d iL _::nil) =>
