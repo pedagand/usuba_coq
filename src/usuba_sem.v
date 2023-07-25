@@ -147,15 +147,15 @@ Fixpoint eval_expr (arch : architecture) (prog : prog_ctxt) (ctxt : context) (e 
         | Coercion e ltyp =>
             v <- eval_expr arch prog ctxt e;
             coercion ltyp v
-        | Fun id el =>
+        | Fun id ie functor transpose el =>
             args <- eval_expr_list arch prog ctxt el;
-            f <- find_val prog id;
-            f None args
-        | Fun_v id ie el =>
-            args <- eval_expr_list arch prog ctxt el;
-            i <- eval_arith_expr ctxt ie;
-            f <- find_val prog id;
-            f (Some i) args
+            i <- match ie with
+                | None => Some None
+                | Some ae =>
+                    i <- eval_arith_expr ctxt ae; Some (Some i)
+            end;
+            (in_types, f) <- find_val prog id;
+            lift_fun in_types (f i) functor transpose args
     end
 with eval_expr_list (arch : architecture) (prog : prog_ctxt) (ctxt : context) (el : expr_list) : option (list (@cst_or_int Z)) :=
     match el with
@@ -389,7 +389,7 @@ with eval_node_list arch prog in_names out_names l i input :=
 
 Definition eval_node (arch : architecture) (node : def) (prog : prog_ctxt) : node_sem_type :=
     fun opt input =>
-        infered <- infer_types (P_IN node) input;
+        infered <- infer_types (map VD_TYP (P_IN node)) input;
         eval_node_inner arch prog (subst_infer_p infered (P_IN node)) (subst_infer_p infered (P_OUT node)) (subst_infer_def infered (NODE node)) opt input.
 
 Fixpoint eval_prog (arch : architecture) (fprog : prog) : prog_ctxt :=
@@ -397,11 +397,11 @@ Fixpoint eval_prog (arch : architecture) (fprog : prog) : prog_ctxt :=
     | nil => nil
     | node::prog =>
         let tl := eval_prog arch prog in
-        (ID node, eval_node arch node tl)::tl
+        (ID node, (map VD_TYP (P_IN node), eval_node arch node tl))::tl
     end.
 
 Definition prog_sem (arch : architecture) (fprog : prog) : node_sem_type :=
     match eval_prog arch fprog with
     | nil => fun _ _ => None
-    | (_, hd)::_ => hd
+    | (_, (_, hd))::_ => hd
     end.

@@ -2203,7 +2203,7 @@ Proof.
         list_rel sub_utree (map snd dependancies) (map snd dependancies') /\
         Forall (fun p : ident * use_tree => let (v, t) := p in
             partial_valid_use_tree' (length eqns_hd) (list_of_expr_list el ++ expr_ctxt) v t nil (eqns_hd ++ (vars, full_expr) :: eqns_tl)) dependancies'
-        ) _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _).
+        ) _ _ _ _ _ _ _ _ _ _ _ _ _ _ _).
     all: simpl.
     {
         move=> z o eL dependancies dependancies' H; inversion H; auto.
@@ -3124,130 +3124,9 @@ Proof.
         1,3,4: by assumption.
         rewrite <-fst_eq1; auto.
     }
-    (* Fun *)
     {
         simpl.
-        move=> i eL HRec ctxt dependancies dependancies' HEq is_sub is_map fst_eq type_soundness HValid.
-        apply (HRec ctxt) in HEq; trivial.
-        {
-            destruct HEq as [Eq [type_soundness' [acc_valid [all_sub valid]]]].
-            split.
-            {
-                move: acc_valid; clear.
-                induction eL; simpl.
-                by move=> _ v HIn; inversion HIn.
-                move=> acc_valid; inversion acc_valid.
-                move=> v HIn; inversion HIn; auto.
-            }
-            split; [> assumption | split; trivial].
-            split; trivial.
-            move: valid; clear; move=> valid.
-            rewrite Forall_forall; rewrite Forall_forall in valid.
-            move=> [v t] LIn; apply valid in LIn.
-            rewrite <-(partial_valid_use_tree'_change_list (list_of_expr_list eL ++ ctxt)); trivial.
-            clear.
-            move=> v; split; move=> [e [LIn HIn]].
-            {
-                rewrite List.in_app_iff in LIn.
-                destruct LIn as [LIn|LIn].
-                {
-                    eexists; split; simpl.
-                    by left; reflexivity.
-                    simpl.
-                    induction eL as [|hd tl HRec]; simpl in *.
-                    by idtac.
-                    destruct LIn as [HEq|LIn].
-                    by destruct HEq; constructor.
-                    by apply HRec in LIn; constructor.
-                }
-                {
-                    exists e; split; auto.
-                    by constructor.
-                }
-            }
-            {
-                inversion LIn as [HEq|LIn']; clear LIn.
-                {
-                    destruct HEq; simpl in *.
-                    induction eL as [|hd tl HRec]; simpl in *.
-                    by inversion HIn.
-                    inversion HIn as [|x H].
-                    by exists hd; auto.
-                    destruct (HRec H) as [e [LIn EIn]].
-                    exists e; auto.
-                }
-                {
-                    exists e; split; auto.
-                    rewrite List.in_app_iff; auto.
-                }
-            }
-        }
-        {
-            move: is_sub; clear.
-            assert (forall eL_hd, (Forall (fun e => (exists e', List.In e' eL_hd /\ is_subexpr e e') \/ is_subexpr_l e eL)) (eL_hd ++ list_of_expr_list eL)).
-            {
-                induction eL as [|hd tl HRec]; simpl.
-                {
-                    move=> eL_hd; rewrite cats0.
-                    rewrite Forall_forall.
-                    move=> e HIn; left.
-                    exists e; split; trivial.
-                    apply is_subexpr_refl.
-                }
-                {
-                    move=> eL_hd.
-                    specialize HRec with (eL_hd ++ [:: hd]).
-                    rewrite <-app_assoc in HRec; simpl in HRec.
-                    rewrite Forall_forall in HRec; rewrite Forall_forall.
-                    move=> e; specialize HRec with e.
-                    rewrite List.in_app_iff; rewrite List.in_app_iff in HRec.
-                    move=> [H|H].
-                    {
-                        destruct HRec as [H1|]; auto.
-                        destruct H1 as [e' [LIn is_sub]].
-                        rewrite List.in_app_iff in LIn.
-                        destruct LIn as [H'|H'].
-                        {
-                            left; exists e'; auto.
-                        }
-                        {
-                            inversion H' as [HEq|Abs]; [> destruct HEq | inversion Abs].
-                            auto.
-                        }
-                    }
-                    {
-                        inversion H as [HEq|HIn].
-                        {
-                            destruct HEq; right; left; apply is_subexpr_refl.
-                        }
-                        {
-                            destruct HRec as [[e' [HIn' is_sub]]|]; auto.
-                            rewrite List.in_app_iff in HIn'.
-                            destruct HIn' as [HIn'|HIn'].
-                            {
-                                left; exists e'; auto.
-                            }
-                            {
-                                inversion HIn' as [HEq|Abs]; [> destruct HEq | inversion Abs].
-                                auto.
-                            }
-                        }
-                    }
-                }
-            }
-            specialize H with nil.
-            rewrite Forall_forall; rewrite Forall_forall in H.
-            move=> is_sub e HIn; specialize H with e.
-            simpl in H; apply H in HIn; clear H.
-            destruct HIn as [[e' [[] H]]|is_sub'].
-            refine (is_subexpr_trans _ _ _ _ is_sub); auto.
-            simpl; right; assumption.
-        }
-    }
-    (* Fun_v *)
-    {
-        simpl.
-        move=> i ae eL HRec ctxt dependancies dependancies' HEq is_sub is_map fst_eq type_soundness HValid.
+        move=> i oae l1 l2 eL HRec ctxt dependancies dependancies' HEq is_sub is_map fst_eq type_soundness HValid.
         apply (HRec ctxt) in HEq; trivial.
         {
             destruct HEq as [Eq [type_soundness' [acc_valid [all_sub valid]]]].

@@ -62,8 +62,8 @@ Function collect_expr (e : expr) : iset.t :=
     | Bitmask expr aexpr => iset.union (collect_expr expr) (collect_aexpr aexpr)
     | Pack e1 e2 _ => iset.union (collect_expr e1) (collect_expr e2)
     | Coercion e _ => collect_expr e
-    | Fun f exprl => iset.union (iset.singleton f) (collect_exprl exprl)
-    | Fun_v f aexpr exprl => iset.union (iset.singleton f) (iset.union (collect_aexpr aexpr) (collect_exprl exprl))
+    | Fun f  None        _ _ exprl => iset.union (iset.singleton f) (collect_exprl exprl)
+    | Fun f (Some aexpr) _ _ exprl => iset.union (iset.singleton f) (iset.union (collect_aexpr aexpr) (collect_exprl exprl))
     end
 with collect_exprl el :=
     match el with

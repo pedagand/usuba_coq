@@ -41,10 +41,7 @@ tel.
 
 Definition node_subbytes := node SubBytes args inputSB:b[16][8] returns out:b[16][8] vars nil
 let
-    (* XXX: lifting of SubBytes from b8 to b[16][8] *)
-    for i in 0 to 15 do
-      (out, IInd i :: nil) :: nil <|- SubBytes_single @ [inputSB[i]]
-    done
+    (out, nil) :: nil <|- Fun SubBytes_single None (16%nat :: nil) nil (ECons inputSB Enil)
 tel.
 
 Definition node_shift_rows := node ShiftRows args inputSR:b[16][8] returns output:b[128] vars nil

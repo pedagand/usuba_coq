@@ -163,7 +163,7 @@ Lemma collect_expr_soundness:
         iset.In elt (collect_expr e) <-> In ident (expr_freevars e) elt.
 Proof.
     move=> e.
-    refine (expr_find (fun e => _) (fun exprL => _) _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ e); simpl; auto; clear e.
+    refine (expr_find (fun e => _) (fun exprL => _) _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ e); simpl; auto; clear e.
     {
         intros; exact (iset_empty_soudness _).
     }
@@ -205,19 +205,22 @@ Proof.
         split; move=> []; auto; intro; constructor; assumption.
     }
     {
-        move=> i el HRec elt; rewrite iset.union_spec.
-        rewrite iset.singleton_spec; rewrite HRec.
-        split; move=> []; auto.
-        + move=> ->; do 2 constructor.
-        + intro; constructor; assumption.
-        + move=> x []; left; reflexivity.
-    }
-    {
-        move=> i ae el HRec elt; do 2 rewrite iset.union_spec.
-        rewrite iset.singleton_spec; rewrite collect_aexpr_soundness; rewrite HRec.
-        split.
-        + move=> [->|[HIn|HIn]]; do 2 constructor; assumption.
-        + move=> [x []| x []]; auto.
+        move=> i [ae|] l1 l2 el HRec elt.
+        {
+            do 2 rewrite iset.union_spec.
+            rewrite iset.singleton_spec; rewrite collect_aexpr_soundness; rewrite HRec.
+            split.
+            + move=> [->|[HIn|HIn]]; do 2 constructor; assumption.
+            + move=> [x []| x []]; auto.
+        }
+        {
+            rewrite iset.union_spec.
+            rewrite iset.singleton_spec; rewrite HRec.
+            split; move=> []; auto.
+            + move=> ->; do 2 constructor.
+            + intro; constructor; assumption.
+            + move=> x []; left; reflexivity.
+        }
     }
     {
         simpl; exact iset_empty_soudness.

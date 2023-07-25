@@ -184,12 +184,12 @@ Inductive eval_expr_to (arch : architecture)
     | EETFun : forall fprog ctxt v el val_args val_out,
         eval_expr_list_to arch fprog ctxt el val_args ->
         eval_prog_to arch fprog v val_args None val_out ->
-        eval_expr_to arch fprog ctxt (Fun v el) val_out
+        eval_expr_to arch fprog ctxt (Fun v None nil nil el) val_out
     | EETFun_v : forall fprog ctxt v ae i el val_args val_out,
         eval_expr_list_to arch fprog ctxt el val_args ->
         eval_arith_expr ctxt ae i ->
         eval_prog_to arch fprog v val_args (Some i) val_out ->
-        eval_expr_to arch fprog ctxt (Fun_v v ae el) val_out
+        eval_expr_to arch fprog ctxt (Fun v (Some ae) nil nil el) val_out
 with eval_expr_list_to' (arch : architecture)
     : prog -> list (ident * @cst_or_int Z) -> expr_list -> nat -> list Z -> list nat -> dir -> Prop :=
     | EETLnil' : forall fprog ctxt form d,
@@ -253,7 +253,7 @@ with eval_node_list_to (arch : architecture)
 with eval_prog_to (arch : architecture)
     : prog -> ident -> list (@cst_or_int Z) -> option nat -> list (@cst_or_int Z) -> Prop :=
     | EPTSame : forall fprog in_values opt out_values node infered,
-        infer_types (P_IN node) in_values = Some infered ->
+        infer_types (map VD_TYP (P_IN node)) in_values = Some infered ->
         eval_node_to arch fprog (subst_infer_p infered (P_IN node))
             (subst_infer_p infered (P_OUT node)) (subst_infer_def infered (NODE node)) opt in_values out_values ->
         eval_prog_to arch (node :: fprog) (ID node) in_values opt out_values

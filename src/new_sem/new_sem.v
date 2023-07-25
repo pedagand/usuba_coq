@@ -866,8 +866,7 @@ Inductive acc_pred : list (ident * typ) -> list (list bvar * expr) -> expr -> Pr
     | AccBitmask : forall tctxt eqns e ae, acc_pred tctxt eqns e -> acc_pred tctxt eqns (Bitmask e ae)
     | AccPack : forall tctxt eqns e1 e2 otyp, acc_pred tctxt eqns e1 -> acc_pred tctxt eqns e2 -> acc_pred tctxt eqns (Pack e1 e2 otyp)
     | AccCoercion : forall tctxt eqns e ltyp, acc_pred tctxt eqns e -> acc_pred tctxt eqns (Coercion e ltyp)
-    | AccFun : forall tctxt eqns v el, acc_pred_l tctxt eqns el -> acc_pred tctxt eqns (Fun v el)
-    | AccFun_v : forall tctxt eqns v ae el, acc_pred_l tctxt eqns el -> acc_pred tctxt eqns (Fun_v v ae el)
+    | AccFun : forall tctxt eqns v oae l1 l2 el, acc_pred_l tctxt eqns el -> acc_pred tctxt eqns (Fun v oae l1 l2 el)
 with acc_pred_l : list (ident * typ) -> list (list bvar * expr) -> expr_list -> Prop :=
     | AccEnil : forall tctxt eqns, acc_pred_l tctxt eqns Enil
     | AccECons : forall tctxt eqns e el, acc_pred tctxt eqns e -> acc_pred_l tctxt eqns el -> acc_pred_l tctxt eqns (ECons e el)
@@ -1179,7 +1178,7 @@ Proof.
         refine (expr_find _ (fun exprl =>
             Forall (fun e => is_subexpr e expr) (list_of_expr_list exprl) ->
             (forall v, In var (exprl_freefullvars exprl) v -> valid_var tctxt v) ->
-            acc_pred_l tctxt (eqns_hd ++ (vars, expr) :: eqns_tl) exprl) _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _).
+            acc_pred_l tctxt (eqns_hd ++ (vars, expr) :: eqns_tl) exprl) _ _ _ _ _ _ _ _ _ _ _ _ _ _ _).
         (* Const *)
         {
             intros; constructor.
@@ -1575,72 +1574,7 @@ Proof.
         (* Fun *)
         {
             simpl.
-            intros i eL HRec is_sub valid.
-            constructor; apply HRec; trivial.
-            move: is_sub; clear.
-            assert (forall eL_hd, (Forall (fun e => (exists e', List.In e' eL_hd /\ is_subexpr e e') \/ is_subexpr_l e eL)) (eL_hd ++ list_of_expr_list eL)).
-            {
-                induction eL as [|hd tl HRec]; simpl.
-                {
-                    move=> eL_hd; rewrite cats0.
-                    rewrite Forall_forall.
-                    move=> e HIn; left.
-                    exists e; split; trivial.
-                    apply is_subexpr_refl.
-                }
-                {
-                    move=> eL_hd.
-                    specialize HRec with (eL_hd ++ [:: hd]).
-                    rewrite <-app_assoc in HRec; simpl in HRec.
-                    rewrite Forall_forall in HRec; rewrite Forall_forall.
-                    move=> e; specialize HRec with e.
-                    rewrite List.in_app_iff; rewrite List.in_app_iff in HRec.
-                    move=> [H|H].
-                    {
-                        destruct HRec as [H1|]; auto.
-                        destruct H1 as [e' [LIn is_sub]].
-                        rewrite List.in_app_iff in LIn.
-                        destruct LIn as [H'|H'].
-                        {
-                            left; exists e'; auto.
-                        }
-                        {
-                            inversion H' as [HEq|Abs]; [> destruct HEq | inversion Abs].
-                            auto.
-                        }
-                    }
-                    {
-                        inversion H as [HEq|HIn].
-                        {
-                            destruct HEq; right; left; apply is_subexpr_refl.
-                        }
-                        {
-                            destruct HRec as [[e' [HIn' is_sub]]|]; auto.
-                            rewrite List.in_app_iff in HIn'.
-                            destruct HIn' as [HIn'|HIn'].
-                            {
-                                left; exists e'; auto.
-                            }
-                            {
-                                inversion HIn' as [HEq|Abs]; [> destruct HEq | inversion Abs].
-                                auto.
-                            }
-                        }
-                    }
-                }
-            }
-            specialize H with nil.
-            rewrite Forall_forall; rewrite Forall_forall in H.
-            move=> is_sub e HIn; specialize H with e.
-            simpl in H; apply H in HIn; clear H.
-            destruct HIn as [[e' [[] H]]|is_sub'].
-            refine (is_subexpr_trans _ _ _ _ is_sub); auto.
-            simpl; right; assumption.
-        }
-        (* Fun_v *)
-        {
-            simpl.
-            intros i a eL HRec is_sub valid.
+            intros i a l1 l2 eL HRec is_sub valid.
             constructor; apply HRec; trivial.
             move: is_sub; clear.
             assert (forall eL_hd, (Forall (fun e => (exists e', List.In e' eL_hd /\ is_subexpr e e') \/ is_subexpr_l e eL)) (eL_hd ++ list_of_expr_list eL)).
@@ -2546,8 +2480,7 @@ Definition acc_pred_inv_Log_2 {tctxt eqns sop e1 e2} (a : acc_pred tctxt eqns (L
 Definition expr_inv_toList e := match e with
     | Tuple el => el
     | BuildArray el => el
-    | Fun _ el => el
-    | Fun_v _ _ el => el
+    | Fun _ _ _ _ el => el
     | _ => Enil end.
 
 Definition acc_pred_inv_Tuple {tctxt eqns el} (a : acc_pred tctxt eqns (Tuple el)) : acc_pred_l tctxt eqns el :=
@@ -2566,20 +2499,12 @@ Definition acc_pred_inv_BuildArray {tctxt eqns el} (a : acc_pred tctxt eqns (Bui
         match eq_ind (BuildArray _) (fun e => match e with BuildArray _ => True | _ => False end) I _ HEq with end
     end Logic.eq_refl.
 
-Definition acc_pred_inv_Fun {tctxt eqns v el} (a : acc_pred tctxt eqns (Fun v el)) : acc_pred_l tctxt eqns el :=
-    match a in (acc_pred tctxt eqns e) return Fun v el = e -> acc_pred_l tctxt eqns (expr_inv_toList e)
+Definition acc_pred_inv_Fun {tctxt eqns v ae l1 l2 el} (a : acc_pred tctxt eqns (Fun v ae l1 l2 el)) : acc_pred_l tctxt eqns el :=
+    match a in (acc_pred tctxt eqns e) return Fun v ae l1 l2 el = e -> acc_pred_l tctxt eqns (expr_inv_toList e)
     with
-    | AccFun _ _ _ _ a => fun _ => a
+    | AccFun _ _ _ _ _ _ _ a => fun _ => a
     | _ => fun HEq =>
-        match eq_ind (Fun _ _) (fun e => match e with Fun _ _ => True | _ => False end) I _ HEq with end
-    end Logic.eq_refl.
-
-Definition acc_pred_inv_Fun_v {tctxt eqns v ae el} (a : acc_pred tctxt eqns (Fun_v v ae el)) : acc_pred_l tctxt eqns el :=
-    match a in (acc_pred tctxt eqns e) return Fun_v v ae el = e -> acc_pred_l tctxt eqns (expr_inv_toList e)
-    with
-    | AccFun_v _ _ _ _ _ a => fun _ => a
-    | _ => fun HEq =>
-        match eq_ind (Fun_v _ _ _) (fun e => match e with Fun_v _ _ _ => True | _ => False end) I _ HEq with end
+        match eq_ind (Fun _ _ _ _ _) (fun e => match e with Fun _ _ _ _ _ => True | _ => False end) I _ HEq with end
     end Logic.eq_refl.
 
 Definition expr_inv_var v :=
@@ -2993,15 +2918,15 @@ Fixpoint eval_expr (arch : architecture) (prog : prog_ctxt) (eqns : list (list b
     | Bitmask _ _ => fun _ => None
     | Pack _ _ _ => fun _ => None
     | Shuffle _ _ => fun _ => None
-    | Fun v el => fun acc =>
-        vl <- eval_list_expr arch prog eqns tctxt args el (acc_pred_inv_Fun acc);
-        f <- find_val prog v;
-        f None vl
-    | Fun_v v ae el => fun acc =>
-        vl <- eval_list_expr arch prog eqns tctxt args el (acc_pred_inv_Fun_v acc);
-        i <- eval_arith_expr nil ae;
-        f <- find_val prog v;
-        f (Some i) vl
+    | Fun id ie functor transpose el => fun acc =>
+        args <- eval_list_expr arch prog eqns tctxt args el (acc_pred_inv_Fun acc);
+        i <- match ie with
+            | None => Some None
+            | Some ae =>
+                i <- eval_arith_expr nil ae; Some (Some i)
+        end;
+        (in_types, f) <- find_val prog id;
+        lift_fun in_types (f i) functor transpose args
     | Coercion e ltyp => fun acc =>
         v <- eval_expr arch prog eqns tctxt args e (acc_pred_inv_Coercion acc);
         coercion ltyp v
@@ -3257,7 +3182,7 @@ with eval_node_list arch prog in_names out_names l i input :=
 
 Definition eval_node (arch : architecture) (node : def) (prog : prog_ctxt) : node_sem_type :=
     fun opt input =>
-        infered <- infer_types (P_IN node) input;
+        infered <- infer_types (map VD_TYP (P_IN node)) input;
         eval_node_inner arch prog (subst_infer_p infered (P_IN node)) (subst_infer_p infered (P_OUT node)) (subst_infer_def infered (NODE node)) opt input.
 
 Fixpoint eval_prog (arch : architecture) (fprog : prog) : prog_ctxt :=
@@ -3265,16 +3190,11 @@ Fixpoint eval_prog (arch : architecture) (fprog : prog) : prog_ctxt :=
     | nil => nil
     | node::prog =>
         let tl := eval_prog arch prog in
-        (ID node, eval_node arch node tl)::tl
+        (ID node, (map VD_TYP (P_IN node), eval_node arch node tl))::tl
     end.
 
 Definition prog_sem (arch : architecture) (fprog : prog) : node_sem_type :=
     match eval_prog arch fprog with
     | nil => fun _ _ => None
-    | (_, hd)::_ => hd
+    | (_, (_, hd))::_ => hd
     end.
-
-
-(* Require Extraction.
-
-Extraction "new_sem" eval_expr list_of_list_deq. *)

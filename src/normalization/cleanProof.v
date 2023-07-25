@@ -277,7 +277,7 @@ Theorem subst_infer_collect_expr:
     forall info e, collect_expr (subst_infer_expr info e) = collect_expr e.
 Proof.
     move=> info e.
-    refine (expr_find (fun e => _) (fun exprL => _) _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ e); simpl; auto; clear e.
+    refine (expr_find (fun e => _) (fun exprL => _) _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ e); simpl; auto; clear e.
     + move=> n []; auto.
     + move=> e H; exact H.
     + move=> e H; exact H.
@@ -286,8 +286,7 @@ Proof.
     + move=> _ e -> ae; reflexivity.
     + move=> e -> ae; reflexivity.
     + move=> e -> e2 ->; reflexivity.
-    + move=> i e ->; reflexivity.
-    + move=> i a e ->; reflexivity.
+    + move=> i a _ _ e ->; reflexivity.
     + auto.
     + simpl; move=> e -> el ->; reflexivity.
 Qed.
@@ -358,6 +357,7 @@ Proof.
     move=> [id p_in p_out node_opt [temp_vars eqns| | |]]; simpl; trivial.
     2-4: reflexivity.
     unfold nodes_rel; simpl; split; trivial.
+    split; [> reflexivity | idtac ].
     unfold node_sem_rel; move=> prog.
     unfold eval_node; simpl.
     move=> [] input; trivial.

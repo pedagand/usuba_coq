@@ -190,7 +190,7 @@ Fixpoint update_expr (e : expr) (pos : nat) (dependancies : list (ident * use_tr
     | ExpVar (Index (Var v) ind) | Shuffle (Index (Var v) ind) _ =>
         update_ctxt dependancies v (update_use_tree ind pos)
     | ExpVar (Index (Index _ _) _) | Shuffle (Index (Index _ _) _) _ => None
-    | Tuple el | BuildArray el | Fun _ el | Fun_v _ _ el =>
+    | Tuple el | BuildArray el | Fun _ _ _ _ el =>
         update_list_expr el pos dependancies
     | Not e | Shift _ e _ | Bitmask e _ | Coercion e _ =>
         update_expr e pos dependancies

@@ -267,9 +267,9 @@ Fixpoint split_into_segments {A : Type} (nb_segments segment_size : nat) (l : li
     
 Definition type_ctxt : Type := list (ident * typ).
 Definition node_sem_type := option nat -> list (@cst_or_int Z) -> option (list (@cst_or_int Z)).
-Definition prog_ctxt := list (ident * node_sem_type).
+Definition prog_ctxt := list (ident * (list typ * node_sem_type)).
 
-Fixpoint get_node (prog : prog_ctxt) (id : ident) : option node_sem_type :=
+Fixpoint get_node (prog : prog_ctxt) (id : ident) : option (list typ * node_sem_type) :=
     match prog with
     | nil => None
     | (name, f) :: tl => if ident_beq name id
@@ -466,32 +466,6 @@ Fixpoint coercion (l : list typ) (values : list (@cst_or_int Z)) : option (list 
 
 Definition proj_types (p : var_d) : ident * typ := (VD_ID p, VD_TYP p).
 
-(* Transposition of list of intergers in binary representations *)
-
-Fixpoint transpose_nat_list (n : nat) (l : list Z) : list Z :=
-    match n with
-    | 0 => nil
-    | S n' =>
-        let (num, l') :=
-            fold_left (fun (p : Z * list Z) i =>
-                let (nb, tl) := p in (2 * nb + (i mod 2), tl ++ [:: i / 2])%Z)
-                l (0%Z, nil)
-        in transpose_nat_list n' l' ++ [:: num]
-    end.
-
-Fixpoint transpose_nat_list2 (iL : list Z) (len : nat) : list Z :=
-    match iL with
-    | nil => map (fun _=> 0%Z) (@undefined Z len)
-    | hd::tl =>
-        let iL' := transpose_nat_list2 tl len in
-        let t2 := transpose_nat_list len (hd::nil) in
-        match list_map2 (fun i j => i * 2 + j)%Z iL' t2 with
-        | Some l => l
-        | None => nil
-        end
-    end.
-
-
 (* Monomorphisation of functions *)
 
 (* TODO handle multiple type parameters *)
@@ -584,11 +558,11 @@ Fixpoint extract_size {A : Type} (n : nat) (l : list (@cst_or_int A)) : option n
         end
     end.
 
-Fixpoint infer_types (args : p) (input : list (@cst_or_int Z)) : option monomorph_info :=
+Fixpoint infer_types (args : list typ) (input : list (@cst_or_int Z)) : option monomorph_info :=
     match args with
     | nil => Some {| DIR_MONO := None; SIZE_MONO := None |}
     | hd :: tl => 
-        (d, form) <- convert_type (VD_TYP hd);
+        (d, form) <- convert_type hd;
         let ed := extract_dir (prod_list form) input in
         let es := extract_size (prod_list form) input in
         input' <- extract_n (prod_list form) input;
@@ -618,6 +592,12 @@ Fixpoint infer_types (args : p) (input : list (@cst_or_int Z)) : option monomorp
             Some {| DIR_MONO := DIR_MONO info; SIZE_MONO := s; |}
         | _ => Some info
         end
+    end.
+
+Definition subst_infer_mtyp (infered : monomorph_info) (m : mtyp) : mtyp :=
+    match (m, SIZE_MONO infered) with
+    | (Mvar _, Some i) => Mint i
+    | _ => m
     end.
 
 Fixpoint subst_infer_typ (infered : monomorph_info) (type : typ) : typ :=
@@ -660,8 +640,7 @@ Fixpoint subst_infer_expr (infered : monomorph_info) (e : expr) : expr :=
     | Bitmask e ae => Bitmask (subst_infer_expr infered e) ae
     | Pack e1 e2 o_typ => Pack (subst_infer_expr infered e1) (subst_infer_expr infered e2) (option_map (subst_infer_typ infered) o_typ)
     | Coercion e ltyp => Coercion (subst_infer_expr infered e) (map (subst_infer_typ infered) ltyp)
-    | Fun v el => Fun v (subst_infer_list_expr infered el)
-    | Fun_v v ae el => Fun_v v ae (subst_infer_list_expr infered el)
+    | Fun v oae l1 l2 el => Fun v oae l1 l2 (subst_infer_list_expr infered el)
     end
 with subst_infer_list_expr (infered : monomorph_info) (el : expr_list) : expr_list :=
     match el with
@@ -699,6 +678,116 @@ with subst_infer_list_def (infered : monomorph_info) (l : list_def_i) : list_def
         LDcons (subst_infer_def infered hd)
             (subst_infer_list_def infered tl)
     end.
+
+(* Transposition of list of intergers in binary representations *)
+
+Fixpoint transpose_nat_list (n : nat) (l : list Z) : list Z :=
+    match n with
+    | 0 => nil
+    | S n' =>
+        let (num, l') :=
+            fold_left (fun (p : Z * list Z) i =>
+                let (nb, tl) := p in (2 * nb + (i mod 2), tl ++ [:: i / 2])%Z)
+                l (0%Z, nil)
+        in transpose_nat_list n' l' ++ [:: num]
+    end.
+
+Fixpoint transpose_nat_list2 (iL : list Z) (len : nat) : list Z :=
+    match iL with
+    | nil => map (fun _=> 0%Z) (@undefined Z len)
+    | hd::tl =>
+        let iL' := transpose_nat_list2 tl len in
+        let t2 := transpose_nat_list len (hd::nil) in
+        match list_map2 (fun i j => i * 2 + j)%Z iL' t2 with
+        | Some l => l
+        | None => nil
+        end
+    end.
+
+(* Lifting of function as a map *)
+
+Fixpoint map_type (l : list nat) (t : typ) : typ :=
+    match l with
+    | nil => t
+    | hd :: tl => Array (map_type tl t) hd
+    end.
+
+Fixpoint lift_types (l1 l2 : list nat) (t : typ) : option typ :=
+    match l1 with
+    | nil => Some (map_type l2 t)
+    | len1 :: tl =>
+        match t with
+        | Array t' len2 =>
+            if len1 =? len2
+            then
+                t <- lift_types tl l2 t;
+                Some (Array t len2)
+            else None
+        | _ => None
+        end
+    end.
+
+Fixpoint transpose_lists {A} (n : nat) (l : list (list A)) : option (list (list A)) :=
+    match l with
+    | nil => Some (map (fun _ => nil) (@undefined nat n))
+    | hd :: tl =>
+        tl' <- transpose_lists n tl;
+        list_map2 cons hd tl'
+    end.
+
+Definition transpose_args (functor transpose : list nat) (val : @cst_or_int Z) : option (list (@cst_or_int Z)) :=
+    match val with
+    | CoIL _ => None
+    | CoIR d vals form =>
+        (trans_func, form_tl) <- take_n (length transpose + length functor) form;
+        if list_beq _ (Nat.eqb) (transpose ++ functor) trans_func
+        then
+            let len_trans := prod_list transpose in
+            let len_func := prod_list functor in
+            let len_tl := prod_list form_tl in
+            vals' <- split_into_segments len_trans (len_func * len_tl) vals;
+            vals'' <- remove_option_from_list (map (split_into_segments len_func len_tl) vals');
+            vals''' <- transpose_lists len_func vals'';
+            Some (map (fun (val : seq (seq Z)) => CoIR d (flatten val) (transpose ++ form_tl)) vals''')
+        else
+            None
+    end.
+
+Definition extract_vals {A} (v : @cst_or_int A) : option (list A) :=
+    match v with
+    | CoIR _ l _ => Some l
+    | CoIL _ => None
+    end.
+
+Definition untranspose_args (functor transpose : list nat) (vals : list (@cst_or_int Z)) : option (@cst_or_int Z) :=
+    match vals with
+    | CoIR d _ form :: _ =>
+        vals' <- remove_option_from_list (map extract_vals vals);
+        let len_trans := prod_list transpose in
+        (to_check, form_tl) <- take_n (length transpose) form;
+        if list_beq _ (Nat.eqb) transpose to_check
+        then
+            let len_tl := prod_list form_tl in
+            vals'' <- remove_option_from_list (map (split_into_segments len_trans len_tl) vals');
+            vals''' <- transpose_lists len_trans vals'';
+            Some (CoIR d (flatten (flatten vals''')) (transpose ++ functor ++ form_tl))
+        else
+            None
+    | _ => None
+    end.
+
+Definition lift_fun (in_types : list typ) (f : list (@cst_or_int Z) -> option (list (@cst_or_int Z))) (functor transpose : list nat)
+    (vals : list (@cst_or_int Z)) : option (list (@cst_or_int Z)) :=
+    in_types <- remove_option_from_list (map (lift_types transpose functor) in_types);
+    infered <- infer_types in_types vals;
+    args <- coercion (map (subst_infer_typ infered) in_types) vals;
+    args' <- remove_option_from_list (map (transpose_args functor transpose) args);
+    (* let n := match args' with nil => 0 | hd :: _ => length hd end in *)
+    args'' <- transpose_lists (prod_list functor) args';
+    out <- remove_option_from_list (map f args'');
+    let n := match out with nil => 0 | hd :: _ => length hd end in
+    out' <- transpose_lists n out;
+    remove_option_from_list (map (untranspose_args functor transpose) out').
 
 (* Flattening of declarations *)
 
@@ -757,8 +846,7 @@ Fixpoint subst_expr (ctxt : list (ident * nat)) (e : expr) : expr :=
     | Bitmask e ae => Bitmask (subst_expr ctxt e) (subst_aexpr ctxt ae)
     | Pack e1 e2 typ => Pack (subst_expr ctxt e1) (subst_expr ctxt e2) typ
     | Coercion e ltyp => Coercion (subst_expr ctxt e) ltyp
-    | Fun f el => Fun f (subst_exprl ctxt el)
-    | Fun_v f ae el => Fun_v f (subst_aexpr ctxt ae) (subst_exprl ctxt el)
+    | Fun f oae l1 l2 el => Fun f (option_map (subst_aexpr ctxt) oae) l1 l2 (subst_exprl ctxt el)
     end
 with subst_exprl ctxt el :=
     match el with

@@ -21,7 +21,7 @@ Fixpoint expr_freefullvars (e : expr) : Ensemble var :=
     | Not e | Shift _ e _ | Bitmask e _ | Coercion e _ => expr_freefullvars e
     | Log _ e1 e2 | Arith _ e1 e2 => Union _ (expr_freefullvars e1) (expr_freefullvars e2)
     | Pack e1 e2 _ => Union _ (expr_freefullvars e1) (expr_freefullvars e2)
-    | Fun _ exprl | Fun_v _ _ exprl => exprl_freefullvars exprl
+    | Fun _ _ _ _ exprl => exprl_freefullvars exprl
     end
 with exprl_freefullvars el :=
     match el with
@@ -89,8 +89,8 @@ Fixpoint expr_freevars (e : expr) : Ensemble ident :=
     | Bitmask expr aexpr => Union ident (expr_freevars expr) (aexpr_freevars aexpr)
     | Pack e1 e2 _ => Union ident (expr_freevars e1) (expr_freevars e2)
     | Coercion e _ => expr_freevars e
-    | Fun f exprl => Union ident (Singleton ident f) (exprl_freevars exprl)
-    | Fun_v f aexpr exprl => Union ident (Singleton ident f) (Union ident (aexpr_freevars aexpr) (exprl_freevars exprl))
+    | Fun f None _ _ exprl => Union ident (Singleton ident f) (exprl_freevars exprl)
+    | Fun f (Some aexpr) _ _ exprl => Union ident (Singleton ident f) (Union ident (aexpr_freevars aexpr) (exprl_freevars exprl))
     end
 with exprl_freevars el :=
     match el with
@@ -665,7 +665,7 @@ Fixpoint is_subexpr (e' e : expr) : Prop :=
     match e with
     | Const _ _ | ExpVar _ => False
     | Shuffle v _ => ExpVar v = e'
-    | Fun _ el | Fun_v _ _ el | Tuple el | BuildArray el => is_subexpr_l e' el
+    | Fun _ _ _ _ el | Tuple el | BuildArray el => is_subexpr_l e' el
     | Not e | Shift _ e _ | Bitmask e _ | Coercion e _ => is_subexpr e' e
     | Log _ e1 e2 | Arith _ e1 e2 | Pack e1 e2 _ => is_subexpr e' e1 \/ is_subexpr e' e2
     end
@@ -688,7 +688,7 @@ Lemma is_subexpr_trans:
         is_subexpr e1 e3.
 Proof.
     move=> e1 e2 e3; move: e3.
-    refine (expr_find _ (fun eL => is_subexpr e1 e2 -> is_subexpr_l e2 eL -> is_subexpr_l e1 eL) _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _); simpl.
+    refine (expr_find _ (fun eL => is_subexpr e1 e2 -> is_subexpr_l e2 eL -> is_subexpr_l e1 eL) _ _ _ _ _ _ _ _ _ _ _ _ _ _ _); simpl.
     {
         move=> z o is_sub [HEq|[]].
         rewrite HEq in is_sub.
@@ -741,11 +741,7 @@ Proof.
         by rewrite HEq in is_sub; auto.
     }
     {
-        move=> i eL HRec is_sub [HEq|is_subl]; auto.
-        rewrite HEq in is_sub; simpl in is_sub; trivial.
-    }
-    {
-        move=> i ae eL HRec is_sub [HEq|is_subl]; auto.
+        move=> i ae l1 l2 eL HRec is_sub [HEq|is_subl]; auto.
         rewrite HEq in is_sub; simpl in is_sub; trivial.
     }
     {
@@ -767,7 +763,7 @@ Lemma is_subexpr_freefullvars:
 Proof.
     move=> e1 e2 is_sub v HIn; move: e2 is_sub.
     refine (expr_find _ (fun exprl =>
-        is_subexpr_l e1 exprl -> In _ (exprl_freefullvars exprl) v) _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _); simpl.
+        is_subexpr_l e1 exprl -> In _ (exprl_freefullvars exprl) v) _ _ _ _ _ _ _ _ _ _ _ _ _ _ _); simpl.
     {
         move=> z o [H|[]].
         rewrite H in HIn; simpl in HIn.
@@ -820,11 +816,7 @@ Proof.
         all: by constructor; auto.
     }
     {
-        move=> i el HRec [H|is_sub]; auto.
-        rewrite H in HIn; simpl in HIn; assumption.
-    }
-    {
-        move=> i a el HRec [H|is_sub]; auto.
+        move=> i a l1 l2 el HRec [H|is_sub]; auto.
         rewrite H in HIn; simpl in HIn; assumption.
     }
     {

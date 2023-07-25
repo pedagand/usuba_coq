@@ -306,25 +306,18 @@ Fixpoint eval_expr (arch : architecture) (prog : prog_ctxt) (ctxt : context) (e 
             | SumL v => option_map SumL (coercion ltyp v)
             | SumR e' => Some (SumR (Coercion e' ltyp))
             end
-        | Fun id el =>
+        | Fun id ie functor transpose el =>
             args <- eval_expr_list arch prog ctxt el;
-            f <- find_val prog id;
+            (in_types, f) <- find_val prog id;
+            i <- match ie with
+                | None => Some None
+                | Some ae =>
+                    i <- eval_arith_expr nil ae; Some (Some i)
+            end;
             match args with
-            | SumR el' => Some (SumR (Fun id el'))
+            | SumR el' => Some (SumR (Fun id ie functor transpose el'))
             | SumL args =>
-                l_val <- f None args;
-                Some (SumL l_val)
-            end
-        | Fun_v id ie el =>
-            args <- eval_expr_list arch prog ctxt el;
-            i <- eval_arith_expr nil ie;
-            f <- find_val prog id;
-            match args with
-            | SumR el' =>
-                Some (SumR (Fun_v id (Const_e (Z.of_nat i)) el'))
-            | SumL args =>
-                l_val <- f (Some i) args;
-                Some (SumL l_val)
+                option_map SumL (lift_fun in_types (f i) functor transpose args)
             end
     end
 with simpl_expr_list (arch : architecture) (prog : prog_ctxt) (ctxt : context) (el : expr_list) : option expr_list :=
@@ -638,7 +631,7 @@ with eval_node_list arch prog in_names out_names l i input :=
 
 Definition eval_node (arch : architecture) (node : def) (prog : prog_ctxt) : node_sem_type :=
     fun opt input =>
-        infered <- infer_types (P_IN node) input;
+        infered <- infer_types (map VD_TYP (P_IN node)) input;
         eval_node_inner arch prog (subst_infer_p infered (P_IN node)) (subst_infer_p infered (P_OUT node)) (subst_infer_def infered (NODE node)) opt input.
 
 Fixpoint eval_prog (arch : architecture) (fprog : prog) : prog_ctxt :=
@@ -646,11 +639,11 @@ Fixpoint eval_prog (arch : architecture) (fprog : prog) : prog_ctxt :=
     | nil => nil
     | node::prog =>
         let tl := eval_prog arch prog in
-        (ID node, eval_node arch node tl)::tl
+        (ID node, (map VD_TYP (P_IN node), eval_node arch node tl))::tl
     end.
 
 Definition prog_sem (arch : architecture) (fprog : prog) : node_sem_type :=
     match eval_prog arch fprog with
     | nil => fun _ _ => None
-    | (_, hd)::_ => hd
+    | (_, (_, hd))::_ => hd
     end.

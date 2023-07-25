@@ -43,7 +43,7 @@ Notation "x '+' y"   := (Arith Add (x)%ua_expr (y)%ua_expr) (at level 50, left a
 Notation "x '-' y"   := (Arith Sub (x)%ua_expr (y)%ua_expr) (at level 50, left associativity) : Usuba_expr.
 Notation "x '*' y"   := (Arith Mul (x)%ua_expr (y)%ua_expr) (at level 40, left associativity) : Usuba_expr.
 Notation "x '/' y"   := (Arith Div (x)%ua_expr (y)%ua_expr) (at level 40, left associativity) : Usuba_expr.
-Notation "f '@' '[' x , .. , y ']'" := (Fun (f)%string (ECons ((x)%ua_expr : expr) .. (ECons ((y)%ua_expr : expr) Enil) ..)) (at level 75, no associativity) : Usuba_expr.
+Notation "f '@' '[' x , .. , y ']'" := (Fun (f)%string None nil nil (ECons ((x)%ua_expr : expr) .. (ECons ((y)%ua_expr : expr) Enil) ..)) (at level 75, no associativity) : Usuba_expr.
 Notation "'[' x , .. , y ']'" := (BuildArray (ECons ((x)%ua_expr : expr) .. (ECons ((y)%ua_expr : expr) Enil) ..)) (at level 87, no associativity) : Usuba_expr.
 
 Notation "f '$' '[' x , .. , y ']'" := (Index (f)%ua_var (ISlice (cons ((x)%ua_aexpr : arith_expr) .. (cons ((y)%ua_aexpr : arith_expr) nil) ..)::nil)) (at level 75, no associativity) : Usuba_var.
@@ -147,5 +147,5 @@ Definition refresh : ident := "refresh"%string.
 
 Definition f_node := node f args (x : Uint Vslice (Mint 32)) returns (y: Uint Vslice (Mint 32)) vars nil
     let
-        (y, nil) :: nil <:- ((x <<< 5) & Fun refresh (ECons x Enil)) xor (x <<< 1)
+        (y, nil) :: nil <:- ((x <<< 5) & Fun refresh None nil nil (ECons x Enil)) xor (x <<< 1)
     tel.
