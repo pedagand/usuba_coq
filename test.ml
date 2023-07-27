@@ -1,4 +1,3 @@
-open Semantic_aes
 
 let rec to_nat n =
   if n = 0 then O

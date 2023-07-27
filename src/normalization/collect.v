@@ -40,6 +40,16 @@ Fixpoint collect_varl (vl : list var) : iset.t :=
     | v :: tl => iset.union (collect_var v) (collect_varl tl)
     end.
 
+Function collect_bvar (v : bvar) : iset.t :=
+    let (var, i) := v in
+    iset.union (iset.singleton var) (collect_indexingl i).
+
+Fixpoint collect_bvarl (vl : list bvar) : iset.t :=
+    match vl with
+    | nil => iset.empty
+    | v :: tl => iset.union (collect_bvar v) (collect_bvarl tl)
+    end.
+
 Function collect_expr (e : expr) : iset.t :=
     match e with
     | Const _ _ => iset.empty
@@ -51,8 +61,9 @@ Function collect_expr (e : expr) : iset.t :=
     | Shuffle v _ => collect_var v
     | Bitmask expr aexpr => iset.union (collect_expr expr) (collect_aexpr aexpr)
     | Pack e1 e2 _ => iset.union (collect_expr e1) (collect_expr e2)
-    | Fun f exprl => iset.union (iset.singleton f) (collect_exprl exprl)
-    | Fun_v f aexpr exprl => iset.union (iset.singleton f) (iset.union (collect_aexpr aexpr) (collect_exprl exprl))
+    | Coercion e _ => collect_expr e
+    | Fun f  None        _ _ exprl => iset.union (iset.singleton f) (collect_exprl exprl)
+    | Fun f (Some aexpr) _ _ exprl => iset.union (iset.singleton f) (iset.union (collect_aexpr aexpr) (collect_exprl exprl))
     end
 with collect_exprl el :=
     match el with
@@ -68,7 +79,7 @@ Function collect_vdecl (p : p) : iset.t :=
 
 Function collect_deq (d : deq) : iset.t :=
     match d with
-    | Eqn v e _ => iset.union (collect_varl v) (collect_expr e)
+    | Eqn v e _ => iset.union (collect_bvarl v) (collect_expr e)
     | Loop i aei1 aei2 eqns opt =>
         iset.add i (iset.union 
             (iset.union (collect_aexpr aei1) (collect_aexpr aei2)) (collect_deqs eqns))
@@ -81,7 +92,7 @@ with collect_deqs (dl : list_deq) : iset.t :=
 
 Function collect_bounddeq (d : deq) : iset.t :=
     match d with
-    | Eqn v e _ => (collect_varl v)
+    | Eqn v e _ => (collect_bvarl v)
     | Loop i aei1 aei2 eqns opt =>
         iset.add i (collect_bounddeqs eqns)
     end

@@ -97,6 +97,8 @@ Inductive var :=
     | Var : ident -> var
     | Index : var -> seq indexing -> var.
 
+Definition bvar : Type := ident * seq indexing.
+
 Fixpoint var_size (v : var) :=
     match v with
     | Var _ => 1
@@ -130,12 +132,12 @@ Inductive expr :=
   | Shuffle : var -> seq nat -> expr
   | Bitmask : expr -> arith_expr -> expr
   | Pack : expr -> expr -> option typ -> expr
-  | Fun : forall (f: ident)(i: option arith_expr)(functor: list mtyp)(transpose: list mtyp)(args: expr_list), expr
-  (** syntax: (%{transpose}x)?[%{f}(<%{i}>)?(x%{functor})?(%args)] *)
-  (** semantics: apply the %i^th function named %f to its arguments %args. 
-      %f is applied functorially on functor %functor (if empty: functor identity)
-      inputs are first transposed wrt. to functor %transpose (if empty: functor identity) *)
-
+  | Fun : forall (f: ident)(i: option arith_expr)(functor: list nat)(transpose: list nat)(args: expr_list), expr
+    (** syntax: (%{transpose}x)?[%{f}(<%{i}>)?(x%{functor})?(%args)] *)
+    (** semantics: apply the %i^th function named %f to its arguments %args. 
+        %f is applied functorially on functor %functor (if empty: functor identity)
+        inputs are first transposed wrt. to functor %transpose (if empty: functor identity) *)
+  | Coercion : expr -> list typ -> expr
 with expr_list :=
   | Enil
   | ECons : expr -> expr_list -> expr_list.
@@ -158,7 +160,9 @@ Fixpoint expr_size (e : expr) : nat :=
     | Bitmask e ae => 1 + expr_size e + arith_expr_size ae
     | Pack e1 e2 None => 1 + expr_size e1 + expr_size e2
     | Pack e1 e2 (Some t) => 1 + expr_size e1 + expr_size e2 + typ_size t
-    | Fun id e el _ _ => 0 (* XXX: repair?  1 + match e with Some e => arith_expr_size e | _ =>  0 end + expr_list_size el*)
+    | Fun _ _ _ _ el => 1 + expr_list_size el
+        (* XXX: repair?  1 + match e with Some e => arith_expr_size e | _ =>  0 end + expr_list_size el*)
+    | Coercion e ltyp => 1 + expr_size e + length ltyp
     end
 with expr_list_size (el : expr_list) : nat :=
     match el with
@@ -186,13 +190,18 @@ Inductive deq :=
     (** %i is bound in %eqs, as a static parameter *)
 
     (** XXX: this ought to be an expression but this would yield tie the mutual recursion with [list_deq] *)
-
 with list_deq :=
     | Dnil
     | Dcons : deq -> list_deq -> list_deq.
 
 Scheme deq_find := Induction for deq Sort Prop
 with list_deq_find := Induction for list_deq Sort Prop.
+
+Fixpoint list_bvar_size (bvL : seq bvar) : nat :=
+    match bvL with
+    | nil => 0
+    | (v, ind) :: tl => 1 + length ind + list_bvar_size tl
+    end.
 
 Fixpoint deq_size deq : nat :=
     match deq with

@@ -1,6 +1,6 @@
 
 Require Import ZArith String List.
-From Usuba Require Import arch utils usuba_AST usuba_ASTProp usuba_sem usuba_semProp ace_bitslice.
+From Usuba Require Import arch utils usuba_AST usuba_ASTProp usuba_sem semantic_base semantic_base_proofs ace_bitslice.
 Require Import Lia.
 
 Lemma node_f_soundness:
@@ -94,7 +94,6 @@ Proof.
     simpl_util; cbn - [eval_node].
     simpl_util; cbn - [eval_node].
     eexists; eexists.
-    gen_notation.
     reflexivity.
 Qed.
 
@@ -117,13 +116,13 @@ Ltac simpl_util' :=
     end.
 
 Lemma node_ACE_step_soundness:
-    forall iL, length iL = 16 ->
+    forall iL, length iL = 16%nat ->
         exists l,
         eval_node default_arch node_ACE_step
             ((Id_s simeck_box, eval_node default_arch node_simeck_box ((Id_s syntax.f, eval_node default_arch node_f nil)::nil))
             :: (Id_s syntax.f, eval_node default_arch node_f nil)::nil)
-            None (CoIR (DirV 32) iL None::nil) = Some (CoIR (DirV 32) l None::nil)
-        /\ length l = 10.
+            None (CoIR (DirV 32%nat) iL (16%nat::nil)::nil) = Some (CoIR (DirV 32%nat) l (10%nat::nil)::nil)
+        /\ length l = 10%nat.
 Proof.
     intros iL Hlength.
     do 16 simpl_1 iL Hlength.

@@ -1,21 +1,21 @@
 Require Import String List ZArith.
-From Usuba Require Import usuba_AST syntax arch.
+From Usuba Require Import ident usuba_AST syntax arch.
 Open Scope Z_scope.
 
 
-Definition SubBytes_single : string := "SubBytes_single".
-Definition SubBytes : string := "SubBytes".
-Definition inputSB : string := "inputSB".
-Definition ShiftRows : string := "ShiftRows".
-Definition inputSR : string := "inputSR".
-Definition times2 : string := "times2".
-Definition times3 : string := "times3".
-Definition MixColumn_single : string := "MixColumn_single".
-Definition inp : string := "inp".
-Definition MixColumn : string := "MixColumn".
-Definition AddRoundKey : string := "AddRoundKey".
-Definition AES : string := "AES".
-Definition r : string := "r".
+Definition SubBytes_single : ident := "SubBytes_single"%string.
+Definition SubBytes : ident := "SubBytes"%string.
+Definition inputSB : ident := "inputSB"%string.
+Definition ShiftRows : ident := "ShiftRows"%string.
+Definition inputSR : ident := "inputSR"%string.
+Definition times2 : ident := "times2"%string.
+Definition times3 : ident := "times3"%string.
+Definition MixColumn_single : ident := "MixColumn_single"%string.
+Definition inp : ident := "inp"%string.
+Definition MixColumn : ident := "MixColumn"%string.
+Definition AddRoundKey : ident := "AddRoundKey"%string.
+Definition AES : ident := "AES"%string.
+Definition r : ident := "r"%string.
 
 Definition node_subBytes_single := table SubBytes_single args input:v8 returns output:v8 let
     99; 124; 119; 123; 242; 107; 111; 197; 48; 1; 103; 43; 254; 215; 171; 118;
@@ -41,46 +41,43 @@ tel.
 
 Definition node_subbytes := node SubBytes args inputSB:b[16][8] returns out:b[16][8] vars nil
 let
-    (* XXX: lifting of SubBytes from b8 to b[16][8] *)
-    for i in 0 to 15 do
-      out[i] :: nil <|- SubBytes_single @ [inputSB[i]]
-    done
+    (out, nil) :: nil <|- Fun SubBytes_single None (16%nat :: nil) nil (ECons inputSB Enil)
 tel.
 
 Definition node_shift_rows := node ShiftRows args inputSR:b[16][8] returns output:b[128] vars nil
 let
-    Var output :: nil <|- inputSR $ [0,5,10,15,4,9,14,3,8,13,2,7,12,1,6,11 ]
+    (output, nil) :: nil <|- inputSR $ [0,5,10,15,4,9,14,3,8,13,2,7,12,1,6,11 ]
 tel.
 
 Definition node_times2 := node times2 args i:b[8] returns o:b[8] vars nil
 let
-    Var o :: nil <|- (i << 1) xor [0,0,0,i[0],i[0],0,i[0],i[0] ]
+    (o, nil) :: nil <|- (i << 1) xor [0,0,0,i[0],i[0],0,i[0],i[0] ]
 tel.
 
 Definition node_times3 := node times3 args i:b[8] returns o:b[8] vars nil
 let
-    Var o :: nil <|- times2 @ [i] xor i
+    (o, nil) :: nil <|- times2 @ [i] xor i
 tel.
 
 (* XXX: this could be automatically produced by a matrix multiplication by a constant matrix *)
 Definition node_MixColumn_single := node MixColumn_single args inp:b[4][8] returns out:b[4][8] vars nil
 let
-    out[0] :: nil <|- times2 @ [inp[0]] xor times3 @ [inp[1]] xor inp[2] xor inp[3];
-    out[1] :: nil <|- inp[0] xor times2 @ [inp[1]] xor times3 @ [inp[2]] xor inp[3];
-    out[2] :: nil <|- inp[0] xor inp[1] xor times2 @ [inp[2]] xor times3 @ [inp[3]];
-    out[3] :: nil <|- times3 @ [inp[0]] xor inp[1] xor inp[2] xor times2 @ [inp[3]]
+    (out, IInd 0 :: nil) :: nil <|- times2 @ [inp[0]] xor times3 @ [inp[1]] xor inp[2] xor inp[3];
+    (out, IInd 1 :: nil) :: nil <|- inp[0] xor times2 @ [inp[1]] xor times3 @ [inp[2]] xor inp[3];
+    (out, IInd 2 :: nil) :: nil <|- inp[0] xor inp[1] xor times2 @ [inp[2]] xor times3 @ [inp[3]];
+    (out, IInd 3 :: nil) :: nil <|- times3 @ [inp[0]] xor inp[1] xor inp[2] xor times2 @ [inp[3]]
 tel.
 
 Definition node_MixColumn := node MixColumn args inp:b[4][32] returns out:b[4][32] vars nil
 let
     for i in 0 to 3 do
-       out[i] :: nil <|- MixColumn_single @ [inp[i]]
+       (out, IInd i :: nil) :: nil <|- MixColumn_single @ [inp[i]]
     done
 tel.
 
 Definition node_AddRoundKey := node AddRoundKey args  i:b[128], key:b[128] returns r:b[128] vars nil
 let
-    Var r :: nil <|- i xor key
+    (r, nil) :: nil <|- i xor key
 tel.
 
 Definition node_AES := node AES args plain:b[128], key:b[11][128] returns cipher:b[128]
@@ -88,16 +85,16 @@ vars
     (tmp : b[10][128])%ua_var_decl :: nil
 let
     (* Initial AddRoundKey *)
-    tmp[0] :: nil <|- AddRoundKey @ [plain, key[0]];
+    (tmp, IInd 0 :: nil) :: nil <|- AddRoundKey @ [plain, key[0]];
 
     (* XXX: use imperative loops *)
     (* 9 rounds (the last is special) *)
     for i in 1 to 9 do
-      tmp[i] :: nil <|- AddRoundKey @ [MixColumn @ [ShiftRows @ [SubBytes @ [tmp[i-1]]]], key[i]]
+      (tmp, IInd i :: nil) :: nil <|- AddRoundKey @ [MixColumn @ [ShiftRows @ [SubBytes @ [tmp[i-1]]]], key[i]]
     done;
 
     (* Last (10th) round (no MixColumn) *)
-    Var cipher :: nil <|- AddRoundKey @ [ShiftRows @ [SubBytes @ [tmp[9]]], key[10]]
+    (cipher, nil) :: nil <|- AddRoundKey @ [ShiftRows @ [SubBytes @ [tmp[9]]], key[10]]
 tel.
 
 Definition prog_tl8 : prog := node_subBytes_single :: nil.

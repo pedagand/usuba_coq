@@ -50,16 +50,28 @@ a :: 'AExp' ::=
     | abs( a )                          :: S :: Abs
     | ( a )                             :: S :: Parent
     | len </ an // n />                 :: S :: Len
+    | lenExpr </ en // n />             :: S :: LenE
     | prod form                         :: S :: Prod
     | z                                 :: S :: Const_e'
     | sum </ aon // n />                :: S :: SumOpt
     | ( aevarH s )                      :: S :: Var_e' {{ tex [[s]] }}
 
+aL :: '' ::=
+    | </ an // , // n />                :: S :: L
+
+ind :: 'Ind' ::=
+    | index a                           :: :: Index {{ tex [[a]] }}
+    | range a1 a2                       :: :: Range {{ tex [[a1]] .. [[a2]] }}
+    | </ an // , // n />                :: :: Slice
+    | slice aL                          :: S :: SliceB {{ tex [[aL]] }}
+
 v :: 'Var' ::=
     | x                                 :: :: Var
-    | index v a                         :: :: Index {{ tex [[v]] [ [[a]] ]}}
-    | range v a1 a2                     :: :: Range {{ tex [[v]] [ [[a1]] .. [[a2]] ]}}
-    | v [ </ an // , // n /> ]          :: :: Slice
+    | v ind                             :: :: Index {{ tex [[v]] [ [[ind]] ]}}
+    % | index v a                         :: :: Index {{ tex [[v]] [ [[a]] ]}}
+    % | range v a1 a2                     :: :: Range {{ tex [[v]] [ [[a1]] .. [[a2]] ]}}
+    % | v lb </ an // , // n /> rb        :: :: Slice
+    | v lb </ indn // ; // n /> rb      :: S :: IndL
 
 
 monop :: 'Monop' ::=
@@ -79,12 +91,14 @@ opi :: 'Op' ::=
 
 e :: 'Exp' ::=
     | const z                           :: :: Const {{ tex [[z]] }}
-    | evar v                            :: :: ExpVar {{ tex [[v]] }}
+    | evar ( v )                        :: :: ExpVar {{ tex [[v]] }}
     | ( </ en // , // n /> )            :: :: Tuple
     |    monop typ e                    :: :: NotL   {{ tex           [[monop]]_{[[typ]]} \; [[e]] }}
     | e1 binop typ e2                   :: :: Log    {{ tex [[e1]] \; [[binop]]_{[[typ]]} \; [[e2]]}}
     | f ( </ en // , // n /> )          :: :: Fun
     | f < a > ( </ en // , // n /> )    :: :: Fun_v
+    | [ </ en // , // n /> ]            :: S :: BuildArray
+    | e into typL                       :: S :: Coercion
 
 deq :: 'Deq' ::=
     | </ vn // n /> <|- e                           :: :: EqnFalse
@@ -116,7 +130,7 @@ typc :: 'TypeClass' ::=
   | Arith typ                             :: :: Arith
   | Logic typ                             :: :: Logic
   | Shift typ a2                          :: :: Shift
-  | ClassOf op typ                        :: :: COf
+  | ClassOf op typ                        :: S :: COf
   | typc [ </ dn <- d'n // n /> ; </ sm <- s'm // m /> ] :: S :: Spec
 
 A :: 'TypeClassL' ::= % TypeClass list
@@ -131,9 +145,9 @@ acL :: 'acL' ::=
 
 typi {{ tex \sigma }} :: 'TypeIn' ::=
   | U dir size                      :: :: Base
-  | D typi { a }                    :: :: Rec {{ tex [[typi]] \{ [[a]] \} }}
-  | typi </ { an } // n />          :: S :: RecH
-  | L typi acL                      :: S :: L {{ tex [[typi]] [[acL]] }}
+  % | D typi { a }                    :: :: Rec {{ tex [[typi]] \{ [[a]] \} }}
+  % | typi </ { an } // n />          :: S :: RecH
+  % | L typi acL                      :: S :: L {{ tex [[typi]] [[acL]] }}
 
 typ {{ tex \tau }} :: 'TypeOut' ::=
   | typi                            :: :: I
@@ -146,12 +160,13 @@ typLL :: 'typLL' ::=
 
 typL {{ tex \mathcal{T} }} :: 'typL' ::=
     | </ typn // n />                     :: :: TypeL
-    | L typLL                             :: S :: TypeLL {{ tex [[typLL]] }}
+    | normalize typLL                     :: S :: TypeLL {{ tex [[typLL]] }}
     | typL [ </ dn <- d'n // n /> ; </ sm <- s'm // m /> ]
                                           :: S :: Subst
     | typ cons typL                       :: S :: Cons
     | typ pow a                           :: S :: Pow {{ tex [[typ]]^{[[a]]} }}
     | ( typ pow a )                       :: S :: PowPF {{ tex ( [[typ]]^{[[a]]} ) }}
+    | refresh typ                         :: S :: Refresh
 
 G {{ tex \Gamma }}:: 'TermCtxt' ::=
   | </ xn : typn // , // n /> :: :: List
@@ -163,12 +178,15 @@ terminals :: terminals_ ::=
     | <:-         ::  :: BindMult {{ tex := }}
     | <-          ::  :: leftarrow {{ tex \leftarrow }}
     | ->          ::  :: rightarrow {{ tex \rightarrow }}
+    | -[          ::  :: rightarrowB {{ tex - [ }}
+    | ]->         ::  :: Brightarrow {{ tex ] \rightarrow }}
     | =>          ::  :: Rightarrow {{ tex \Rightarrow }}
     | <=          ::  :: leqslant {{ tex \leqslant }}
     | |->         ::  :: mapsto {{ tex \mapsto }}
     | |-          ::  :: vdash {{ tex \vdash }}
     | |-D         ::  :: vdashDeq {{ tex \vdash_D }}
     | |-E         ::  :: vdashExp {{ tex \vdash_E }}
+    | |-EE        ::  :: vdashExpBis {{ tex \vdash_E }}
     | |-I         ::  :: vdashIdent {{ tex \vdash_I }}
     | |-V         ::  :: vdashVar {{ tex \vdash_V }}
     | ;           ::  :: semicolon {{ tex \; ; \; }}
@@ -188,6 +206,9 @@ terminals :: terminals_ ::=
     | <>          :: :: Diff {{ tex \ne }}
     | lshift      :: :: Lshift {{ tex \ll }}
     | comp        :: :: CompRel {{ tex \cong }}
+    | lb          :: :: LeftBracket {{ tex [ }}
+    | rb          :: :: RightBracket {{ tex ] }}
+    | lenExpr     :: :: Len {{ tex len }}
 
 defns Judgement :: '' ::=
 
@@ -196,6 +217,25 @@ defn |- 0 <= </ an // n /> < a :: :: BoundedAExprEvalL :: 'BAEEvalL' by
 
 defn G |-I x : typ has G' :: :: CtxtVar :: 'CtxtVar' by
 
+defn typ1 -[ </ indm // ; // m /> ]-> typ2 :: :: IndexJudge :: '' by
+
+typi </ [ dn ] // n /> -[ </ indm // m /> ]-> typi </ [ d'k ] // k />
+|- 0 <= a < l
+-------------------------------------------------------------------------- :: Index
+typi [ l ] </ [ dn ] // n /> -[ index a ; </ indm // m /> ]-> typi </ [ d'k ] // k />
+
+typi </ [ dn ] // n /> -[ </ indm // m /> ]-> typi </ [ d'k ] // k />
+|- 0 <= a1 < l
+|- 0 <= a2 < l
+-------------------------------------------------------------------------- :: Range
+typi [ l ] </ [ dn ] // n /> -[ range a1 a2 ; </ indm // m /> ]-> typi [ abs(a1 sub a2) add const_e 1 ] </ [ d'k ] // k />
+
+
+typi </ [ dn ] // n /> -[ </ indm // m /> ]-> typi </ [ d'k ] // k />
+|- 0 <= </ aj // j /> < l
+------------------------------ :: Slice
+typi [ l ] </ [ dn ] // n /> -[ slice </ aj // j /> ; </ indm // m /> ]-> typi [ len </ aj // j /> ] </ [ d'k ] // k />
+
 defn G |-V </ vn // n /> : typL :: :: VarJudgeL :: '' by
 defn G |-V v : typ :: :: VarJudge :: '' by
 
@@ -203,36 +243,42 @@ G |-I x : typ has G
 ------------------------------ :: Ident
 G |-V x : typ
 
-G |-V v : typi [ const_e l ] </ [ dn ] // n />
-|- 0 <= a < l
------------------------------- :: Index
-G |-V index v a : typi </ [dn] // n />
 
-G |-V v : typi [const_e l] </ [dn] // n />
-|- 0 <= a1 < l
-|- 0 <= a2 < l
------------------------------- :: Range
-G |-V range v a1 a2 : typi {abs(a1 sub a2) add const_e 1} </ [dn] // n />
+G |-V v : typ1
+typ1 -[ </ indn // n /> ]-> typ2
+---------------------------------- :: Indexing
+G |-V v lb </ indn // n /> rb : typ2
 
-G |-V v : typi [const_e l] </ [dn] // n />
-|- 0 <= </ an // n /> < l
------------------------------- :: Slice
-G |-V v [</ an // n /> ] : typi {len </ an // n />} </ [dn] // n />
+% G |-V v : typi [ const_e l ] </ [ dn ] // n />
+% |- 0 <= a < l
+% ------------------------------ :: Index
+% G |-V v index a : typi </ [dn] // n />
+
+% G |-V v : typi [const_e l] </ [dn] // n />
+% |- 0 <= a1 < l
+% |- 0 <= a2 < l
+% ------------------------------ :: Range
+% G |-V v range a1 a2 : typi [abs(a1 sub a2) add const_e 1] </ [dn] // n />
+
+% G |-V v : typi [const_e l] </ [dn] // n />
+% |- 0 <= </ an // n /> < l
+% ------------------------------ :: Slice
+% G |-V v </ an // n /> : typi [len </ an // n />] </ [dn] // n />
 
 defn A |- </ typcn // n /> :: :: TClass :: '' by
 
-A |- Arith typi
------------------- :: ArithLI
-A |- Arith typi{l}
+% A |- Arith typi
+% ------------------ :: ArithLI
+% A |- Arith typi{l}
 
 A |- Arith typ
 ------------------ :: ArithL
 A |- Arith typ[l]
 
 
-A |- Logic typi
------------------- :: LogicLI
-A |- Logic typi{l}
+% A |- Logic typi
+% ------------------ :: LogicLI
+% A |- Logic typi{l}
 
 A |- Logic typ
 ------------------ :: LogicL
@@ -273,10 +319,10 @@ typL1 comp typL2
 typ cons typL1 comp typ cons typL2
 
 ----------------------------------------------- :: SimplForm
-U dir s </ { an } // n /> </ [ a'm ] // m /> cons typL comp U dir s [prod [</ an // n />]  mul prod [</ a'm // m/>] ] cons typL
+U dir s </ [ a'm ] // m /> cons typL comp U dir s [ prod [</ a'm // m/>] ] cons typL
 
 ----------------------------------------------- :: Bool
-U V 1 </ {an} // n /> </ [a'm] // m /> cons typL comp U H 1 </ {an} // n /> </ [a'm] // m /> cons typL
+U V 1 </ [a'm] // m /> cons typL comp U H 1 </ [a'm] // m /> cons typL
 
 
 ----------------------------------------------- :: Join
@@ -287,7 +333,7 @@ defn G , P , A |-E e : typL :: :: ExpType :: '' by
 
 G |-V v : typ
 ----------------------------- :: Var
-G , P , A |-E evar v : typ
+G , P , A |-E evar ( v ) : typ
 
 G , P , A |-E e1 : typ
 G , P , A |-E e2 : typ
@@ -302,7 +348,7 @@ G , P , A |-E monop typ e : typ
 
 G , P , A |-E </ en : typLn // n />
 ---------------------------------------------- :: Tuple
-G , P , A |-E (</ en // n />) : L </ typLn // n />
+G , P , A |-E (</ en // n />) : normalize </ typLn // n />
 
 P |- f : forall </ dn // n />, forall </ sm // m />, </ typcj // j /> => typL1 -> typL2
 G , P , A |-E (</ en // n />) : typL1'
@@ -310,6 +356,19 @@ A |- </ typcj [ </ dn <- d'n // n /> ; </ sm <- s'm // m />] // j />
 typL1' comp typL1 [ </ dn <- d'n // n /> ; </ sm <- s'm // m />]
 ----------------------------------------------------------------------------------- :: Fun
 G , P , A |-E f(</ en // n />) : typL2 [ </ dn <- d'n // n /> ; </ sm <- s'm // m />]
+
+defn G , P , A |-EE </ en // n /> : typL :: :: ExpTypeBisL :: '' by
+
+defn G , P , A |-EE e : typL :: :: ExpTypeBis :: '' by
+G , P , A |-EE e : typL1
+typL1 comp typL2
+----------------------- :: Into
+G , P , A |-EE e into typL2 : typL2
+
+G , P , A |-EE </ en // n /> : typi </ [ am ] // m />
+---------------------------------- :: Array
+G , P , A |-EE [ </ en // n /> ] : D typi [ lenExpr </ en // n /> ] </ [ am ] // m />
+
 
 defn G , P , A |-D </ deqn // n /> :: :: TypeDeqL :: '' by
 defn G , P , A |-D deq :: :: TypeDeq :: '' by
@@ -341,7 +400,7 @@ P <- nodeDef |- f : forall </ dn // n /> , forall </ sm // m /> , A => </ typm /
 len </ zn // n/> = 1 lshift i1
 nodeDef = table f ( x : U d s [ i1 ] ) -> ( y : U d s [ i2 ] ) [ </ zn // n /> ]
 ------------------------------------------------------------------------------------------------------------- :: Table
-P <- nodeDef |- f : forall d , forall s, Logic (U d s) => U dir s [ i1 ] -> U dir s [ i2 ]
+P <- nodeDef |- f : forall d , forall s, Logic (U d s) => U d s [ i1 ] -> U d s [ i2 ]
 
 
 defn foreach i has [ a1 , a2 ] . G , P , A |-D </ deqn [ xn <- in ] // n /> :: :: TypeLDeq :: 'TDeq' by

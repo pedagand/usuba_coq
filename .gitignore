@@ -33,7 +33,7 @@ nlia.cache
 nra.cache
 
 usuba.ml*
-semantic_aes.ml*
+semantic_*.ml*
 
 rapport/main.tex
 rapport/rules.tex
