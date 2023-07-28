@@ -15,11 +15,11 @@ embed {{ tex-preamble
 }}
 
 metavar i, d, s ::= {{ com Static Identifiers: $\in \mathit{Ident}$ }} {{ lex alphanum }}
-metavar x, y, t ::= {{ com Dynamic Identifiers: $\in \mathit{Ident}$ }} {{ lex alphanum }}
+metavar u, t ::= {{ com Dynamic Identifiers: $\in \mathit{Ident}$ }} {{ lex alphanum }}
 metavar f       ::= {{ com Node Identifiers: $\in \mathit{Ident}$ }} {{ lex alphanum }}
 metavar l {{ tex \ell }}, z ::= {{ com Integers: $\in \mathbb{N}$ }} {{ lex numeral }}
 
-indexvar n, m, j, k ::= {{ com Index variables }} {{ lex numeral }}
+indexvar n, m, j, k, g, h, q, r, x, y ::= {{ com Index variables }} {{ lex numeral }}
 
 grammar
 
@@ -66,7 +66,7 @@ ind :: 'Ind' ::=
     | slice aL                          :: S :: SliceB {{ tex [[aL]] }}
 
 v :: 'Var' ::=
-    | x                                 :: :: Var
+    | u                                 :: :: Var
     | v ind                             :: :: Index {{ tex [[v]] [ [[ind]] ]}}
     % | index v a                         :: :: Index {{ tex [[v]] [ [[a]] ]}}
     % | range v a1 a2                     :: :: Range {{ tex [[v]] [ [[a1]] .. [[a2]] ]}}
@@ -95,8 +95,10 @@ e :: 'Exp' ::=
     | ( </ en // , // n /> )            :: :: Tuple
     |    monop typ e                    :: :: NotL   {{ tex           [[monop]]_{[[typ]]} \; [[e]] }}
     | e1 binop typ e2                   :: :: Log    {{ tex [[e1]] \; [[binop]]_{[[typ]]} \; [[e2]]}}
-    | f ( </ en // , // n /> )          :: :: Fun
-    | f < a > ( </ en // , // n /> )    :: :: Fun_v
+    | [ </ lj // , // j /> ] f [ </ zn // , // n /> ] ( </ em // , // m /> )
+                                        :: :: Fun
+    | [ </ lj // , // j /> ] f [ </ zn // , // n /> ] < a > ( </ em // , // m /> )
+                                        :: :: Fun_v
     | [ </ en // , // n /> ]            :: S :: BuildArray
     | e into typL                       :: S :: Coercion
 
@@ -107,8 +109,8 @@ deq :: 'Deq' ::=
                                         :: :: Loop
 
 nodeDef {{ tex node }} :: 'node' ::=
-  | node f ( </ xm : typm // , // m /> ) -> ( </ yn : typ'n // , // n /> ) vars ( </ tj : typ''j // , // j /> ) let </ deqk // ; // k /> tel :: :: Node
-  | table f ( x : typ ) -> ( y : typ' ) [ </ an // , // n /> ] :: :: Table
+  | node f ( </ um : typm // , // m /> ) -> ( </ u'n : typ'n // , // n /> ) vars ( </ tj : typ''j // , // j /> ) let </ deqk // ; // k /> tel :: :: Node
+  | table f ( u : typ ) -> ( u' : typ' ) [ </ an // , // n /> ] :: :: Table
 
 dir :: 'Dir' ::=
     | V                                 :: :: V
@@ -169,7 +171,7 @@ typL {{ tex \mathcal{T} }} :: 'typL' ::=
     | refresh typ                         :: S :: Refresh
 
 G {{ tex \Gamma }}:: 'TermCtxt' ::=
-  | </ xn : typn // , // n /> :: :: List
+  | </ un : typn // , // n /> :: :: List
   | G1 add G2 :: S :: Add
   | ( G ) :: S :: Parent
 
@@ -215,7 +217,7 @@ defns Judgement :: '' ::=
 % defn |- 0 <= a < a :: :: BoundedAExprEval :: 'BAEEval' by
 defn |- 0 <= </ an // n /> < a :: :: BoundedAExprEvalL :: 'BAEEvalL' by
 
-defn G |-I x : typ has G' :: :: CtxtVar :: 'CtxtVar' by
+defn G |-I u : typ has G' :: :: CtxtVar :: 'CtxtVar' by
 
 defn typ1 -[ </ indm // ; // m /> ]-> typ2 :: :: IndexJudge :: '' by
 
@@ -239,9 +241,9 @@ typi [ l ] </ [ dn ] // n /> -[ slice </ aj // j /> ; </ indm // m /> ]-> typi [
 defn G |-V </ vn // n /> : typL :: :: VarJudgeL :: '' by
 defn G |-V v : typ :: :: VarJudge :: '' by
 
-G |-I x : typ has G
+G |-I u : typ has G
 ------------------------------ :: Ident
-G |-V x : typ
+G |-V u : typ
 
 
 G |-V v : typ1
@@ -300,6 +302,7 @@ defn G , P , A |-E </ en : typLn // n /> :: :: ExpTypeL :: 'EInfL' by
 
 defn typL1 comp typL2 /\ forall d , typL3 <> typL4 :: :: TypeCompB :: '' by
 
+defn typL1 = typL2 :: :: TypeEq :: '' by
 
 defn typL1 comp typL2 :: :: TypeComp :: '' by
 -------------------------- :: Refl
@@ -353,9 +356,11 @@ G , P , A |-E (</ en // n />) : normalize </ typLn // n />
 P |- f : forall </ dn // n />, forall </ sm // m />, </ typcj // j /> => typL1 -> typL2
 G , P , A |-E (</ en // n />) : typL1'
 A |- </ typcj [ </ dn <- d'n // n /> ; </ sm <- s'm // m />] // j />
-typL1' comp typL1 [ </ dn <- d'n // n /> ; </ sm <- s'm // m />]
+typL1 [ </ dn <- d'n // n /> ; </ sm <- s'm // m />] = </ typix </ [ lg ] // g /> </ [ zq ] // q /> // x />
+typL2 [ </ dn <- d'n // n /> ; </ sm <- s'm // m />] = </ typi'y </ [ lg ] // g /> </ [ z'r ] // r /> // y />
+typL1' comp </ typix </ [ lg ] // g />  </ [ l'h ] // h /> </ [ zq ] // q /> // x />
 ----------------------------------------------------------------------------------- :: Fun
-G , P , A |-E f(</ en // n />) : typL2 [ </ dn <- d'n // n /> ; </ sm <- s'm // m />]
+G , P , A |-E [ </ lg // g /> ] f [ </ l'h // h /> ] (</ en // n />) : </ typi'y </ [ lg ] // g /> </ [ l'h ] // h /> </ [ z'r ] // r /> // y />
 
 defn G , P , A |-EE </ en // n /> : typL :: :: ExpTypeBisL :: '' by
 
@@ -373,35 +378,33 @@ G , P , A |-EE [ </ en // n /> ] : D typi [ lenExpr </ en // n /> ] </ [ am ] //
 defn G , P , A |-D </ deqn // n /> :: :: TypeDeqL :: '' by
 defn G , P , A |-D deq :: :: TypeDeq :: '' by
 G , P , A |-E e  : typL
-typL comp typL'
-G |-V </ vn // n /> : typL'
+G |-V </ vn // n /> : typL
 -------------------------------------------- :: EqnT
 G , P , A |-D </ vn // n /> <:- e
 
 G , P , A |-E e  : typL
-typL comp typL'
-G |-V </ vn // n /> : typL'
+G |-V </ vn // n /> : typL
 -------------------------------------------- :: EqnF
 G , P , A |-D </ vn // n /> <|- e
 
-foreach i has [ a1 , a2 ] . G , P , A |-D </ deqn [ x <- i ] // n />
+foreach i has [ a1 , a2 ] . G , P , A |-D </ deqn [ u <- i ] // n />
 ------------------------------------------------------- :: Loop
 G , P , A |-D for i = a1 to a2 do </ deqn // n /> done
 
 defn nodeDef = nodeDef2 :: :: NodeEq :: 'NEq' by
 
 defn P |- f : forall </ dn // n /> , forall </ sm // m /> , A => typL1 -> typL2 :: :: TypeNode :: '' by
-</ xm : typm // m /> add </ yn : typ'n // n /> add </ tj : typ''j // j /> , P , A |-D </ deqk // k />
-nodeDef =  node f ( </ xm : typm // m /> ) -> ( </ yn : typ'n // n /> ) vars ( </ tj : typ''j // j /> ) let </ deqk // k /> tel
+</ um : typm // m /> add </ u'n : typ'n // n /> add </ tj : typ''j // j /> , P , A |-D </ deqk // k />
+nodeDef =  node f ( </ um : typm // m /> ) -> ( </ u'n : typ'n // n /> ) vars ( </ tj : typ''j // j /> ) let </ deqk // k /> tel
 ------------------------------------------------------------------------------------------------------------- :: Node
 P <- nodeDef |- f : forall </ dn // n /> , forall </ sm // m /> , A => </ typm // m /> -> </ typ'n // n />
 
 |- 0 <= </ zn // n /> < 1 lshift i2
 len </ zn // n/> = 1 lshift i1
-nodeDef = table f ( x : U d s [ i1 ] ) -> ( y : U d s [ i2 ] ) [ </ zn // n /> ]
+nodeDef = table f ( u : U d s [ i1 ] ) -> ( u' : U d s [ i2 ] ) [ </ zn // n /> ]
 ------------------------------------------------------------------------------------------------------------- :: Table
 P <- nodeDef |- f : forall d , forall s, Logic (U d s) => U d s [ i1 ] -> U d s [ i2 ]
 
 
-defn foreach i has [ a1 , a2 ] . G , P , A |-D </ deqn [ xn <- in ] // n /> :: :: TypeLDeq :: 'TDeq' by
+defn foreach i has [ a1 , a2 ] . G , P , A |-D </ deqn [ un <- in ] // n /> :: :: TypeLDeq :: 'TDeq' by
 

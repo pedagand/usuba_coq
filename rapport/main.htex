@@ -9,7 +9,7 @@
 \usepackage{latexsym,amsmath,xcolor,multicol,booktabs,calligra}
 \usepackage{amssymb}
 % \usepackage{graphicx,pstricks,listings,stackengine}
-% \usepackage{listings, tikz}
+\usepackage{listings}
 \usepackage{proof}
 \usepackage{color}
 
@@ -30,10 +30,26 @@
 \ottpremise{\Gamma  \ottsym{,}  \ottnt{P}  \ottsym{,}  \ottnt{A}  \vdash_E  \ottnt{e_{{\mathrm{2}}}}  \ottsym{:}  \tau_2}%
 \ottpremise{\ottnt{A}  \vdash  \ottkw{ClassOf} \,  \ottnt{binop}  \, (\tau_1 \land \tau_2)}%
 }{
-\Gamma  \ottsym{,}  \ottnt{P}  \ottsym{,}  \ottnt{A}  \vdash_E   (\ottnt{e_{{\mathrm{1}}}} \, \ottkw{into} \, \tau_1 \land \tau_2)\;  \ottnt{binop} _{ \tau_1 \land \tau_2 } \;  (\ottnt{e_{{\mathrm{2}}}} \, \ottkw{into} \, \tau_1 \land \tau_2)   \ottsym{:}  \tau_1 \land \tau_2}{%
+\Gamma  \ottsym{,}  \ottnt{P}  \ottsym{,}  \ottnt{A}  \vdash_E   %(
+  \ottnt{e_{{\mathrm{1}}}} %\, \ottkw{into} \, \tau_1 \land \tau_2)\; 
+  \ottnt{binop} _{ \tau_1 \land \tau_2 } \;  %(
+    \ottnt{e_{{\mathrm{2}}}}% \, \ottkw{into} \, \tau_1 \land \tau_2)
+    \ottsym{:}  \tau_1 \land \tau_2}{%
 {\ottdrulename{Binop}}{}%
 }}
 
+
+\renewcommand{\ottdruleFun}[1]{\ottdrule[#1]{%
+\ottpremise{\ottnt{P}  \vdash  \ottmv{f}  \ottsym{:} \, \forall \, \ottcomp{\ottmv{d_{\ottmv{n}}}}{\ottmv{n}} \, \ottsym{,} \, \forall \, \ottcomp{\ottmv{s_{\ottmv{m}}}}{\ottmv{m}} \, \ottsym{,}  \ottcomp{\ottnt{typc_{\ottmv{j}}}}{\ottmv{j}}  \Rightarrow  \mathcal{T}_{{\mathrm{1}}}  \rightarrow  \mathcal{T}_{{\mathrm{2}}}}%
+\ottpremise{\Gamma  \ottsym{,}  \ottnt{P}  \ottsym{,}  \ottnt{A}  \vdash_E  \ottsym{(} \, \ottcomp{\ottnt{e_{\ottmv{n}}}}{\ottmv{n}} \, \ottsym{)}  \ottsym{:}  \mathcal{T}'_{{\mathrm{1}}}}%
+\ottpremise{\ottnt{A}  \vdash \, \ottcomp{\ottnt{typc_{\ottmv{j}}}  \ottsym{[} \, \ottcomp{\ottmv{d_{\ottmv{n}}}  \leftarrow  \ottmv{d'_{\ottmv{n}}}}{\ottmv{n}} \, \; ; \; \, \ottcomp{\ottmv{s_{\ottmv{m}}}  \leftarrow  \ottmv{s'_{\ottmv{m}}}}{\ottmv{m}} \, \ottsym{]}}{\ottmv{j}}}%
+\ottpremise{\mathcal{T}_{{\mathrm{1}}}  \ottsym{[} \, \ottcomp{\ottmv{d_{\ottmv{n}}}  \leftarrow  \ottmv{d'_{\ottmv{n}}}}{\ottmv{n}} \, \; ; \; \, \ottcomp{\ottmv{s_{\ottmv{m}}}  \leftarrow  \ottmv{s'_{\ottmv{m}}}}{\ottmv{m}} \, \ottsym{]}  \ottsym{=}  \ottcomp{\sigma_{\ottmv{x}} \, \ottcomp{\ottsym{[}  \ell_{\ottmv{g}}  \ottsym{]}}{\ottmv{g}} \, \ottcomp{\ottsym{[}  \ottmv{z_{\ottmv{x}, \ottmv{q}}}  \ottsym{]}}{\ottmv{q}}}{\ottmv{x}}}%
+\ottpremise{\mathcal{T}_{{\mathrm{2}}}  \ottsym{[} \, \ottcomp{\ottmv{d_{\ottmv{n}}}  \leftarrow  \ottmv{d'_{\ottmv{n}}}}{\ottmv{n}} \, \; ; \; \, \ottcomp{\ottmv{s_{\ottmv{m}}}  \leftarrow  \ottmv{s'_{\ottmv{m}}}}{\ottmv{m}} \, \ottsym{]}  \ottsym{=}  \ottcomp{\sigma'_{\ottmv{y}} \, \ottcomp{\ottsym{[}  \ell_{\ottmv{g}}  \ottsym{]}}{\ottmv{g}} \, \ottcomp{\ottsym{[}  \ottmv{z'_{\ottmv{y}, \ottmv{r}}}  \ottsym{]}}{\ottmv{r}}}{\ottmv{y}}}%
+\ottpremise{\mathcal{T}'_{{\mathrm{1}}} \, \cong \, \ottcomp{\sigma_{\ottmv{x}} \, \ottcomp{\ottsym{[}  \ell_{\ottmv{g}}  \ottsym{]}}{\ottmv{g}} \, \ottcomp{\ottsym{[}  \ell'_{\ottmv{h}}  \ottsym{]}}{\ottmv{h}} \, \ottcomp{\ottsym{[}  \ottmv{z_{\ottmv{x}, \ottmv{q}}}  \ottsym{]}}{\ottmv{q}}}{\ottmv{x}}}%
+}{
+\Gamma  \ottsym{,}  \ottnt{P}  \ottsym{,}  \ottnt{A}  \vdash_E  \ottsym{[} \, \ottcomp{\ell_{\ottmv{g}}}{\ottmv{g}} \, \ottsym{]}  \ottmv{f}  \ottsym{[} \, \ottcomp{\ell'_{\ottmv{h}}}{\ottmv{h}} \, \ottsym{]}  \ottsym{(} \, \ottcomp{\ottnt{e_{\ottmv{n}}}}{\ottmv{n}} \, \ottsym{)}  \ottsym{:}  \ottcomp{\sigma'_{\ottmv{y}} \, \ottcomp{\ottsym{[}  \ell_{\ottmv{g}}  \ottsym{]}}{\ottmv{g}} \, \ottcomp{\ottsym{[}  \ell'_{\ottmv{h}}  \ottsym{]}}{\ottmv{h}} \, \ottcomp{\ottsym{[}  \ottmv{z'_{\ottmv{y}, \ottmv{r}}}  \ottsym{]}}{\ottmv{r}}}{\ottmv{y}}}{%
+{\ottdrulename{Fun}}{}%
+}}
 
 \begin{document}
 
@@ -54,7 +70,7 @@
 
 \subsection*{Le contexte général}
 
-\Usuba{} est un langage de haut niveau pour pour écrire des primitives cryptographiques
+\Usuba{} est un langage de haut niveau développé pour écrire des primitives cryptographiques
 qui cumulent à la fois un haut débit et un calcul en temps constant.
 
 % De quoi s'agit-il ? 
@@ -115,6 +131,7 @@ Or, avoir un compilateur certifié et une spécification claire de la sémantiqu
 % Soignez particulièrement la description de la démarche \emph{scientifique}.
 
 Afin de commencer à palier ces problèmes, ce rapport présenteras un début de système de type,
+de nouvelles constructions afin d'améliorer \Usuba{},
 ainsi que 4 spécification différentes d'une sémantique de \Usuba{} implémenté en Coq à l'aide de différentes méthodes.
 
 L'idée derrière ces sémantiques est à la fois de clarifier certains comportement de \Usuba{} avec le compilateur actuel,
@@ -128,7 +145,7 @@ Les spécificités et avantages des différentes sémantiques seront notamment d
 % Commentez la \emph{robustesse} de votre proposition : 
 % comment la validité de la solution dépend-elle des hypothèses de travail ?
 
-Afin de tester la validité des sémantiques implémentés, deux d'entre elles ont été extraites de Coq vers du code OCaml afin de
+Afin de tester la validité des sémantiques implémentés, les trois qui calculent ont été extraites de Coq vers du code OCaml afin de
 tester le comportement de deux primitives cryptographiques implémenté en \Usuba{}: ACE et AES.
 Ces deux programmes ont été testé sur un vecteur test afin de vérifier que le résultat de l'évaluation soit bien celui attendu.
 
@@ -151,16 +168,61 @@ une implémentation future d'un compilateur certifié.
 
 \section{Syntaxe et comportement actuel de \Usuba{}}
 
-Un programme en \Usuba{} est composé de plusieurs nœuds. Il en exists deux types : les nœuds d'équations et les tableaux comme indiqué dans la figure \ref{fig:syntax}.
+Au court des différentes sections de ce rapport on se baseras sur un même code afin d'expliquer les différentes notions mises en jeu.
+Il sagiras de l'implémentation en \Usuba{} de rectangle avec un nœud pour appliquer Rectangle sur une liste présenté ci dessous \ref{lst:rectangle}.
+
+% Specification: https://eprint.iacr.org/2014/084.pdf
+\begin{lstlisting}[caption=Rectangle appliqué à une liste, label=lst:rectangle]
+table SubColumn (input:v4) returns (out:v4) {
+    6, 5, 12, 10, 1, 14, 7, 9, 11, 0, 3, 13, 8, 15, 4, 2
+}
+
+node ShiftRows (input:u16[4]) returns (out:u16[4])
+vars
+let
+    out[0] = input[0];
+    out[1] = input[1] <<< 1;
+    out[2] = input[2] <<< 12;
+    out[3] = input[3] <<< 13
+tel
+
+node Rectangle (plain:u16[4],key:const u16[26][4]) returns (cipher:u16[4])
+vars
+    tmp : u16[26][4]
+let
+
+    tmp[0] = plain;
+    forall i in [0,24] {
+      tmp[i+1] = ShiftRows( SubColumn( tmp[i] ^ key[i] ) )
+    }
+
+    cipher = tmp[25] ^ key[25]
+tel
+
+node MapRectangle(plain:u16[64][4], key:const u16[64][26][4]) returns (cipher:u16[64][4])
+vars
+let
+  forall i in [0, 64] {
+    cipher[i] = Rectangle(plain[i], key[i])
+  }
+tel
+\end{lstlisting}
+
+Comme on peut le voir dans l'exemple, un programme \Usuba{} est composé de plusieurs nœuds.
+Il en exists deux types : les nœuds d'équations (\texttt{ShiftRows, Rectangle} et \texttt{MapRectangle}) et les tableaux (\texttt{SubColumn})
+comme indiqué dans la figure \ref{fig:syntax}.
 Ces nœuds correspondent à des fonctions du premier ordre. Les nœuds peuvent s'appeler les uns les autres mais seulement ceux qui ont été défini avant et les
-appels récursifs ne sont pas autorisé. En effet commes les conditionels ne sont pas autorisé, si l'on pouvais faire des appels récursif alors on aurais
-systématiquement une boucle infinie.
+appels récursifs ne sont pas autorisé.
+Les récursion n'est pas autorisé car le langage ne contient pas de conditionels.
+En effet, si l'on pouvais faire des appels récursif alors on aurais systématiquement une boucle infinie.
 
 Les tableaux permettent d'implémenter des S-BOX. Ces nœuds ne sont pas particulièrement intéressants et peuvent être considérés
 comme des boites noires dans la suite de ce rapport.
 
-Les nœuds d'équations sont composé d'une liste de déclarations. Ces équations expliquent comment calculer la valeur des variables renvoyé à partir des variables fournis
-en entrée. Il existe trois types de déclaration possibles :
+Les nœuds d'équations sont composé d'une liste de déclarations. Ces équations expliquent comment calculer la valeur des variables
+renvoyées à partir des variables fournis en entrée.
+Dans l'exemple de Rectangle, le nœud \texttt{ShiftRows} est composé de 4 déclarations qui permettent de calculer \texttt{out} à partir de \texttt{input}.
+Au total, il existe trois types de déclarations possibles :
 \begin{itemize}
 \item Les boucles \texttt{for} dont les deux bornes sont connu à la compilation. Il s'agit de sucre syntaxique afin d'écrire de façon conscise un grand nombre
 d'équations. 3 des 4 sémantiques présenté dans la section \ref{sec:sem} commencent par retirer ce sucre syntaxique afin de directement gérer une liste d'équations
@@ -199,9 +261,29 @@ est voué à disparaître.
 
 Les différents constructeurs d'expressions correspondent à ce que l'on peut trouver usuellement dans un langage de programmation : appel de nœuds,
 opérateurs binaires et unaire, tuples, constantes et variables.
+Cependant la syntaxe pour les appels de nœuds dépend de deux listes d'entiers qui permettent d'expliquer au compilateur quel foncteur utiliser afin d'appliquer
+le nœud sur des tableaux.
+La liste de droite permet d'expliquer le nombre de fois qu'il faut appliquer le nœuds. Cela correspond donc à une séquence de \textit{map}.
+Par exemple pour l'exemple de Rectangle \ref{lst:rectangle}, on peut réécrire le nœud \texttt{MapRectangle} en une nouvelle version en utilisant
+cette syntaxe \ref{lst:map-rec}.
+Cette syntaxe avec les listes d'un appel de nœud est une nouveauté pour le langage \Usuba{} qui n'est pas implémenté dans \textit{usubac} et qui as pour
+but de diminuer le nombres de boucles \texttt{for} qui doivent être écrites.
 
-Les constructeurs de variables sont quand à eux un peu compliqués.
-Il peut s'agir soit d'un identifiant ou d'un indiçage sur une variable.
+\begin{lstlisting}[caption=Rectangle appliqué à une liste, label=lst:map-rec]
+node MapRectangle(plain:u16[64][4], key:const u16[64][26][4]) returns (cipher:u16[64][4])
+vars
+let
+  cipher = Rectangle[64](plain, key)
+tel
+\end{lstlisting}
+
+La liste de gauche explique comment modifier l'ordre des dimensions des tableaux afin que le l'itération du \textit{map} ne soit pas forcément
+appliqué sur les dimensions extérieures.
+L'idée étant de pouvoir appliquer un \textit{map} mais en itérant sur d'autres dimensions que celles extérieures. Par exemple si l'on veux
+appliquer un nœud sur toutes les lignes ou toutes les colonnes d'une matrice.
+Plus d'explications sur cette liste sont fournis avec les règles de typages dans la section \ref{sec:typ}.
+
+Les constructeurs de variables sont défini récursivement comme un identifiant ou d'un indiçages sur une variable.
 Un indiçage peut être :
 \begin{itemize}
 \item Un indice $i$ qui permet de projeter un tableau sur l'un de ses éléments
@@ -209,33 +291,36 @@ Un indiçage peut être :
 \item Un interval qui est juste du sucre syntaxique pour la liste de tous les entiers dans l'interval
 \end{itemize}
 
-Par exemple si l'on as un identifiant $[[ x ]]$ qui contient un tableau de 3 entiers 32 bits $[0, 1, 2]$.
+Par exemple si l'on as un identifiant $x$ qui contient un tableau de 3 entiers 32 bits $[0, 1, 2]$.
 Alors la construction $x [2, 0]$ s'évalue en un tableau de 2 entiers $[2, 0]$.
 
-Cependant si on prend désormais un identifiant $[[ x ]]$ qui contient un tableau de 2 tableaux de 2 entiers $[ [ 0 , 1 ], [2, 3] ]$.
-Alors la construction $x [0, 1] [ 0 ]$ est du sucre syntaxique pour $(x[0][0], x[1][0])$ qui s'évalue en $[0, 2]$.
+Cependant si on prend désormais un identifiant $x$ qui contient un tableau de 2 tableaux de 2 entiers $[ [ 0 , 1 ], [2, 3] ]$.
+Alors, dans l'implémentation actuelle de \textit{usubac}, la construction $x [0, 1] [ 0 ]$ est du sucre syntaxique pour $(x[0][0], x[1][0])$
+qui s'évalue en $[0, 2]$.
 Cependant si l'on modifie le contexte avec l'équation $y = x[0, 1]$, alors $y[0]$ s'évalue en $[0, 1]$.
 L'implémentation actuelle de usubac fournis donc une sémantique qui n'est pas compositionnelle.
 
-Afin de résoudre ce problème, s'idée serait de faire évoluer la syntaxe de \Usuba{} afin de pouvoir écrire les deux.
-Pour cela, l'idée est de s'inspirer de \textit{numpy} (une librairie de python) et de définir une syntaxe pour effectuer des
-indiçage sur plusieurs dimension de façon simultanés en les séparant par un point-virgule.
-
-Par exemple cette nouvelle syntaxe permet d'écrire $x[0, 1; 0]$ pour parler de $(x[0][0], x[1][0])$ et $x[0, 1][0]$ désigne désormais $x[0]$.
-Cependant, cette nouvelle syntaxe fait perdre la rétro-compatibilité mais permet d'avoir une sémantique compositionnelle.
+Une solution pour résoudre ce problème est de remplacer les indiçage par une séquence d'indiçages car cela permet d'écrire $x[0, 1: 0]$
+pour parler de $(x[0][0], x[1][0])$, et garder $x[0, 1][0]$ pour désigner $x[0]$.
+Cette nouvelle syntaxe fait perdre la rétro-compatibilité avec les vieux codes \Usuba{}, cependant cela permet d'avoir une sémantique compositionnelle.
 
 \section{Règles de typage}
 \label{sec:typ}
 
-Maintenant que la section précédente as résolue le soucis lié à aux accès dans les tableaux qui avaient une sémantique non compositionnelle.
-Cependant la sémantique actuelle de \Usuba{} contient une autre difficulté dont cette section va essayer de s'occuper.
-Le problème des coercions implicites est encore présent et les paragraphes suivants ont pour but d'essayer de clarifier dans quelles
-situations est ce qu'une telle coercion devrait avoir lieu.
+Lors de la section précédente nous avons présenté la syntaxe de \Usuba{}.
+Cependant ce langage ne contient pas de système de type. Ce problème rend difficile de savoir anticiper quels programmes ne vont pas être accepté
+par le compilateur à cause d'une erreur de typage. Ceci est une conséquence des coercions implicites qui sont très présentes en \Usuba{}.
+Les paragraphes suivants ont donc pour but d'essayer de clarifier dans quelles situations est ce qu'une telle coercion devrait avoir lieu.
 
 Pour cela nous définissions les types $\tau$ comme une tableau multi-dimensionnels contenant un type atomique $\sigma$
 qui correspond à un entier avec une certaine taille $size$ et orientation $dir$ comme indiqué dans la figure \ref{fig:typ-grammar}.
-À partir de ces types on définie le type d'une expression $\mathcal{T}$ comme une liste de types $\tau$.
+Cependant la taille et l'orientation sont potentiellement non spécifié afin de permettre du polymorphisme.
+Par exemple le type $u32$ dans l'exemple \ref{lst:rectangle} correspond au type atomique $\textbf{U}\;dir\;32$.
+Quand à lui, le type $v4$ correspond au type de tableau $\textbf{U}\;dir\;size[4]$.
+L'idée étant que par défault pour un nœuds, à chaque fois qu'une direction (resp. taille) n'est pas spécifié cela correspond à un même paramètre qui sera
+spécifié au niveau de l'appel du nœud.
 
+À partir de ces types on définie le type d'une expression $\mathcal{T}$ comme une liste de types $\tau$.
 De plus, afin de pouvoir définir des nœuds polymorphique, le langage \Usuba{} contient des classes de types $typc$ qui permettent de spécifier
 sur quels types sont définies les opérations logiques, arithmétique et de décalage.
 Certaines classes de types peuvent être définie sur un tableau à l'aide du foncteur de liste et si la classes est bien définie sur le type des
@@ -302,10 +387,19 @@ Une particularité notable de ces règles de typage est que le type d'une expres
   \label{fig:typ-expr}
 \end{figure}
 
-La règle la plus notable parmi les différentes expressions est la règle de typage d'un appel de nœud. En effet il y as à ce moment là une coercion
-de type des arguments. Il s'agit d'une fonctionnalités très utilisé en \Usuba{} car elle permet notamment de changer un tableau de 64 éléments en deux
+La règle la plus compliqué parmi les différentes expressions est la règle de typage d'un appel de nœud.
+En effet, lors du'un appel de nœuds il se passe deux choses qui rendent cette règle de typage particulièrement compliqué :
+\begin{itemize}
+\item Premièrement le nœud peut être appelé plusieurs fois sur différents morceaux du tableau.
+L'idée est que chaque argument est un tableau dont on extrait $\textbf{prod}\; [\overline{\ell'_h}]$
+sous tableaux et que le nœud est appelé sur chaque série de tableaux.
+Cependant ces dimensions ne correspondent pas forcément aux dimensions extérieures car cela permet de pouvoir
+appliquer un nœud aux colonnes ou aux lignes d'une matrice suivant le besoin.
+\item La seconde difficulté au moment de l'appel de nœud est la coercion des arguments vers le type voulu par la fonction.
+Il s'agit d'une fonctionnalités très utilisé en \Usuba{} car elle permet notamment de changer un tableau de 64 éléments en deux
 tableaux de 32 parmi d'autres fonctionnalités. Afin de pouvoir décider quand une telle coercion est possible, nous défissons une notion d'équivalence entre
 deux listes de types dont les règles sont dans la figure \ref{fig:typ-rel}.
+\end{itemize}
 
 \begin{figure}[t]
   \ottdefnTypeComp{}
@@ -334,8 +428,8 @@ Cela nous donnes deux nouvelles règles de typage présentées dans la figure \r
 \end{figure}
 
 Une fois que l'ont sait comment typer les expressions on peut désormais vérifier que les déclarations sont bien typées.
-Pour cela les règles de la figure \ref{fig:typ-deq} indiquent qu'il faut vérifier que les équations font le lien entre deux listes de types équivalentes
-et que pour les boucles toutes les sous déclarations sont bien typées.
+Pour cela on vérifie que les équations préservent bien le type et que les boucles contiennent que des sous déclarations cohérentes comme
+indiqué dans la figure \ref{fig:typ-deq}.
 
 \begin{figure}[h]
   \ottdefnTypeDeq{}
@@ -355,7 +449,7 @@ d'équation afin d'éviter les accès mémoires.
 
 \begin{figure}[h]
   \ottdefnTypeNode{}
-  \caption{Typage d'un noeud}
+  \caption{Typage d'un nœud}
   \label{fig:typ-node}
 \end{figure}
 
@@ -643,15 +737,27 @@ des codes qui plantent. En effet, on pourrais alors écrire $\{y[1] = (x / y)[0]
 si ce calcul n'est pas simplifié au cours de la compilation le code généré calculeras $x[1] / y[1]$ avec $y[1]$ non défini.
 Or si $y[1]$ est nul, le code assembleur associé générera une erreur de division par zéro.
 
-\subsection{Augmenter les types possibles pour les opérateurs binaires}
+\subsection{Élaboration de types}
 
-Un autre ajout à \Usuba{} possible serais d'augementer le nombre de codes typables en autorisant les opérations binaires entre deux types différents
-mais compatibles.
-Actuellement on ne peux pas calculer $x + y$ où $x$ est de type $\textbf{U V}\; 32[2][3]$ et $y$ de type $\textbf{U V}\; 32[6]$ d'après le système de type présenté précédemment.
-Cependant parmi les 28 exemples valide de \Usuba{} pour le compilateur actuel, une telle opération est utilisé 2 fois.
+Les règles de typages présenté dans la section \ref{sec:typ} font que de très nombreux codes ne typent plus.
+Ceci est une conséquence du fait que de nombreuses coercions implicites ne sont plus valide.
+Une alternative pour pouvoir récupérer toutes les opérations qui ne sont désormais plus expressibles est de
+rajouter une étape d'élaboration de type dans le compilateur afin de pouvoir continuer à interpréter tous ces codes.
 
-L'idée serais donc de transformer la règles \textsc{Binop} de la figure \ref{fig:typ-expr} en celle de la figure \ref{fig:typ-binop}.
-Où $\tau_1 \land \tau_2$ est défini uniquement pour deux tableaux multidimensionnels ayant le même type atomique et le même nombre d'éléments.
+Il y as deux opérations qui ne sont plus possible à cause des règles de typages proposé parmi les 28 exemples valide de code écrits en \Usuba{}.
+Ces opérations sont les coercions au niveau des équations et les opérations binaires entre deux types différents.
+
+Pour ce qui est des coercions implicites pour les équations, ce problème se résout facilement en remplaçant toutes les occurences de
+$v = e$ en $v = e \;\textbf{into}\;(\textbf{typeof}\; v)$.
+
+Pour ce qui est des opérations binaires,
+on ne peux pas calculer $x + y$ où $x$ est de type $\textbf{U V}\; 32[2][3]$ et $y$ de type $\textbf{U V}\; 32[6]$ d'après le système de types.
+L'idée de serais d'utiliser l'élaboration de type pour calculer un types $\tau_1 \land \tau_2$ à partir des types $\tau_1$ et $\tau_2$ de $x$ et $y$
+dans les cas où $\tau_1$ et $\tau_2$ sont des tableaux avec le même nombre d'éléments et que les éléments sont du même type.
+Et de transformer le code en $(x \; \textbf{into}\; \tau_1 \land \tau_2) + (y \; \textbf{into}\; \tau_1 \land \tau_2)$.
+
+De point de vue de l'utilisateur, cela donnerais l'impression qu'il y aurais une nouvelle règle \textsc{Binop} qui serais celle
+présenté dans la figure \ref{fig:typ-binop}, alors qu'en réalité on utilise juste une coercion.
 
 \begin{figure}[h]
   \begin{ottdefnblock}[]{$\Gamma  \ottsym{,}  \ottnt{P}  \ottsym{,}  \ottnt{A}  \vdash_E  \ottnt{e}  \ottsym{:}  \mathcal{T}$}{}
@@ -661,7 +767,6 @@ Où $\tau_1 \land \tau_2$ est défini uniquement pour deux tableaux multidimensi
   \label{fig:typ-binop}
 \end{figure}
 
-Une telle règle permet donc de typer correctement l'exemple précédent.
 Cependant il existe plusieurs définitions possibles pour ce PGCD sur deux types de tableaux :
 \begin{enumerate}
 \item Si les deux types sont compatibles, renvoyer le premier
@@ -674,13 +779,71 @@ Cependant il existe plusieurs définitions possibles pour ce PGCD sur deux types
 
 À part la troisième règle qui semble particulièrement arbitraire il est difficile de choisir parmi les autres si l'une est
 plus intéressantes les autres.
-Or, toutes les occurences d'une telle opération dans les codes existant se font entre un tableau unidimensionel et un tableau bidimensionel.
+Or, les deux occurences d'une telle opération dans les codes existant se font entre un tableau unidimensionel et un tableau bidimensionel.
 Les règles 2, 4, 5 et 6 sont donc indistinguables sur ces exemples ce qui rend toute comparaison difficile.
 
-Cependant comme il fallais choisir une règle lors de l'implémentation des sémantique, c'est la règle 4 qui as été choisi.
-Une opération entre $\textbf{U V}\; 32[2][3][2][2]$ et $\textbf{U V}\; 32[2][6][2]$ renvoie donc un $\textbf{U V}\; 32[2][12]$.
+\subsection{Boucles temporelles}
+
+Un des objectifs de ce travail est d'essayer de rendre les codes écrit en \Usuba{} plus esthétiques.
+Cela passe notamment par retirer les boucles qui font très impératives et les remplacer par des structures plus équationelles.
+En l'occurence, la plupart des boucles dans les codes \Usuba{} sont des \textit{map} et des \textit{fold} écrit à l'aide d'une boucle.
+Pour ce qui est des \textit{map}, nous avons déjà présenté un syntaxe et un typage qui permet d'effectuer une telle operation avec un simple appel de nœud annoté.
+
+Pour ce qui est des \textit{fold}, l'idée est de s'inspirer de Lustre et rajouter deux constructions \texttt{fby} et \texttt{wrap} dans le langage.
+L'idée étant qu'un \texttt{wrap} est une boucle mais avec une notion de temporalité et l'opération \texttt{fby} permet de calculer la valeur d'une expression
+à l'instant précédent.
+Afin d'expliquer mieux comment marche ces constructions nous allons nous baser sur une réécriture du nœud \texttt{Rectangle} de l'exemple \ref{lst:rectangle}
+mais avec ces constructions \ref{lst:rec-wrap}.
+
+\begin{lstlisting}[caption=Rectangle appliqué à une liste, label=lst:rec-wrap]
+node Rectangle (plain:u16[4],key:const u16[26][4]) returns (cipher:u16[4])
+vars
+    tmp : u16[26][4]
+let
+
+  chipher = wrap i in [0, 24] vars tmp:u16[4] return tmp ^ key[25]
+    let
+      tmp = ShiftRows( SubColumn( (plain fby tmp) ^ key[i] ) )
+    tel
+tel
+\end{lstlisting}
+
+L'idée du \texttt{wrap} est d'exécuter l'ensemble des équations qui lui sont fournis à chaque instant afin de calculer un nouveau contexte.
+Puis renvoye la valeur de l'expression fourni au dernier instant (ici à l'instant 24).
+La construction \texttt{fby} permet elle d'intéragir avec le temps. À la première itération (ici l'instant 0) la valeur renvoyé et celle de l'expression à gauche.
+Puis lors des instants suivant, la valeur renvoyé est celle de l'expression de droite calculé dans le contexte de l'instant précédant.
+
+Celà permet donc d'implémenter facilement des \textit{fold} et ainsi de pouvoir remplacer dans les codes \Usuba{} la plupart des boucles qui resterais après avoir
+utilisé la syntaxe pour écrire des \textit{map}.
+
+\subsection{Conditions et arguments statiques}
+
+Une autre amélioration de \Usuba{} serait de pouvoir rajouter des conditionelles et la possibilité de faire des fonctions récursives.
+Celà peut sembler contradictoire avec les propos tenus lors de l'introduction mais il existe un moyen de rajouter des conditions dans \Usuba{}.
+En effet, il n'est pas possible de faire des conditions qui dépendent des valeurs pour des raisons de sécurité.
+C'est pourquoi il serais possible de rajouter des conditionnelles qui dépendent de paramètres statiques connu à la compilation.
+De plus afin de pouvoir utiliser pleinement cette fonctionnalité en \Usuba{} il faudrait pouvoir fournir à l'appel de nœud un argument statique connu à la
+compilation.
+
+Il serait donc possible avec de tels fonctionnalités d'écrire une fonction récursive qui calcule un terme de la suite de fibonacci.
+
+\begin{lstlisting}[caption=Fibonacci, label=lst:fibo]
+node Fibo<i>() returns (val:u64)
+let
+  val = if i > 2
+        then Fibo<i-1>() + Fibo<i-2>()
+        else 1
+tel
+\end{lstlisting}
 
 \section{Conclusion}
+
+Dans ce rapport nous avons vu que \Usuba{} est à leur actuel un langage incomplet car il manque une spécification de sa sémantique et que celle qui peut
+peut être inféré à partir de l'implémentation du compilateur est non compositionnelle.
+Cependant nous avons aussi vu différentes méthodes afin d'implémenter en Coq une spécification d'une sémantique pour \Usuba{} ainsi que plusieurs
+constructions qui ont pour but d'améliorer la propreté des codes \Usuba{} ainsi que de clarifier la sémantique en retirant des ambiguité.
+De plus un système de type as aussi été proposé afin de pouvoir dans le futur intégrer un typeur à \textit{usubac} afin d'aider les utilisateurs à avoir des
+messages d'erreur plus clair et prédictibles.
 
 
 \end{document}
