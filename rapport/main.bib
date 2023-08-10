@@ -1,0 +1,56 @@
+@article{rectangle,
+  author       = {Wentao Zhang and
+                  Zhenzhen Bao and
+                  Dongdai Lin and
+                  Vincent Rijmen and
+                  Bohan Yang and
+                  Ingrid Verbauwhede},
+  title        = {{RECTANGLE:} a bit-slice lightweight block cipher suitable for multiple
+                  platforms},
+  journal      = {Sci. China Inf. Sci.},
+  volume       = {58},
+  number       = {12},
+  pages        = {1--15},
+  year         = {2015},
+  url          = {https://doi.org/10.1007/s11432-015-5459-7},
+  doi          = {10.1007/s11432-015-5459-7},
+}
+
+@article{CompCert,
+  author    = {Xavier Leroy},
+  title     = {Formal verification of a realistic compiler},
+  journal   = {Communications of the {ACM}},
+  volume    = {52},
+  number    = {7},
+  year      = {2009},
+  doi       = {10.1145/1538788.1538814},
+}
+
+@inproceedings{CakeML,
+  author    = {Ramana Kumar and
+               Magnus O. Myreen and
+               Michael Norrish and
+               Scott Owens},
+  title     = {{CakeML}: a verified implementation of {ML}},
+  booktitle = {Principles of Programming Languages ({POPL})},
+  publisher = {{ACM}},
+  year      = {2014},
+  doi       = {10.1145/2535838.2535841},
+}
+
+@inproceedings{usuba,
+    author = {Mercadier, Darius and Dagand, Pierre-\'{E}variste and Lacassagne, Lionel and Muller, Gilles},
+    title = {Usuba: Optimizing \& Trustworthy Bitslicing Compiler},
+    year = {2018},
+    isbn = {9781450356466},
+    publisher = {Association for Computing Machinery},
+    address = {New York, NY, USA},
+    url = {https://doi.org/10.1145/3178433.3178437},
+    doi = {10.1145/3178433.3178437},
+    % abstract = {Bitslicing is a programming technique commonly used in cryptography that consists in implementing a combinational circuit in software. It results in a massively parallel program immune to cache-timing attacks by design.However, writing a program in bitsliced form requires extreme minutia. This paper introduces Usuba, a synchronous dataflow language producing bitsliced C code. Usuba is both a domain-specific language -- providing syntactic support for the implementation of cryptographic algorithms -- as well as a domain-specific compiler -- taking advantage of well-defined semantics invariants to perform various optimizations before handing the generated code to an (optimizing) C compiler.On the Data Encryption Standard (DES) algorithm, we show that Usuba outperforms a reference, hand-tuned implementation by 15% (using Intel's 64 bits general-purpose registers and depending on the underlying C compiler) whilst our implementation also transparently supports modern SIMD extensions (SSE, AVX, AVX-512), other architectures (ARM Neon, IBM Altivec) as well as multicore processors through an OpenMP backend.},
+    booktitle = {Proceedings of the 2018 4th Workshop on Programming Models for SIMD/Vector Processing},
+    articleno = {4},
+    numpages = {8},
+    location = {Vienna, Austria},
+    series = {WPMVP'18}
+}

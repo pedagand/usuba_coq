@@ -37,6 +37,9 @@ semantic_*.ml*
 
 rapport/main.tex
 rapport/rules.tex
+*.bbl
+*.bcf
+*.blg
 *.aux
 *.fdb_latexmk
 *.fls
