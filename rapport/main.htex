@@ -3,7 +3,7 @@
 \usepackage[utf8]{inputenc}
 
 
-%\usepackage{hyperref}
+\usepackage{hyperref}
 % \usepackage[ruled, vlined]{algorithm2e}
 
 \usepackage{latexsym,amsmath,xcolor,multicol,booktabs,calligra}
@@ -82,7 +82,7 @@ qui cumulent à la fois un haut débit et un temps de calcul indépendant des va
 
 La nécessité de la première propriété est évidente et la particularité d'\Usuba{} réside dans son implémentation. L'idée est
 d'exploiter au maximum les unités de calcul vectoriel des processeurs afin d'augmenter la quantité de calculs effectués en
-parallèles. Pour cela différents types d'unités de calcul vectoriel sont utilisiées :
+parallèles. Pour cela différents types d'unités de calcul vectoriel sont utilisées :
 \begin{itemize}
 \item Les unités AVX afin de faire des opérations arithmétiques entre des entiers 16, 32 ou 64 bits en parallèle
 \item Les registres usuels qui permettent de faire des opérations logiques entre 32 ou 64 bits en parallèle
@@ -91,11 +91,11 @@ parallèles. Pour cela différents types d'unités de calcul vectoriel sont util
 La seconde propriété est recherché par les développeurs de primitives cryptographiques car cela permet de diminuer le risque
 de fuite de données lié aux attaques par écoute. En effet si le temps d'exécution d'un code dépend du message chiffré il
 est possible d'obtenir des informations sur le dit message à partir du temps d'exécution.
-Dans un code assembleur, les deux principaux facteurs qui font varier le temps d'exécution en fonction des valeurs sont les saut conditionels
+Dans un code assembleur, les deux principaux facteurs qui font varier le temps d'exécution en fonction des valeurs sont les saut conditionnels
 et les accès mémoires.
 
-Afin d'éviter les saut conditionels dans le code généré, la solution la plus simple est de les interdire dans le code initial.
-\Usuba{} n'est donc pas un langage turing-complet car il n'est pas possible d'écrire des conditionels (\texttt{if}) ou des boucles dynamiques (\texttt{while}).
+Afin d'éviter les saut conditionnels dans le code généré, la solution la plus simple est de les interdire dans le code initial.
+\Usuba{} n'est donc pas un langage turing-complet car il n'est pas possible d'écrire des conditionnels (\texttt{if}) ou des boucles dynamiques (\texttt{while}).
 
 Le problème des accès mémoire est un problème très étudié et dont il existe des solutions.
 Pour résoudre ce problème, il existe en \Usuba{} deux types de tableaux.
@@ -124,7 +124,7 @@ Ce langage possède déjà un compilateur (nommé \textit{usubac}), cependant ce
 \item et il n'existe pas de spécification de la sémantique d'\Usuba{}.
 \end{itemize}
 
-Lorsque quelqu'un écrit un code, la dîte personne espère comprendre ce que fait le code qui est écrit.
+Lorsque quelqu'un écrit un code, la dite personne espère comprendre ce que fait le code qui est écrit.
 À moins de lire le code généré, ceci nécessite de faire confiance au compilateur et de comprendre avec exactitude le code initial.
 Cependant un compilateur est une mécanisme complexe composé de multiples étapes de réécritures ce qui rend compliqué la possibilité de
 comprendre ce qu'il fait. Il devient donc quasiment impossible de savoir ce que fait exactement le compilateur afin d'avoir confiance dans
@@ -224,7 +224,7 @@ Il en existe deux types : les nœuds d'équations (\texttt{ShiftRows, Rectangle}
 comme indiqué dans la figure \ref{fig:syntax}.
 Ces nœuds correspondent à des fonctions du premier ordre. Les nœuds peuvent en appeler un autre, mais seulement un de ceux qui ont étés définis avant et les
 appels récursifs ne sont pas autorisés.
-Les récursions ne sont pas autorisées car le langage ne contient pas de conditionelles.
+Les récursions ne sont pas autorisées car le langage ne contient pas de conditionnelles.
 En effet, si l'on pouvais faire des appels récursif alors on aurais systématiquement une boucle infinie.
 
 Les tableaux permettent d'implémenter des S-BOX. Les nœuds reçoivent un tableaux de $n$ entiers de $b$ bits qu'ils comprennent comme
@@ -240,7 +240,7 @@ Au total, il existe trois types de déclarations possibles :
 Il s'agit de sucre syntaxique afin d'écrire de façon conscise un grand nombre d'équations.
 \item Les équations de définition ( $[[ </ vn // n /> <|- e ]]$ ) qui définissent les variables à partir de la valeur calculé par l'expression $[[ e ]]$.
 \item Les équations de modification ( $[[ </ vn // n /> <:- e ]]$ ) qui modifient les valeurs des variables dans l'environnement.
-Cette construction n'est pas compatible avec une vision équationel d'un nœud en raison de sa nature impérative. Elle n'est donc pas supporté dans la plupart
+Cette construction n'est pas compatible avec une vision équationnel d'un nœud en raison de sa nature impérative. Elle n'est donc pas supporté dans la plupart
 des sémantiques en raison de son incompatibilité avec d'autres fonctionnalités gérés par ces sémantiques. Ceci n'est pas un problème car cette construction
 est voué à disparaître.
 \end{itemize}
@@ -279,7 +279,7 @@ opérateurs binaires et unaire, tuples, constantes et variables.
 La syntaxe pour les appels de nœuds est elle plus compliqué que usuellement. Un tel appel dépend de deux listes d'entiers qui permettent
 d'expliquer au compilateur quel foncteur utiliser afin d'appliquer le nœud sur des tableaux.
 La liste de droite permet d'expliquer le nombre de fois qu'il faut appliquer le nœuds. Cela correspond donc à une séquence de \textit{map}.
-Par exemple pour l'exemple de Rectangle \ref{lst:rectangle}, on peut réécrire le nœud \texttt{MapRectangle} en une nouvelle version en utilisant
+Par exemple pour l'exemple de Rectangle \ref{lst:rectangle}, on peut réécrire le nœud \texttt{MapRectangle} en une nouvelle version en utilisant
 cette syntaxe \ref{lst:map-rec}.
 La liste de gauche explique comment modifier l'ordre des dimensions des tableaux afin que le l'itération du \textit{map} ne soit pas forcément
 appliqué sur les dimensions extérieures.
@@ -303,7 +303,7 @@ Un indiçage peut être :
 \begin{itemize}
 \item Un indice $i$ qui permet de projeter un tableau sur l'un de ses éléments
 \item Une liste d'entiers qui permet de générer un nouveau tableau en modifiant une dimension
-\item Un interval qui est juste du sucre syntaxique pour la liste de tous les entiers dans l'interval
+\item Un intervalle qui est juste du sucre syntaxique pour la liste de tous les entiers dans l'intervalle
 \end{itemize}
 
 Par exemple si l'on a un identifiant $x$ qui contient un tableau de 3 entiers 32 bits $[0, 1, 2]$.
@@ -331,7 +331,7 @@ qui correspond à un entier muni d'une certaine taille $size$ et d'une orientati
 Cependant la taille et l'orientation sont potentiellement non spécifié afin de permettre du polymorphisme.
 Par exemple le type $u32$ dans l'exemple \ref{lst:rectangle} correspond au type atomique $\textbf{U}\;dir\;32$ où $dir$ est une variable de direction.
 Quand à lui, le type $v4$ correspond au type de tableau $\textbf{U}\;dir\;size[4]$.
-L'idée étant que par défault pour un nœuds, à chaque fois qu'une direction (resp. taille) n'est pas spécifié cela correspond à un même paramètre qui sera
+L'idée étant que par défaut pour un nœuds, à chaque fois qu'une direction (resp. taille) n'est pas spécifié cela correspond à un même paramètre qui sera
 spécifié au niveau de l'appel du nœud.
 
 Cependant les opérations de calculs ne sont pas défini sur tous les entiers.
@@ -376,7 +376,7 @@ doit être compilé le code.
 
 \begin{figure}[t]
   \ottdefnTClass{}
-  \caption{Inférence des type-class}
+  \caption{Inférence des classes de types}
   \label{fig:typclass}
 \end{figure}
 
@@ -386,13 +386,13 @@ appliquant récursivement ces règles ont obtient les règles de typage des vari
 
 \begin{figure}[t]
   \ottdefnIndexJudge{}
-  \caption{Typages indiçages}
+  \caption{Typage des indiçages}
   \label{fig:typ-ind}
 \end{figure}
 
 \begin{figure}[t]
   \ottdefnVarJudge{}
-  \caption{Typage variables}
+  \caption{Typage des variables}
   \label{fig:typ-var}
 \end{figure}
 
@@ -402,12 +402,12 @@ Une particularité notable de ces règles de typage est que le type d'une expres
 
 \begin{figure}[h]
   \ottdefnExpType{}
-  \caption{Règles de typage des expressions}
+  \caption{Typage des expressions}
   \label{fig:typ-expr}
 \end{figure}
 
 La règle la plus compliqué parmi les différentes expressions est la règle de typage d'un appel de nœud.
-En effet, lors du'un appel de nœuds il se passe deux choses qui rendent cette règle de typage particulièrement compliqué :
+En effet, lors d'un appel de nœuds il se passe deux choses qui rendent cette règle de typage particulièrement compliqué :
 \begin{itemize}
 \item Premièrement, le nœud peut être appelé plusieurs fois sur différents morceaux du tableau.
 L'idée est que chaque argument est un tableau dont on extrait $\textbf{prod}\; [\overline{\ell'_h}]$
@@ -421,14 +421,14 @@ Une coercion entre deux types n'est possible que si les deux types sont équival
 
 \begin{figure}[t]
   \ottdefnTypeComp{}
-  \caption{Equivalence de types}
+  \caption{Équivalence de types}
   \label{fig:typ-rel}
 \end{figure}
 
 Ces règles peuvent sembler obscures cependant l'intuition derrière est relativement simple et peut être résumé en seulement deux règles :
 \begin{itemize}
 \item Les entier 1 bit sont les mêmes pour toute représentation mémoire (verticale ou horizontale). Il s'agit de la règle \textsc{Bool}.
-\item Deux listes de types sont identiques si elle contiennent le même nombre d'entiers de chaques tailles et orientations dans le même ordre.
+\item Deux listes de types sont identiques si elle contiennent le même nombre d'entiers de chaque tailles et orientations dans le même ordre.
 \end{itemize}
 
 Cependant ces règles de typage font perdre de l'expressivité à \Usuba{} car elles ne permettent pas de typer certaines opérations
@@ -443,7 +443,7 @@ Cela nous donnes deux nouvelles règles de typage présentées dans la figure \r
 
 \begin{figure}[h]
   \ottdefnExpTypeBis{}
-  \caption{Règles de typage des expressions, partie 2}
+  \caption{Typage des expressions, partie 2}
   \label{fig:typ-exprbis}
 \end{figure}
 
@@ -453,18 +453,18 @@ indiqué dans la figure \ref{fig:typ-deq}.
 
 \begin{figure}[h]
   \ottdefnTypeDeq{}
-  \caption{Typage des equations}
+  \caption{Typage des équations}
   \label{fig:typ-deq}
 \end{figure}
 
 Le typage des nœuds contient deux règles présentées dans la figure \ref{fig:typ-node}. La règle de typage des nœuds d'équations indique que toutes les équations
 doivent être bien typées dans le contexte de toutes les variables.
 
-Le typage d'une table est plus subtil. En effet une table prend en entrée $i1$ entiers de $s$ bits et les considère comme $s$ entiers de $i1$ bits en transposants
+Le typage d'une table est plus subtil. En effet une table prend en entrée $i1$ entiers de $s$ bits et les considère comme $s$ entiers de $i1$ bits en transposant
 la matrice de leurs représentation binaire.
 Ces entiers permettent de faire $s$ accès dans la table qui contient $1 \ll i1$ entiers de $i2$ bits.
 On obtient alors $s$ entiers de $i2$ bits qui sont transposé en $i2$ entiers de $s$ bits.
-De plus la raison pour laquel on demande à ce que les opérations logiques soient définie sur les entiers est pour pouvoir remplacer ce nœud par une liste
+De plus la raison pour laquelle on demande à ce que les opérations logiques soient définie sur les entiers est pour pouvoir remplacer ce nœud par une liste
 d'équation afin d'éviter les accès mémoires.
 
 \begin{figure}[h]
@@ -486,7 +486,7 @@ Au total 4 sémantiques différentes ont été implémentées. Parmi celle ci, 3
 une relation qui vit dans \texttt{Prop}.
 
 Les différences entre ces sémantiques se situent au niveau de leur définition et de leur gestion du contexte. 
-Les discussions dans les paragraphes qui suivent se consentrerons sur ces différences mais nous présenterons tout d'abord leurs points commun.
+Les discussions dans les paragraphes qui suivent se concentrerons sur ces différences mais nous présenterons tout d'abord leurs points commun.
 
 \subsection{Points communs des sémantiques}
 
@@ -497,17 +497,17 @@ De plus pour les 3 sémantiques qui calculent, les erreurs sont représentées p
 
 Le second point commun entre ces 3 sémantiques qui calculent est la gestion de la sémantique des nœuds.
 En effet, la sémantique d'un nœud est défini comme une fonction d'une liste de valeurs dans une option de liste de valeurs.
-On peut alors passer à la fonction d'évaluation du corp d'un nœud une liste de la sémantique de tous les nœuds défini précédemment
+On peut alors passer à la fonction d'évaluation du corps d'un nœud une liste de la sémantique de tous les nœuds défini précédemment
 sans créer de récursivité mutuelle entre les différentes fonctions de définition de la sémantique.
 
 \subsection{Sémantique par évaluation}
 \label{sec:evalsem}
 
-La première sémantique implémenté pour \Usuba{} est une sémantique par évalutation.
+La première sémantique implémenté pour \Usuba{} est une sémantique par évaluatation.
 
 Cette sémantique est définie de façon intuitive: on évalue tout dans l'ordre. En effet, la sémantique
 d'une expression est définie à partir d'une fonction qui pour toute expression prend un contexte et renvoie une option de liste de valeurs.
-Pour cette sémantique, un contexte est définie pour une structure (en l'occurence une liste de paire) qui associe à certains identifiants une
+Pour cette sémantique, un contexte est définie pour une structure (en l'occurrence une liste de paire) qui associe à certains identifiants une
 valeur incomplète. Une valeur incomplète est une valeur où l'on a remplacé la liste des éléments d'un tableau par une liste d'option pour pouvoir
 désigner les éléments par encore défini.
 
@@ -528,8 +528,8 @@ de remplacer que des \texttt{Some}.
 
 Mais cela à pour conséquence que le comportement d'un nœud dépend de l'ordre des équations.
 Certaines permutations de l'ordre préservent la sémantique, cependant toutes les permutations ne sont pas équivalentes.
-Ceci est une conséquence immédiate de l'existance d'équations avec modification.
-Les autres sémantiques ont été définies pour ne pas dépendre de l'ordre des équations afin de plus ressembler à un modèle équationel.
+Ceci est une conséquence immédiate de l'existence d'équations avec modification.
+Les autres sémantiques ont été définies pour ne pas dépendre de l'ordre des équations afin de plus ressembler à un modèle équationnel.
 Cependant elles ne supportent donc plus la possibilité d'écrire des équations avec modification.
 
 Pour ce qui est d'utiliser cette sémantique dans des preuves de préservation de la sémantique, il est facile de définir une équivalence de programme.
@@ -544,7 +544,7 @@ Désormais nous allons présenter les 3 autres sémantiques qui ont été défin
 dans lequel les équations des nœuds sont écrites.
 On considère donc désormais que toutes les équations sont des équations sans modification car les redéfinitions sont incompatibles avec une sémantique purement équationelle.
 
-\subsection{Sémantique relationelle}
+\subsection{Sémantique relationnelle}
 \label{sec:relsem}
 
 Cette sémantique est définie à partir de relations.
@@ -566,30 +566,30 @@ s'évaluent bien en des valeurs compatibles. Le contexte quand à lui est défin
 \end{align*}
 
 Cependant cette formule est relativement arbitraire car il en existe plusieurs variante qui sont intéressantes de considérer.
-En effet l'unicité de l'existance du contexte n'est pas forcément une nécessité.
+En effet l'unicité de l'existence du contexte n'est pas forcément une nécessité.
 Par exemple pour si on prend le système $\{y = 0 * x\}$ où $x$ est une variable temporaire et $y$ une variable renvoyé.
 Alors la valeur de $y$ est indépendante de la valeur de $x$.
 Il peut donc être décidé lors du choix de la sémantique que l'unicité de la valeur de $x$ est inutile et que seulement l'unicité de la valeur renvoyé est nécessaire.
 Cependant stocker une preuve de l'unicité directement dans la sémantique nécessite que les différentes passes de réécriture de code dans le compilateur doivent
 prouver la préservation de l'unicité. Ce qui peut être difficile dans le cas modification de l'ensemble des variables.
-Pour ressoudre ce problème, une autre possibilité est de ne pas demander la moindre unicité directement dans la sémantique, mais seulement avoir le typeur
+Pour résoudre ce problème, une autre possibilité est de ne pas demander la moindre unicité directement dans la sémantique, mais seulement avoir le typeur
 qui prouve l'unicité et les différentes passes prouvent seulement la préservation de l'ensemble des résultats possibles.
 
 En dehors du point abordé ci-dessus, cette sémantique possèdes plusieurs autres choses qu'il est important de remarquer :
 \begin{itemize}
-\item Elle est indépendante de l'ordre des équations (cela découle de la communativité et l'associativité du “et” logique).
-\item Elle ne garantie pas l'unicité des définitions contrairements aux précédentes, seulement la cohérence de
+\item Elle est indépendante de l'ordre des équations (cela découle de la commutativité et l'associativité du “et” logique).
+\item Elle ne garantie pas l'unicité des définitions contrairement aux précédentes, seulement la cohérence de
 ces définitions pour un contexte donné. Par exemple le système $\{y = x; y = x\}$ est parfaitement valide pour cette sémantique.
 De plus le système $\{x = 0 \times x\}$ l'est aussi.
 \item Elle ne calcule pas.
 \end{itemize}
 
-Le trosième point est le plus problématique.
+Le troisième point est le plus problématique.
 En effet cette sémantique ne calcule pas de contexte valide mais toute preuve qu'un programme est valide doit contenir tous les contextes de tous les nœuds.
 Pour cela, si l'on veux utiliser cette sémantique pour construire un compilateur certifié, alors, si le typeur a pour but de garantir que l'évaluation d'un nœud
 ne plante pas, il faut que la preuve de correction de celui ci calcule un contexte valide.
 Il faudrait donc définir une autre sémantique en plus de celle ci pour pouvoir prouver la correction d'un typeur.
-Malgré ce défault, l'aspect relationelle de cette sémantique rend probablement plus facile les preuves de correction des autres passes d'un compilateur.
+Malgré ce défaut, l'aspect relationnelle de cette sémantique rend probablement plus facile les preuves de correction des autres passes d'un compilateur.
 
 \subsection{Sémantique par tri topologique}
 \label{sec:toposem}
@@ -607,14 +607,14 @@ Cependant une telle évaluation n'est pas garantie de terminer. En effet, l'éva
 Or, toute fonction définie dans la logique de Coq doit posséder une preuve de terminaison.
 Cette nécessité est un pré-requis pour la cohérence car s'il est possible de définir une fonction divergente alors il est possible d'exhiber une preuve de faux.
 
-Cependant, convaincre Coq que  desfonctions mutuellements récursives terminent toujours est ardu à moins d'avoir un argument strictement décroissant.
+Cependant, convaincre Coq que des fonctions mutuellement récursives terminent toujours est ardu à moins d'avoir un argument strictement décroissant.
 Pour cela la méthode la plus courante pour prouver la terminaison est de rajouter un nouvel argument strictement décroissant.
 
-Parmi les différentes possibilités d'arguments à rajouter, le plus courant est de rajouter un entier (que l'on nomme couramment “carburant”) qui décroit strictement
+Parmi les différentes possibilités d'arguments à rajouter, le plus courant est de rajouter un entier (que l'on nomme couramment “carburant”) qui décroît strictement
 à chaque appel récursif. Cependant cette technique possède plusieurs limitation :
 \begin{itemize}
 \item Cela modifie le code extrait.
-\item Il est difficile de garantir que l'on a mis suffisament de carburant pour n'en manquer que dans les boucles infinies.
+\item Il est difficile de garantir que l'on a mis suffisamment de carburant pour n'en manquer que dans les boucles infinies.
 \end{itemize}
 
 De plus dans le cas d'un compilateur, quand on réécrit un morceau de code, on risque de changer la quantité de carburant nécessaire pour évaluer une expression.
@@ -626,9 +626,9 @@ dépend des arguments de notre fonction dont on veux prouver la terminaison et d
 Cela permet d'éviter de ne jamais manquer de carburant si le GADT (Generalized Algebraic Data Type) qui sert de prédicat d'accessibilité est bien défini.
 Utiliser un prédicat possède l'énorme intérêt que si le GADT utilisé pour définir le prédicat d'accessibilité est une proposition,
 alors le code extrait ne contient pas ce prédicat d'accessibilité. On obtient donc un code OCaml plus propre et plus efficace.
-Cependant cette technique possède aussi ses limites car il faut être capable de prouver l'existance d'un prédicat d'accessibilité.
-Or, pour prouver l'existance d'un tel précidat il faut que notre fonction termine bien sur les arguments fournis.
-Afin de résourdre ce problème, l'évaluation d'un nœud commence par vérifier si l'évaluation va terminer ou non.
+Cependant cette technique possède aussi ses limites car il faut être capable de prouver l'existence d'un prédicat d'accessibilité.
+Or, pour prouver l'existence d'un tel précidat il faut que notre fonction termine bien sur les arguments fournis.
+Afin de résoudre ce problème, l'évaluation d'un nœud commence par vérifier si l'évaluation va terminer ou non.
 Puis, si le vérificateur de terminaison l'accepte, le système de déclarations est utilisé pour évaluer les valeurs de renvoie.
 
 Afin de pouvoir tester si l'évaluation va terminer ou non, on commence par réécrire notre système de déclarations en une liste d'équations.
@@ -636,12 +636,12 @@ Puis, un tri topologique est effectué sur ces équations pour obtenir la garant
 Ce tri est effectué sur le graphe orienté obtenu en regardant si une équation dépend du calcul d'une autre.
 En effet, si on prend deux équations tel que la première définie une variable \texttt{x} qui est utilisé par la seconde,
 la seconde équation dépend de la première.
-En raison de l'existance des tableaux en \Usuba{} et la possibilité de les définir
+En raison de l'existence des tableaux en \Usuba{} et la possibilité de les définir
 en plusieurs fois, les dépendances sont complexes et expliquées plus en détail dans la section \ref{sec:topo}.
 
 Cette sémantique possède deux grosses limitations : 
 \begin{itemize}
-\item La sémantique est particulièrement lourde à définir car afin de prouver l'existance d'un prédicat d'accessibilité il faut être capable de calculer
+\item La sémantique est particulièrement lourde à définir car afin de prouver l'existence d'un prédicat d'accessibilité il faut être capable de calculer
 le graphe (et prouver des propriétés dessus) puis prouver que si on a un tri topologique alors on a un prédicat d'accessibilité ce qui a nécessité plus
 de 5k lignes de Coq.
 \item De plus, toute modification sur le programme oblige de pouvoir garantir que la vérificateur de terminaison continue à accepter la programme fourni.
@@ -677,18 +677,18 @@ Le nombre d'équations diminuant strictement à chaque appel récursif de cette 
 Mais on remarque que dans le cas où l'on restreint le nombre d'itération à uniquement 1, alors on retombe sur la sémantique par évaluation de la section
 \ref{sec:evalsem} où l'on a interdit les équations de modification.
 
-De plus, on est convaincu que cette sémantique est un sous ensemble stricte de la sémantique relationelle de la section \ref{sec:relsem}.
+De plus, on est convaincu que cette sémantique est un sous ensemble stricte de la sémantique relationnelle de la section \ref{sec:relsem}.
 L'inclusion est sensé être vrai mais cela n'a pas été vérifier dans Coq.
 Pour ce qui est du stricte il existe des exemples simple de codes accepté par seulement une seule des deux sémantiques.
-Par exemple, le système $\{y = x; y = y\}$ (où $x$ est fourni en entrée) n'est pas valide pour notre nouvelle sémantique mais l'est pour la sémantique relationelle.
-Ceci vient du fait que la sémantique relationelle accepte les duplicatas de définition.
-De plus la nouvelle sémantique calcule un plus petit point fixe mais l'existance d'un plus petit point fixe sans duplicatas de définition
+Par exemple, le système $\{y = x; y = y\}$ (où $x$ est fourni en entrée) n'est pas valide pour notre nouvelle sémantique mais l'est pour la sémantique relationnelle.
+Ceci vient du fait que la sémantique relationnelle accepte les duplicata de définition.
+De plus la nouvelle sémantique calcule un plus petit point fixe mais l'existence d'un plus petit point fixe sans duplicata de définition
 ne garanti pas l'absence d'erreur.
-Par exemple, le système $\{y = 0 \times y\}$ est accepté seulement par la sémantique relationelle.
+Par exemple, le système $\{y = 0 \times y\}$ est accepté seulement par la sémantique relationnelle.
 
 Même si cette sémantique, tout comme la sémantique par tri topologique, garanti que toute valeur est défini au plus une fois
-elle ne garanti pas que toutes les variables intermédiaries sont bien défini.
-Contrairements à la sémantique par tri topologique où le vérificateur de terminaison s'assure que tous les tableaux ne sont jamais partiellement défini
+elle ne garanti pas que toutes les variables intermédiaires sont bien défini.
+Contrairement à la sémantique par tri topologique où le vérificateur de terminaison s'assure que tous les tableaux ne sont jamais partiellement défini
 même si la définition est réparti dans plusieurs équations différentes.
 Cependant ceci est surtout un détail d'implémentation pour les deux sémantiques et cette différence peut être modifiée.
 
@@ -722,7 +722,7 @@ et que les deux listes ont la même longueur.
 \begin{itemize}
 \item Pour un indice seul, l'entier associé est son unique instanciation.
 \item Pour une liste d'entiers, les entiers de la liste sont ses instanciations.
-\item Pour un interval, les entiers dedans sont ses instanciations.
+\item Pour un intervalle, les entiers dedans sont ses instanciations.
 \end{itemize}
 
 On utilise cette notion de chemin pour obtenir la condition suivante :
@@ -740,9 +740,9 @@ On pose donc la définition suivante de $x \prec y$ : il existe deux chemins $c_
 \end{enumerate}
 
 À partir de cette relation d'ordre il est donc possible de calculer un tri topologique entre les équations.
-S'il existe un cycle alors les définitions sont mutuellements dépendantes ce qui ne devrait pas avoir lieu.
+S'il existe un cycle alors les définitions sont mutuellement dépendantes ce qui ne devrait pas avoir lieu.
 L'absence de cycle garanti que toute évaluation des équations peut terminer ce qui permet pour la sémantique par tri topologique
-d'exhiber un prédicat d'accéssibilité.
+d'exhiber un prédicat d'accessibilité.
 
 \section{Extensions possibles}
 
@@ -752,7 +752,7 @@ Dans les paragraphes suivants nous présenterons donc de tels extensions et des 
 \subsection{Autoriser l'indiçage sur les expressions}
 
 À l'heure actuelle dans \Usuba{} il est uniquement possible de faire des indiçages sur des variables et pas sur des expressions.
-Ceci est une conséquence direct de l'absence de système de type clair qui permet de s'avoir comment les structures de tableaux
+Ceci est une conséquence direct de l'absence de système de type clair qui permet de savoir comment les structures de tableaux
 se propagent lors différentes opérations.
 Cependant le nouveau système de type présenté dans la section \ref{sec:typ} permet de résoudre ce problème.
 De plus autoriser une telle syntaxe d'indiçage sur une expression pourrais permettre de faire de la substitution sur les termes
@@ -782,7 +782,7 @@ alors que la sémantique n'accepte que des coercions explicites.
 Il y a deux opérations qui ne sont plus possible à cause des règles de typages proposé parmi les 28 exemples valide de code écrits en \Usuba{}.
 Ces opérations sont les coercions au niveau des équations et les opérations binaires entre deux types différents.
 
-Pour ce qui est des coercions implicites pour les équations, ce problème se résout facilement en remplaçant toutes les occurences de
+Pour ce qui est des coercions implicites pour les équations, ce problème se résout facilement en remplaçant toutes les occurrences de
 $v = e$ en $v = e \;\textbf{into}\;(\textbf{typeof}\; v)$.
 
 Pour ce qui est des opérations binaires,
@@ -805,26 +805,26 @@ présenté dans la figure \ref{fig:typ-binop}, alors qu'en réalité on utilise 
 Cependant il existe plusieurs définitions possibles pour ce PGCD sur deux types de tableaux :
 \begin{enumerate}
 \item Si les deux types sont compatibles, renvoyer le premier
-\item Si les deux types sont identiques en renvoyer un sinon renvoyer le type du tableau unidimensionel associé $type_{elements}[nb_{elements}]$
-\item Renvoyer le type du tableau unidimensionel associé dans tous les cas
-\item Préserver toutes les dimensions extérieures identiques et applatir à partir de la première dimension différente
-\item Préserver toutes les dimensions intérieures identiques et applatir à partir de la première dimension différente
-\item Préserver autant de dimensions intérieures et extérieures que possible et applatir le milieu
+\item Si les deux types sont identiques en renvoyer un sinon renvoyer le type du tableau unidimensionnel associé $type_{elements}[nb_{elements}]$
+\item Renvoyer le type du tableau unidimensionnel associé dans tous les cas
+\item Préserver toutes les dimensions extérieures identiques et aplatir à partir de la première dimension différente
+\item Préserver toutes les dimensions intérieures identiques et aplatir à partir de la première dimension différente
+\item Préserver autant de dimensions intérieures et extérieures que possible et aplatir le milieu
 \end{enumerate}
 
 À part la troisième règle qui semble particulièrement arbitraire il est difficile de choisir parmi les autres si l'une est
 plus intéressantes les autres.
-Or, les deux occurences d'une telle opération dans les codes existant se font entre un tableau unidimensionel et un tableau bidimensionel.
+Or, les deux occurrences d'une telle opération dans les codes existant se font entre un tableau unidimensionnel et un tableau dimensionnel.
 Les règles 2, 4, 5 et 6 sont donc indistinguables sur ces exemples ce qui rend toute comparaison difficile.
 
 \subsection{Boucles temporelles}
 
 Un des objectifs de ce travail est d'essayer de rendre les codes écrit en \Usuba{} plus esthétiques.
 Cela passe notamment par retirer les boucles qui font très impératives et les remplacer par des structures plus équationelles.
-En l'occurence, la plupart des boucles dans les codes \Usuba{} sont des \textit{map} et des \textit{fold} écrit à l'aide d'une boucle.
-Pour ce qui est des \textit{map}, nous avons déjà présenté un syntaxe et un typage qui permet d'effectuer une telle operation avec un simple appel de nœud annoté.
+En l'occurrence, la plupart des boucles dans les codes \Usuba{} sont des \textit{map} et des \textit{fold} écrit à l'aide d'une boucle.
+Pour ce qui est des \textit{map}, nous avons déjà présenté un syntaxe et un typage qui permet d'effectuer une telle opération avec un simple appel de nœud annoté.
 
-Pour ce qui est des \textit{fold}, l'idée est de s'inspirer de Lustre et rajouter deux constructions \texttt{fby} et \texttt{wrap} dans le langage.
+Pour ce qui est des \textit{fold}, l'idée est de s'inspirer de Lustre et rajouter deux constructions \texttt{fby} et \texttt{wrap} dans le langage.
 L'idée étant qu'un \texttt{wrap} est une boucle mais avec une notion de temporalité et l'opération \texttt{fby} permet de calculer la valeur d'une expression
 à l'instant précédent.
 Afin d'expliquer mieux comment marche ces constructions nous allons nous baser sur une réécriture du nœud \texttt{Rectangle} de l'exemple \ref{lst:rectangle}
@@ -844,8 +844,8 @@ tel
 \end{lstlisting}
 
 L'idée du \texttt{wrap} est d'exécuter l'ensemble des équations qui lui sont fournis à chaque instant afin de calculer un nouveau contexte.
-Puis renvoye la valeur de l'expression fourni au dernier instant (ici à l'instant 24).
-La construction \texttt{fby} permet elle d'intéragir avec le temps. À la première itération (ici l'instant 0) la valeur renvoyé et celle de l'expression à gauche.
+Puis renvoie la valeur de l'expression fourni au dernier instant (ici à l'instant 24).
+La construction \texttt{fby} permet elle d'interagir avec le temps. À la première itération (ici l'instant 0) la valeur renvoyé et celle de l'expression à gauche.
 Puis lors des instants suivant, la valeur renvoyé est celle de l'expression de droite calculé dans le contexte de l'instant précédant.
 
 Cela permet donc d'implémenter facilement des \textit{fold} et ainsi de pouvoir remplacer dans les codes \Usuba{} la plupart des boucles qui resterais après avoir
@@ -853,14 +853,14 @@ utilisé la syntaxe pour écrire des \textit{map}.
 
 \subsection{Conditions et arguments statiques}
 
-Une autre amélioration de \Usuba{} serait de pouvoir rajouter des conditionelles et la possibilité de faire des fonctions récursives.
+Une autre amélioration de \Usuba{} serait de pouvoir rajouter des conditionnelles et la possibilité de faire des fonctions récursives.
 Cela peut sembler contradictoire avec les propos tenus lors de l'introduction mais il existe un moyen de rajouter des conditions dans \Usuba{}.
 En effet, il n'est pas possible de faire des conditions qui dépendent des valeurs pour des raisons de sécurité.
 Cependant il est possible de rajouter des conditionnelles qui dépendent de paramètres statiques connu à la compilation.
 De plus afin de pouvoir utiliser pleinement cette fonctionnalité en \Usuba{} il faudrait pouvoir fournir à l'appel de nœud un argument statique connu à la
 compilation.
 
-Il serait donc possible avec de tels fonctionnalités d'écrire une fonction récursive qui calcule un terme de la suite de fibonacci.
+Il serait donc possible avec de tels fonctionnalités d'écrire une fonction récursive qui calcule un terme de la suite de Fibonacci.
 
 \begin{lstlisting}[caption=Fibonacci, label=lst:fibo]
 node Fibo<i>() returns (val:u64)
@@ -876,9 +876,26 @@ tel
 Dans ce rapport nous avons vu que \Usuba{} est à l'heure actuelle un langage incomplet dont il manque une spécification de sa sémantique et
 que celle qui peut peut être inféré à partir de l'implémentation du compilateur est non compositionnelle.
 Cependant nous avons aussi vu différentes méthodes afin d'implémenter en Coq une spécification d'une sémantique pour \Usuba{} ainsi que plusieurs
-constructions qui ont pour but d'améliorer la propreté des codes \Usuba{} ainsi que de clarifier la sémantique en retirant des ambiguités.
+constructions qui ont pour but d'améliorer la propreté des codes \Usuba{} ainsi que de clarifier la sémantique en retirant des ambiguïtés.
 De plus un système de types a aussi été proposé afin de pouvoir dans le futur intégrer un typeur à \textit{usubac} afin d'aider les utilisateurs à avoir des
 messages d'erreur plus clair et prédictibles.
+
+\section{Annexe}
+
+Le code Coq pour spécifier les différentes sémantiques de la section \ref{sec:sem} est disponible sur le répositoire : \url{https://github.com/samsa1/usuba\_coq}.
+
+Ce répositoire contient notamment :
+\begin{itemize}
+\item Un spécification en Coq de l'AST d'\Usuba{} : \href{https://github.com/samsa1/usuba\_coq/blob/main/src/usuba\_AST.v}{src/usuba\_AST.v}
+\item La sémantique par évaluation : \href{https://github.com/samsa1/usuba\_coq/blob/main/src/usuba\_sem.v}{src/usuba\_sem.v}
+\item La sémantique relationnelle : \href{https://github.com/samsa1/usuba\_coq/blob/main/src/relation\_semantic.v}{src/relation\_semantic.v}
+\item La sémantique par tri topologique : \href{https://github.com/samsa1/usuba\_coq/blob/main/src/topo\_sort/topo\_sem.v}{src/topo\_sort/topo\_sem.v}
+\item La sémantique par point fixe : \href{https://github.com/samsa1/usuba\_coq/blob/main/src/subst\_semantic.v}{src/subst\_semantic.v}
+\item Des preuves de correction d'optimisations : \href{https://github.com/samsa1/usuba\_coq/tree/main/src/normalization}{src/normalization}
+\item Deux exemples de primitives : \href{https://github.com/samsa1/usuba\_coq/blob/main/src/examples/ace_bitslice.v}{src/examples/ace\_bitslice.v}
+et \href{https://github.com/samsa1/usuba\_coq/blob/main/src/examples/aes.v}{src/examples/aes.v}
+\item L'extracteur (\href{https://github.com/samsa1/usuba\_coq/blob/main/src/extract.v}{src/extract.v}) et le script de test \href{https://github.com/samsa1/usuba_coq/blob/main/test.sh}{test.sh}
+\end{itemize}
 
 \printbibliography
 

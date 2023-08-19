@@ -15,13 +15,13 @@ src/usuba_sem.v
 src/relation_semantic.v
 src/subst_semantic.v
 
-src/new_sem/topological_sort.v
-src/new_sem/termination_funs.v
-src/new_sem/termination_properties.v
-src/new_sem/def_tree_proofs.v
-src/new_sem/use_tree_proofs.v
-src/new_sem/build_rel_fun_proofs.v
-src/new_sem/new_sem.v
+src/topo_sort/topological_sort.v
+src/topo_sort/termination_funs.v
+src/topo_sort/termination_properties.v
+src/topo_sort/def_tree_proofs.v
+src/topo_sort/use_tree_proofs.v
+src/topo_sort/build_rel_fun_proofs.v
+src/topo_sort/topo_sem.v
 
 src/syntax.v
 src/examples/aes.v
