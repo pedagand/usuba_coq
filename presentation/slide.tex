@@ -111,7 +111,7 @@ returns (cipher:u16[64][4])
 vars
 let
     forall i in [0,63] {
-        chiper[i] = Rectangle( plain[i], key[i] )
+        chiper[i] = Rectangle( plain, key )
     }
 tel
 \end{lstlisting}
