@@ -1,0 +1,262 @@
+\documentclass{beamer}
+\usepackage[francais]{babel}
+\usepackage[utf8]{inputenc}
+
+\usepackage{hyperref}
+
+% other packages
+\usepackage{latexsym,amsmath,xcolor,multicol,booktabs,calligra}
+\usepackage{amssymb}
+\usepackage{listings}
+\usepackage{proof}
+\usepackage{color}
+
+
+% packages and settings for bibtex
+\usepackage[backend=bibtex,sorting=none]{biblatex}
+\setbeamerfont{footnote}{size=\tiny}   % footnote for bibtex
+\setbeamertemplate{bibliography item}[text]   % reference list for bibtex
+
+\newcommand{\Usuba}{\textsc{Usuba}}
+\newcommand{\UsubaA}{$\textsc{Usuba}_1$}
+\newcommand{\UsubaB}{$\textsc{Usuba}_2$}
+\newcommand{\doubleplus}{+\!\!\!+\;}
+
+\author{Samuel \textsc{Vivien}, sous l'encadrement de Pierre-Évariste \textsc{Dagand}}
+\title{\Usuba{}}
+\date{\today}
+\usepackage{ucas}
+\include{../rapport/rules}
+\definecolor{deepblue}{rgb}{0,0,0.5}
+\definecolor{deepred}{rgb}{0.4,0,0}
+\definecolor{deeppurple}{rgb}{0.6,0,0.5}
+\definecolor{deepgreen}{rgb}{0,0.3,0}
+\definecolor{halfgray}{gray}{0.55}
+
+
+
+\begin{document}
+
+\begin{frame}
+    \titlepage
+\end{frame}
+
+\begin{frame}{}
+    \tableofcontents
+\end{frame}
+
+\section{\Usuba{} aujourd'hui}
+
+\begin{frame}[fragile]
+\scriptsize
+\begin{lstlisting}
+table SubColumn (input:v4) returns (out:v4)
+    { 6, 5, 12, 10, 1, 14, 7, 9, 11, 0, 3, 13, 8, 15, 4, 2 }
+
+table SubColumn (input:v4) returns (out:v4)
+    { 6, 5, 12, 10, 1, 14, 7, 9, 11, 0, 3, 13, 8, 15, 4, 2 }
+
+node ShiftRows (input:u16[4]) returns (out:u16[4])
+vars
+let
+    out[0] = input[0];        out[1] = input[1] <<< 1;
+    out[2] = input[2] <<< 12; out[3] = input[3] <<< 13
+tel
+
+node Rectangle (plain:u16[4],key:u16[26][4])
+returns (cipher:u16[4])
+vars tmp : u16[26][4]
+let
+    tmp[0] = plain;
+    forall i in [0,24] {
+        tmp[i+1] = ShiftRows( SubColumn( tmp[i] ^ key[i] ) )
+    }
+    cipher = tmp[25] ^ key[25]
+tel
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}{Spécificités du langage}
+\begin{itemize}
+\item<1-> Pas de conditionnelles (\texttt{if} ou \texttt{while})
+\item<2-> Pas d'accès mémoire dynamiques
+\end{itemize}
+
+\uncover<3->{Cela permet d'avoir un temps d'exécution indépendant des valeurs du calcul}
+\end{frame}
+
+\begin{frame}{Limitations du langage}
+\begin{itemize}
+\item<1-> Pas de système de type
+\item<2-> Pas de spécification de la sémantique
+\item<3-> La sémantique implémenté est non compositionnelle !
+\end{itemize}
+
+\medskip
+
+\onslide<4-6>{On prend $v = [[0, 1], [2, 3], [4, 5]]$}
+
+\onslide<5-6>{Donc $v[0,1][1] = [1, 3]$}
+
+\onslide<6>{On prend $\{x = v[0, 1]; \; y = x[1]\}$, on obtient donc $y = [2, 3]$}
+
+\onslide<7>{Correction : distinguer $v[0,1; \; 1]$ de $v[0, 1][1]$}
+\end{frame}
+
+\begin{frame}[fragile]{Amélioration des appels}
+\scriptsize
+\begin{lstlisting}
+node MapRectangle (plain:u16[64][4],key:u16[64][26][4])
+returns (cipher:u16[64][4])
+vars
+let
+    forall i in [0,63] {
+        chiper[i] = Rectangle( plain[i], key[i] )
+    }
+tel
+\end{lstlisting}
+
+\end{frame}
+
+\begin{frame}[fragile]{Amélioration des appels}
+\scriptsize
+\begin{lstlisting}
+node MapRectangle (plain:u16[64][4],key:u16[64][26][4])
+returns (cipher:u16[64][4])
+vars
+let
+    forall i in [0,63] {
+        chiper[i] = Rectangle( plain[i], key[i] )
+    }
+tel
+\end{lstlisting}
+
+\begin{lstlisting}
+node MapRectangle (plain:u16[64][4],key:u16[64][26][4])
+returns (cipher:u16[64][4])
+vars
+let
+    chiper = Rectangle[64]( plain[i], key[i] )
+tel
+\end{lstlisting}
+    
+\end{frame}
+
+\section{Un système de type pour \Usuba{}}
+
+\begin{frame}{Grammaire des types}
+\begin{figure}[t]
+    \onslide<1->{
+        \begin{minipage}{0.3\textwidth}
+            \ottgrammartabular{
+            \ottdir\ottinterrule
+            \ottsize\ottinterrule
+            \otttypi
+            }
+        \end{minipage}
+    }
+    \onslide<2>{
+        \begin{minipage}{0.6\textwidth}
+            $\textbf{U V}\; 32$ : entier 32 bits classique.
+
+            $\textbf{U H}\; 64$ : entier 64 bits découpé dans 64 registres.
+
+            $u32 = \textbf{U}\; dir\; 32$ et $v4 = \textbf{U}\; dir\; size[4]$.
+        \end{minipage}
+    }
+\end{figure}
+\end{frame}
+        
+\begin{frame}{Grammaire des types}
+\begin{figure}[t]
+    \onslide<1->{
+        \begin{minipage}{0.3\textwidth}
+            \ottgrammartabular{
+            \ottdir\ottinterrule
+            \ottsize\ottinterrule
+            \otttypi
+            }
+        \end{minipage}
+    }
+    \onslide<1->{
+        \begin{minipage}{0.3\textwidth}
+        \ottgrammartabular{
+            \otttyp\ottinterrule
+            \otttypL}
+        \end{minipage}
+    }
+    \onslide<2->{
+        \begin{minipage}{0.3\textwidth}
+            \ottgrammartabular{
+            \otttypc\ottinterrule
+            \ottA
+            }
+        \end{minipage}
+    }
+\end{figure}
+\end{frame}
+
+\begin{frame}{Règles de typage}
+\begin{figure}
+    \ottusedrule{\ottdruleBinop{}}
+    \ottusedrule{\ottdruleTuple{}}
+\end{figure}
+\end{frame}
+
+\begin{frame}{Règles de typage des appels de nœuds}
+    \begin{figure}
+        \ottusedrule{\ottdruleFun{}}
+    \end{figure}
+\end{frame}
+    
+\begin{frame}{Deux nouvelles constructions}
+\begin{itemize}
+\item<1-> Les coercions explicites
+\item<2-> Les constructeurs de tableaux (pour typer $x + (x[0], x[1])$)
+\end{itemize}
+\end{frame}
+
+\section{4 sémantiques pour \Usuba{}}
+
+\begin{frame}{Sémantique par évaluation}
+\begin{enumerate}
+\item<1-> On évalue tout dans l'ordre
+\item<2-> Permet de gérer des équations de modifications
+\item<3-> Sémantique la plus proche de celle implémenté
+\end{enumerate}
+\end{frame}
+
+\begin{frame}{Sémantique relationnelle}
+\begin{enumerate}
+\item<1-> On définie une propriété $e \mapsto v$.
+\item<2-> Sémantique indépendante de l'ordre des équations
+\item<3-> Sémantique non calculatoire
+\item<4-> Accepte beaucoup de systèmes comme $\{y = y\}$
+\end{enumerate}
+\end{frame}
+
+\begin{frame}{Sémantique par tri topologique}
+\begin{enumerate}
+\item<1-> Remonte l'ordre des évuations pour calculer les valeurs
+\item<2-> Peu maniable pour de la preuve de préservation de la sémantique
+\end{enumerate}
+\end{frame}
+
+\begin{frame}{Sémantique par point fixe}
+\begin{enumerate}
+\item<1-> Essaye de calculer les équations par passages successifs sur le système
+\item<2-> Sous ensemble stricte de la sémantique relationnelle
+\end{enumerate}
+\end{frame}
+
+\section{Conclusion}
+
+\begin{frame}{Conclusion}
+
+\end{frame}
+
+\begin{frame}
+Merci de m'avoir écouté
+\end{frame}
+
+\end{document}

@@ -1,0 +1,22 @@
+\frametitle{Amélioration des appels}
+\scriptsize
+\begin{lstlisting}
+node MapRectangle (plain:u16[64][4],key:u16[64][26][4])
+returns (cipher:u16[64][4])
+vars
+let
+    forall i in [0,63] {
+        chiper[i] = Rectangle( plain[i], key[i] )
+    }
+tel
+\end{lstlisting}
+
+\begin{lstlisting}
+node MapRectangle (plain:u16[64][4],key:u16[64][26][4])
+returns (cipher:u16[64][4])
+vars
+let
+    chiper = Rectangle[64]( plain[i], key[i] )
+tel
+\end{lstlisting}
+
