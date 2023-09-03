@@ -1,5 +1,0 @@
-\babel@toc {french}{}\relax 
-\beamer@sectionintoc {1}{\textsc {Usuba}{} aujourd'hui}{3}{0}{1}
-\beamer@sectionintoc {2}{Un système de type pour \textsc {Usuba}{}}{17}{0}{2}
-\beamer@sectionintoc {3}{4 sémantiques pour \textsc {Usuba}{}}{26}{0}{3}
-\beamer@sectionintoc {4}{Conclusion}{38}{0}{4}

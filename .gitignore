@@ -46,3 +46,8 @@ rapport/rules.tex
 *.log
 *.out
 *.run.xml
+*.nav
+*.pyg
+*.synctex.gz
+*.toc
+*.vrb

@@ -23,7 +23,7 @@
 \newcommand{\doubleplus}{+\!\!\!+\;}
 
 \author{Samuel \textsc{Vivien}, sous l'encadrement de Pierre-Évariste \textsc{Dagand}}
-\title{\Usuba{}}
+\title{\Usuba{} v2, Syntaxe et Sémantique}
 \date{\today}
 \usepackage{ucas}
 \include{../rapport/rules}
@@ -33,6 +33,16 @@
 \definecolor{deepgreen}{rgb}{0,0.3,0}
 \definecolor{halfgray}{gray}{0.55}
 
+\newcommand{\otttypbis}{
+    \ottrulehead{\tau}{::=}{}\ottprodnewline
+    \ottfirstprodline{|}{\ottkw{U} \, \ottnt{dir} \, \ottnt{size}}{}{}{}{}\ottprodnewline
+    \ottprodline{|}{ \tau  [  \ottnt{a}  ] }{}{}{}{}
+}
+
+\lstset{emph={%  
+    node, let, tel, vars, returns, table, forall, in%
+    },emphstyle={\color{blue}\bfseries}%
+}
 
 
 \begin{document}
@@ -45,7 +55,7 @@
     \tableofcontents
 \end{frame}
 
-\section{\Usuba{} aujourd'hui}
+\section{\UsubaA{}}
 
 \begin{frame}[fragile]
 \scriptsize
@@ -53,17 +63,16 @@
 table SubColumn (input:v4) returns (out:v4)
     { 6, 5, 12, 10, 1, 14, 7, 9, 11, 0, 3, 13, 8, 15, 4, 2 }
 
-table SubColumn (input:v4) returns (out:v4)
-    { 6, 5, 12, 10, 1, 14, 7, 9, 11, 0, 3, 13, 8, 15, 4, 2 }
-
 node ShiftRows (input:u16[4]) returns (out:u16[4])
 vars
 let
-    out[0] = input[0];        out[1] = input[1] <<< 1;
-    out[2] = input[2] <<< 12; out[3] = input[3] <<< 13
+    out[0] = input[0];
+    out[1] = input[1] <<< 1;
+    out[2] = input[2] <<< 12;
+    out[3] = input[3] <<< 13
 tel
 
-node Rectangle (plain:u16[4],key:u16[26][4])
+node Rectangle (plain:u16[4], key:u16[26][4])
 returns (cipher:u16[4])
 vars tmp : u16[26][4]
 let
@@ -79,39 +88,41 @@ tel
 \begin{frame}{Spécificités du langage}
 \begin{itemize}
 \item<1-> Pas de conditionnelles (\texttt{if} ou \texttt{while})
-\item<2-> Pas d'accès mémoire dynamiques
+\item<1-> Pas d'accès mémoire dynamiques
 \end{itemize}
 
-\uncover<3->{Cela permet d'avoir un temps d'exécution indépendant des valeurs du calcul}
+\uncover<2->{Interdit pour avoir un temps d'exécution indépendant des valeurs du calcul}
 \end{frame}
 
 \begin{frame}{Limitations du langage}
 \begin{itemize}
-\item<1-> Pas de système de type
-\item<2-> Pas de spécification de la sémantique
-\item<3-> La sémantique implémenté est non compositionnelle !
+\item Pas de système de type
+\item Pas de spécification de la sémantique
+\item La sémantique implémentées est non compositionnelle !
 \end{itemize}
 
 \medskip
 
-\onslide<4-6>{On prend $v = [[0, 1], [2, 3], [4, 5]]$}
+\onslide<2->{
+    On prend $v = [[0, 1], [2, 3], [4, 5]]$
 
-\onslide<5-6>{Donc $v[0,1][1] = [1, 3]$}
+    Donc $v[0,1][1] = [1, 3]$
 
-\onslide<6>{On prend $\{x = v[0, 1]; \; y = x[1]\}$, on obtient donc $y = [2, 3]$}
+    On prend $\{x = v[0, 1]; \; y = x[1]\}$, on obtient donc $y = [2, 3]$
+}
 
-\onslide<7>{Correction : distinguer $v[0,1; \; 1]$ de $v[0, 1][1]$}
+\onslide<3->{Correction : distinguer $v[0,1; \; 1]$ de $v[0, 1][1]$}
 \end{frame}
 
 \begin{frame}[fragile]{Amélioration des appels}
 \scriptsize
 \begin{lstlisting}
-node MapRectangle (plain:u16[64][4],key:u16[64][26][4])
+node MapRectangle (plain:u16[64][4], key:u16[64][26][4])
 returns (cipher:u16[64][4])
 vars
 let
     forall i in [0,63] {
-        chiper[i] = Rectangle( plain, key )
+        chiper[i] = Rectangle( plain[i], key[i] )
     }
 tel
 \end{lstlisting}
@@ -121,7 +132,7 @@ tel
 \begin{frame}[fragile]{Amélioration des appels}
 \scriptsize
 \begin{lstlisting}
-node MapRectangle (plain:u16[64][4],key:u16[64][26][4])
+node MapRectangle (plain:u16[64][4], key:u16[64][26][4])
 returns (cipher:u16[64][4])
 vars
 let
@@ -132,17 +143,17 @@ tel
 \end{lstlisting}
 
 \begin{lstlisting}
-node MapRectangle (plain:u16[64][4],key:u16[64][26][4])
+node MapRectangle (plain:u16[64][4], key:u16[64][26][4])
 returns (cipher:u16[64][4])
 vars
 let
-    chiper = Rectangle[64]( plain[i], key[i] )
+    chiper = Rectangle[64]( plain, key )
 tel
 \end{lstlisting}
     
 \end{frame}
 
-\section{Un système de type pour \Usuba{}}
+\section{Un système de type pour \UsubaB{}}
 
 \begin{frame}{Grammaire des types}
 \begin{figure}[t]
@@ -151,12 +162,15 @@ tel
             \ottgrammartabular{
             \ottdir\ottinterrule
             \ottsize\ottinterrule
-            \otttypi
             }
         \end{minipage}
     }
-    \onslide<2>{
+    \onslide<1->{
         \begin{minipage}{0.6\textwidth}
+            \ottgrammartabular{
+                \otttypbis
+            }
+
             $\textbf{U V}\; 32$ : entier 32 bits classique.
 
             $\textbf{U H}\; 64$ : entier 64 bits découpé dans 64 registres.
@@ -174,23 +188,14 @@ tel
             \ottgrammartabular{
             \ottdir\ottinterrule
             \ottsize\ottinterrule
-            \otttypi
             }
         \end{minipage}
     }
     \onslide<1->{
-        \begin{minipage}{0.3\textwidth}
+        \begin{minipage}{0.6\textwidth}
         \ottgrammartabular{
-            \otttyp\ottinterrule
+            \otttypbis\ottinterrule
             \otttypL}
-        \end{minipage}
-    }
-    \onslide<2->{
-        \begin{minipage}{0.3\textwidth}
-            \ottgrammartabular{
-            \otttypc\ottinterrule
-            \ottA
-            }
         \end{minipage}
     }
 \end{figure}
@@ -198,60 +203,142 @@ tel
 
 \begin{frame}{Règles de typage}
 \begin{figure}
-    \ottusedrule{\ottdruleBinop{}}
-    \ottusedrule{\ottdruleTuple{}}
+    \ottusedrule{
+        \ottdrule{%
+        \ottpremise{\Gamma  \ottsym{,}  \ottnt{P}  \ottsym{,}  \ottnt{A}  \vdash_E  \ottnt{e_{{\mathrm{1}}}}  \ottsym{:}  \tau}%
+        \ottpremise{\Gamma  \ottsym{,}  \ottnt{P}  \ottsym{,}  \ottnt{A}  \vdash_E  \ottnt{e_{{\mathrm{2}}}}  \ottsym{:}  \tau}%
+        \uncover<2->{\ottpremise{\ottnt{A}  \vdash  \ottkw{Arith}  \, \tau}}\vspace{-0.5cm}}{
+        \Gamma  \ottsym{,}  \ottnt{P}  \ottsym{,}  \ottnt{A}  \vdash_E   \ottnt{e_{{\mathrm{1}}}}  \;  \ottnt{+} _{ \tau } \;  \ottnt{e_{{\mathrm{2}}}}   \ottsym{:}  \tau}{%
+        {\ottdrulename{Binop}}{}%
+        }}
+    \uncover<3->{\ottusedrule{\ottdruleTuple{}}}
 \end{figure}
 \end{frame}
 
 \begin{frame}{Règles de typage des appels de nœuds}
     \begin{figure}
-        \ottusedrule{\ottdruleFun{}}
+        \ottusedrule{\ottdrule{%
+        \ottpremise{\ottnt{P}  \vdash  \ottmv{f}  \ottsym{:} \, \uncover<2->{\forall \, \ottcomp{\ottmv{d_{\ottmv{n}}}}{\ottmv{n}} \, \ottsym{,} \, \forall \, \ottcomp{\ottmv{s_{\ottmv{m}}}}{\ottmv{m}} \, \ottsym{,}}  \ottcomp{\ottnt{typc_{\ottmv{j}}}}{\ottmv{j}}  \Rightarrow  \mathcal{T}_{{\mathrm{1}}}  \rightarrow  \mathcal{T}_{{\mathrm{2}}}}%
+        \vspace{0.2cm}%
+        \ottpremise{\Gamma  \ottsym{,}  \ottnt{P}  \ottsym{,}  \ottnt{A}  \vdash_E  \ottsym{(} \, \ottcomp{\ottnt{e_{\ottmv{n}}}}{\ottmv{n}} \, \ottsym{)}  \ottsym{:}  \only<1-2>{\ottcomp{\sigma_{\ottmv{x}} \, \ottcomp{\ottsym{[}  \ottmv{z_{\ottmv{q}}}  \ottsym{]}}{\ottmv{q}}}{\ottmv{x}}} \only<3->{\mathcal{T}'_{{\mathrm{1}}}}}%
+        \ottpremise{\ottnt{A}  \vdash \, \ottcomp{\ottnt{typc_{\ottmv{j}}}  \uncover<2->{\ottsym{[} \, \ottcomp{\ottmv{d_{\ottmv{n}}}  \leftarrow  \ottmv{d'_{\ottmv{n}}}}{\ottmv{n}} \, \; ; \; \, \ottcomp{\ottmv{s_{\ottmv{m}}}  \leftarrow  \ottmv{s'_{\ottmv{m}}}}{\ottmv{m}} \, \ottsym{]}}}{\ottmv{j}}}%
+        \ottpremise{\mathcal{T}_{{\mathrm{1}}}  \uncover<2->{\ottsym{[} \, \ottcomp{\ottmv{d_{\ottmv{n}}}  \leftarrow  \ottmv{d'_{\ottmv{n}}}}{\ottmv{n}} \, \; ; \; \, \ottcomp{\ottmv{s_{\ottmv{m}}}  \leftarrow  \ottmv{s'_{\ottmv{m}}}}{\ottmv{m}} \, \ottsym{]}}  \ottsym{=}  \ottcomp{\sigma_{\ottmv{x}} \, \uncover<5->{\ottcomp{\ottsym{[}  \ell_{\ottmv{g}}  \ottsym{]}}{\ottmv{g}}} \, \ottcomp{\ottsym{[}  \ottmv{z_{\ottmv{q}}}  \ottsym{]}}{\ottmv{q}}}{\ottmv{x}}}%
+        \ottpremise{\mathcal{T}_{{\mathrm{2}}}  \uncover<2->{\ottsym{[} \, \ottcomp{\ottmv{d_{\ottmv{n}}}  \leftarrow  \ottmv{d'_{\ottmv{n}}}}{\ottmv{n}} \, \; ; \; \, \ottcomp{\ottmv{s_{\ottmv{m}}}  \leftarrow  \ottmv{s'_{\ottmv{m}}}}{\ottmv{m}} \, \ottsym{]}}  \ottsym{=}  \ottcomp{\sigma'_{\ottmv{y}} \, \uncover<5->{\ottcomp{\ottsym{[}  \ell_{\ottmv{g}}  \ottsym{]}}{\ottmv{g}}} \, \ottcomp{\ottsym{[}  \ottmv{z'_{\ottmv{r}}}  \ottsym{]}}{\ottmv{r}}}{\ottmv{y}}}%
+        \onslide<3->{\ottpremise{\mathcal{T}'_{{\mathrm{1}}} \, \cong \, \ottcomp{\sigma_{\ottmv{x}} \, \uncover<5->{\ottcomp{\ottsym{[}  \ell_{\ottmv{g}}  \ottsym{]}}{\ottmv{g}}} \, \uncover<4->{\ottcomp{\ottsym{[}  \ell'_{\ottmv{h}}  \ottsym{]}}{\ottmv{h}}} \, \ottcomp{\ottsym{[}  \ottmv{z_{\ottmv{q}}}  \ottsym{]}}{\ottmv{q}}}{\ottmv{x}}}}%
+        \vspace{-0.5cm}%
+        }{
+        \Gamma  \ottsym{,}  \ottnt{P}  \ottsym{,}  \ottnt{A}  \vdash_E  \uncover<5->{\ottsym{[} \, \ottcomp{\ell_{\ottmv{g}}}{\ottmv{g}} \, \ottsym{]}}  \ottmv{f}  \uncover<4->{\ottsym{[} \, \ottcomp{\ell'_{\ottmv{h}}}{\ottmv{h}} \, \ottsym{]}}  \ottsym{(} \, \ottcomp{\ottnt{e_{\ottmv{n}}}}{\ottmv{n}} \, \ottsym{)}  \ottsym{:}  \ottcomp{\sigma'_{\ottmv{y}} \, \uncover<5->{\ottcomp{\ottsym{[}  \ell_{\ottmv{g}}  \ottsym{]}}{\ottmv{g}}} \, \uncover<4->{\ottcomp{\ottsym{[}  \ell'_{\ottmv{h}}  \ottsym{]}}{\ottmv{h}}} \, \ottcomp{\ottsym{[}  \ottmv{z'_{\ottmv{r}}}  \ottsym{]}}{\ottmv{r}}}{\ottmv{y}}}{%
+        {\ottdrulename{Fun}}{}%
+        }}
     \end{figure}
 \end{frame}
     
-\begin{frame}{Deux nouvelles constructions}
+\begin{frame}[fragile]{Deux nouvelles constructions}
+\scriptsize
+\begin{lstlisting}
+node camellia (plaintext:b128, kw:b64[4], k:b64[18], ke:b64[4])
+    returns (ciphertext:b128)
+vars
+   D1 : b64[12],
+   D2 : b64[12]
+let
+  (D1[0],D2[0]) = plaintext ^ kw[0,1];
+    ...
+tel
+\end{lstlisting}
+
+\normalsize
+\uncover<2->{
 \begin{itemize}
-\item<1-> Les coercions explicites
-\item<2-> Les constructeurs de tableaux (pour typer $x + (x[0], x[1])$)
-\end{itemize}
+\item Les coercions explicites
+\item Les constructeurs de tableaux
+\end{itemize}}
 \end{frame}
 
-\section{4 sémantiques pour \Usuba{}}
+\section{4 sémantiques pour \UsubaB{}}
+
+% TODO rajouter les nombres de lignes et les signatures
 
 \begin{frame}{Sémantique par évaluation}
+
+\begin{align*}
+    eval\_expr : architecture & \rightarrow prog\_ctxt \rightarrow context \rightarrow expr \\
+        & \rightarrow option (list \; value)
+\end{align*}
+
 \begin{enumerate}
-\item<1-> On évalue tout dans l'ordre
-\item<2-> Permet de gérer des équations de modifications
-\item<3-> Sémantique la plus proche de celle implémenté
+\item On évalue tout dans l'ordre
+\item Permet de gérer des équations de modifications
+\item Sémantique la plus proche de celle implémenté
 \end{enumerate}
+
+408 lignes
+
 \end{frame}
 
 \begin{frame}{Sémantique relationnelle}
+
+\begin{align*}
+    eval\_expr\_to : architecture & \rightarrow prog\_ctxt \rightarrow context \rightarrow expr \\
+    & \rightarrow list \; value \rightarrow Prop
+\end{align*}
+
 \begin{enumerate}
-\item<1-> On définie une propriété $e \mapsto v$.
-\item<2-> Sémantique indépendante de l'ordre des équations
-\item<3-> Sémantique non calculatoire
-\item<4-> Accepte beaucoup de systèmes comme $\{y = y\}$
+\item Sémantique indépendante de l'ordre des équations
+\item Sémantique non calculatoire
+\item Accepte beaucoup de systèmes tel que $\{x = x \times 0 \}$
 \end{enumerate}
+
+265 lignes
+
 \end{frame}
 
 \begin{frame}{Sémantique par tri topologique}
+
+\begin{align*}
+    eval\_expr \; & (arch : architecture) \; (prog : prog\_ctxt) \; (eqns : list \; equations) \\
+    & (tctxt : typ\_ctxt) \; (args : arguments) \; (e : expr) \\
+    & (a : acc\_pred \; tctxt \; eqns \; e) : option \; value
+\end{align*}
+ 
 \begin{enumerate}
-\item<1-> Remonte l'ordre des évuations pour calculer les valeurs
-\item<2-> Peu maniable pour de la preuve de préservation de la sémantique
+\item Remonte l'ordre des évaluations pour calculer les valeurs
+\item Peu maniable pour de la preuve de préservation de la sémantique
+\item Contient de nombreux outils nécessaire pour un typeur
 \end{enumerate}
+
+11602 lignes
+
 \end{frame}
 
 \begin{frame}{Sémantique par point fixe}
+
+
+\begin{align*}
+    eval\_expr : architecture & \rightarrow prog\_ctxt \rightarrow context \rightarrow expr \\
+        & \rightarrow option \; (Sum \; (list \; value) \; expr)
+\end{align*}
+
+
 \begin{enumerate}
-\item<1-> Essaye de calculer les équations par passages successifs sur le système
-\item<2-> Sous ensemble stricte de la sémantique relationnelle
+\item Essaye de calculer les équations par passages successifs sur le système
+\item Sous ensemble stricte de la sémantique relationnelle
 \end{enumerate}
+
+650 lignes
+
 \end{frame}
+
 
 \section{Conclusion}
 
 \begin{frame}{Conclusion}
+
+Il y a de nombreux problèmes en \UsubaA{}
+
+On a vu plusieurs améliorations possible pour ces problèmes
+
+Il existe d'autres améliorations comme l'élaboration de types et les boucles temporelles.
 
 \end{frame}
 
